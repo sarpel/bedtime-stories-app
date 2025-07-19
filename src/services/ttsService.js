@@ -81,17 +81,18 @@ export class TTSService {
       }
     }
     
-		// ElevenLabs format
-		if (this.endpoint.includes('elevenlabs') || this.endpoint.includes('v1/text-to-speech')) {
+		// ElevenLabs format - check both original endpoint and constructed URL
+		if (this.endpoint.includes('elevenlabs') || this.endpoint.includes('v1/text-to-speech') || 
+		    (this.endpoint && this.voiceId && this.endpoint.includes('api.elevenlabs.io'))) {
 			return {
 				text: text,
 				model_id: this.modelId || 'eleven_multilingual_v2',
 				voice_settings: {
-					stability: 0.75,          // Yüksek istikrar
 					similarity_boost: 0.75,   // Yüksek benzerlik
+					stability: 0.75,          // Yüksek istikrar
+					speed: this.voiceSettings?.speed || 0.9,  // Kullanıcının ayarladığı hız
 					style: 0.0,               // Sıfır stil/vurgu
-					use_speaker_boost: true,  // Ses netliğini artırmak için bu ayar genellikle 'true' kalmalı
-					speed: this.voiceSettings?.speed || 0.9  // Kullanıcının ayarladığı hız
+					use_speaker_boost: true   // Ses netliğini artırmak için bu ayar genellikle 'true' kalmalı
 				}
 			}
 		}
@@ -176,10 +177,8 @@ export class TTSService {
       return `data:audio/mpeg;base64,${data.audioContent}`
     }
 
-    // ElevenLabs format (sometimes returns direct base64)
-    if (typeof data === 'string' && data.length > 100) {
-      return `data:audio/mpeg;base64,${data}`
-    }
+    // ElevenLabs format - returns audio stream, not base64
+    // Audio is handled as blob in generateAudio method
 
     throw new Error('TTS yanıtından ses dosyası çıkarılamadı. API yanıt formatını kontrol edin.')
   }
@@ -204,12 +203,13 @@ export class TTSService {
       ]
     }
 
-    if (endpoint.includes('elevenlabs')) {
+    if (endpoint.includes('elevenlabs') || endpoint.includes('api.elevenlabs.io')) {
       return [
         { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella (Kadın)' },
         { id: 'ErXwobaYiN019PkySvjV', name: 'Antoni (Erkek)' },
         { id: 'VR6AewLTigWG4xSOukaG', name: 'Arnold (Erkek)' },
-        { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam (Erkek)' }
+        { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam (Erkek)' },
+        { id: 'xsGHrtxT5AdDzYXTQT0d', name: 'Sarah (Kadın)' }  // Added from your example
       ]
     }
 

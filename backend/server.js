@@ -70,7 +70,10 @@ app.post('/api/tts', async (req, res) => {
   const { endpoint, requestBody } = req.body;
   const apiKey = process.env.TTS_API_KEY;
 
+  console.log('TTS Request received:', { endpoint, hasApiKey: !!apiKey });
+
   if (!apiKey) {
+    console.error('TTS API key missing from environment variables');
     return res.status(500).json({ error: 'TTS API anahtarı sunucuda tanımlanmamış.' });
   }
 
