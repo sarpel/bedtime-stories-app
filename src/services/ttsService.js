@@ -11,9 +11,9 @@ export class TTSService {
   // Generate audio from text using custom TTS endpoint
   async generateAudio(text, onProgress) {
     try {
-      // Validate settings
-      if (!this.endpoint || !this.modelId || !this.apiKey) {
-        throw new Error('TTS ayarları eksik. Lütfen ayarlar panelinden endpoint, model ID ve API anahtarını yapılandırın.')
+      // API anahtarını buradan SİLİN. Bu doğru, backend'de kalacak.
+      if (!this.endpoint || !this.modelId || !this.voiceId) {
+        throw new Error('TTS ayarları eksik. Lütfen ayarlar panelinden endpoint, model ID ve voice ID\'yi yapılandırın.')
       }
 
       if (!text || text.trim().length === 0) {
@@ -22,20 +22,29 @@ export class TTSService {
 
       onProgress?.(10)
 
-      // Prepare request based on common TTS API formats
+      // --- YENİ EKLENEN KISIM ---
+      // 1. Voice ID'yi ve output_format'ı kullanarak tam URL'yi oluştur.
+      // this.endpoint -> "https://api.elevenlabs.io/v1/text-to-speech"
+      // this.voiceId  -> "xsGHrtxT5AdDzYXTQT0d"
+      // Sonuç: "https://api.elevenlabs.io/v1/text-to-speech/xsGHrtxT5AdDzYXTQT0d?output_format=mp3_44100_128"
+      const fullUrl = `${this.endpoint}/${this.voiceId}?output_format=mp3_44100_128`;
+      // --- DEĞİŞİKLİĞİN SONU ---
+
       const requestBody = this.prepareRequestBody(text)
-      
       onProgress?.(30)
 
-      const response = await fetch(this.endpoint, {
+      // İstek artık kendi backend sunucumuza (localhost:3001) yapılıyor
+      const response = await fetch('http://localhost:3001/api/tts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-          'User-Agent': 'BedtimeStories/1.0',
-          'Accept': 'audio/mpeg, audio/wav, audio/ogg, application/json'
         },
-        body: JSON.stringify(requestBody)
+        // Backend'e endpoint'i ve hazır requestBody'yi gönderiyoruz
+        // DİKKAT: Backend'e artık birleştirilmiş ve tam olan URL'yi gönderiyoruz.
+        body: JSON.stringify({
+          endpoint: fullUrl, // Değişiklik burada!
+          requestBody: requestBody,
+        })
       })
 
       onProgress?.(60)
@@ -45,28 +54,13 @@ export class TTSService {
         throw new Error(`TTS API hatası (${response.status}): ${errorText}`)
       }
 
-      // Check if response is audio or JSON
-      const contentType = response.headers.get('content-type')
+      const audioBlob = await response.blob()
+      onProgress?.(90)
       
-      if (contentType && contentType.includes('audio/')) {
-        // Direct audio response
-        const audioBlob = await response.blob()
-        onProgress?.(90)
-        
-        const audioUrl = URL.createObjectURL(audioBlob)
-        onProgress?.(100)
-        
-        return audioUrl
-      } else {
-        // JSON response with audio URL or base64
-        const data = await response.json()
-        onProgress?.(80)
-        
-        const audioUrl = this.extractAudioFromResponse(data)
-        onProgress?.(100)
-        
-        return audioUrl
-      }
+      const audioUrl = URL.createObjectURL(audioBlob)
+      onProgress?.(100)
+      
+      return audioUrl
 
     } catch (error) {
       console.error('TTS audio generation error:', error)

@@ -27,47 +27,42 @@ export class LLMService {
   // Generate story using custom LLM endpoint
   async generateStory(onProgress) {
     try {
-      // Validate settings
-      if (!this.endpoint || !this.modelId || !this.apiKey) {
-        throw new Error('LLM ayarları eksik. Lütfen ayarlar panelinden endpoint, model ID ve API anahtarını yapılandırın.')
+      // API anahtarını buradan SİLİN. Artık backend'de kullanılacak.
+      if (!this.endpoint || !this.modelId) {
+        throw new Error('LLM ayarları eksik. Lütfen ayarlar panelinden endpoint ve model ID\'yi yapılandırın.')
       }
 
       onProgress?.(10)
 
       const prompt = this.buildPrompt()
-      
       onProgress?.(30)
 
-      // Prepare request based on common LLM API formats
-      const requestBody = this.prepareRequestBody(prompt)
-      
-      onProgress?.(50)
-
-      const response = await fetch(this.endpoint, {
+      // İstek artık kendi backend sunucumuza (localhost:3001) yapılıyor
+      const response = await fetch('http://localhost:3001/api/llm', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-          // Add common headers for different providers
-          'User-Agent': 'BedtimeStories/1.0',
-          'Accept': 'application/json'
         },
-        body: JSON.stringify(requestBody)
+        // Backend'e gerekli tüm bilgileri gönderiyoruz
+        body: JSON.stringify({
+          endpoint: this.endpoint,
+          modelId: this.modelId,
+          prompt: prompt,
+          max_tokens: this.getMaxTokens()
+        })
       })
 
       onProgress?.(70)
 
       if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`LLM API hatası (${response.status}): ${errorText}`)
+        const errorData = await response.json()
+        throw new Error(`LLM API hatası (${response.status}): ${errorData.error}`)
       }
 
       const data = await response.json()
       onProgress?.(90)
 
-      // Extract story from response based on common formats
       const story = this.extractStoryFromResponse(data)
-      
       onProgress?.(100)
       
       return story
