@@ -78,6 +78,8 @@ app.post('/api/tts', async (req, res) => {
   }
 
   try {
+    console.log('Sending request to ElevenLabs:', { endpoint, requestBody });
+    
     // Axios ile TTS API'sine isteği gönder.
     const response = await axios.post(endpoint, requestBody, {
       headers: {
@@ -90,8 +92,27 @@ app.post('/api/tts', async (req, res) => {
       responseType: 'stream'
     });
 
+    console.log('ElevenLabs response received:', { 
+      status: response.status, 
+      headers: response.headers,
+      hasData: !!response.data 
+    });
+
     // Gelen ses verisini (stream) doğrudan frontend'e geri gönderiyoruz
     res.setHeader('Content-Type', 'audio/mpeg');
+    
+    // Stream error handling
+    response.data.on('error', (streamError) => {
+      console.error('Stream error:', streamError);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Audio stream error: ' + streamError.message });
+      }
+    });
+    
+    response.data.on('end', () => {
+      console.log('Audio stream completed successfully');
+    });
+    
     response.data.pipe(res);
 
   } catch (error) {
