@@ -81,19 +81,19 @@ export class TTSService {
       }
     }
     
-    // ElevenLabs format
-    if (this.endpoint.includes('elevenlabs') || this.endpoint.includes('v1/text-to-speech')) {
-      return {
-        text: text,
-        model_id: this.modelId,
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.5,
-          style: 0.0,
-          use_speaker_boost: true
-        }
-      }
-    }
+		// ElevenLabs format
+		if (this.endpoint.includes('elevenlabs') || this.endpoint.includes('v1/text-to-speech')) {
+			return {
+				text: text,
+				model_id: this.modelId,
+				voice_settings: {
+					stability: 0.75,          // Yüksek istikrar
+					similarity_boost: 0.75,   // Yüksek benzerlik
+					style: 0.0,               // Sıfır stil/vurgu
+					use_speaker_boost: true   // Ses netliğini artırmak için bu ayar genellikle 'true' kalmalı
+				}
+			}
+		}
 
     // Azure Cognitive Services format
     if (this.endpoint.includes('cognitiveservices') || this.endpoint.includes('tts/cognitiveservices')) {

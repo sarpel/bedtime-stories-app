@@ -32,12 +32,12 @@ function App() {
     ttsModelId: '',
     voiceId: '',
     ttsApiKey: '',
-    customPrompt: 'Türk kültürüne uygun, 5 yaşındaki bir kız çocuğu için uyku vakti masalı yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.',
+    customPrompt: '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.',
     storyLength: 'medium',
     voiceSettings: {
-      speed: 1.0,
+      speed: 0.9,
       pitch: 1.0,
-      volume: 0.8
+      volume: 0.75
     }
   })
 

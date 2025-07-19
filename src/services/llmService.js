@@ -82,7 +82,7 @@ export class LLMService {
         messages: [
           {
             role: 'system',
-            content: 'Sen çocuklar için masal yazan yaratıcı bir yazarsın. Türk kültürüne uygun, eğitici ve sevgi dolu masallar yazıyorsun.'
+            content: '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.'
           },
           {
             role: 'user',
