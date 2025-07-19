@@ -85,12 +85,13 @@ export class TTSService {
 		if (this.endpoint.includes('elevenlabs') || this.endpoint.includes('v1/text-to-speech')) {
 			return {
 				text: text,
-				model_id: this.modelId,
+				model_id: this.modelId || 'eleven_multilingual_v2',
 				voice_settings: {
 					stability: 0.75,          // Yüksek istikrar
 					similarity_boost: 0.75,   // Yüksek benzerlik
 					style: 0.0,               // Sıfır stil/vurgu
-					use_speaker_boost: true   // Ses netliğini artırmak için bu ayar genellikle 'true' kalmalı
+					use_speaker_boost: true,  // Ses netliğini artırmak için bu ayar genellikle 'true' kalmalı
+					speed: this.voiceSettings?.speed || 0.9  // Kullanıcının ayarladığı hız
 				}
 			}
 		}

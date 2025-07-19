@@ -73,7 +73,7 @@ function App() {
         const llmService = new LLMService(settings)
         const fallbackStory = llmService.generateFallbackStory()
         setStory(`${errorMessage}\n\nBu arada size güzel bir masal:\n\n${fallbackStory}`)
-      } catch (fallbackError) {
+      } catch {
         setStory(errorMessage + ' Lütfen ayarları kontrol edin ve tekrar deneyin.')
       }
     } finally {
