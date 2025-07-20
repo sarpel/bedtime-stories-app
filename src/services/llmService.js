@@ -1,11 +1,20 @@
+import { getStoryTypePrompt } from '@/utils/storyTypes.js'
+import { config } from './configService.js'
+import { storyCache } from '@/utils/cache.js'
+
 // LLM Service for story generation
 export class LLMService {
   constructor(settings) {
-    this.endpoint = settings.llmEndpoint
-    this.modelId = settings.llmModelId
-    this.apiKey = settings.llmApiKey
+    // Sabit OpenAI ayarları
+    this.endpoint = config.openai.endpoint
+    this.modelId = config.openai.model
+    this.apiKey = config.openai.apiKey
+    
+    // Kullanıcı ayarları
     this.customPrompt = settings.customPrompt
     this.storyLength = settings.storyLength
+    this.temperature = settings.llmSettings?.temperature || 0.7
+    this.maxTokens = settings.llmSettings?.maxTokens || 800
   }
 
   // Get story length instructions based on setting
@@ -19,22 +28,44 @@ export class LLMService {
   }
 
   // Build the complete prompt
-  buildPrompt() {
+  buildPrompt(storyType = null, customTopic = '') {
     const lengthInstruction = this.getStoryLengthInstruction()
-    return `${this.customPrompt}\n\n${lengthInstruction}\n\nMasal Türkçe olmalı ve şu özellikleri içermeli:\n- 5 yaşındaki bir kız çocuğu için uygun\n- Eğitici ve pozitif değerler içeren\n- Uyku vakti için rahatlatıcı\n- Türk kültürüne uygun\n- Hayal gücünü geliştiren\n\nMasalı şimdi yaz:`
+    
+    // Masal türü bilgisini ekle
+    let storyTypeText = ''
+    if (storyType && storyType !== 'general') {
+      if (storyType === 'custom' && customTopic) {
+        storyTypeText = `\nKonu: ${customTopic}`
+      } else {
+        storyTypeText = `\nTür: ${getStoryTypePrompt(storyType, customTopic)}`
+      }
+    }
+    
+    return `${this.customPrompt}${storyTypeText}\n\n${lengthInstruction}\n\nMasal Türkçe olmalı ve şu özellikleri içermeli:\n- 5 yaşındaki bir kız çocuğu için uygun\n- Eğitici ve pozitif değerler içeren\n- Uyku vakti için rahatlatıcı\n- Türk kültürüne uygun\n- Hayal gücünü geliştiren\n\nMasalı şimdi yaz:`
   }
 
   // Generate story using custom LLM endpoint
-  async generateStory(onProgress) {
+  async generateStory(onProgress, storyType = null, customTopic = '') {
     try {
-      // API anahtarını buradan SİLİN. Artık backend'de kullanılacak.
+      // Sabit model kontrolü
       if (!this.endpoint || !this.modelId) {
-        throw new Error('LLM ayarları eksik. Lütfen ayarlar panelinden endpoint ve model ID\'yi yapılandırın.')
+        throw new Error('OpenAI ayarları eksik. Lütfen .env dosyasını kontrol edin.')
+      }
+
+      // Önbellekten kontrol et
+      const cachedStory = storyCache.getStory(storyType, customTopic, {
+        llmSettings: { temperature: this.temperature, maxTokens: this.maxTokens },
+        customPrompt: this.customPrompt
+      })
+      
+      if (cachedStory) {
+        onProgress?.(100)
+        return cachedStory
       }
 
       onProgress?.(10)
 
-      const prompt = this.buildPrompt()
+      const prompt = this.buildPrompt(storyType, customTopic)
       onProgress?.(30)
 
       // İstek artık kendi backend sunucumuza (localhost:3001) yapılıyor
@@ -65,6 +96,12 @@ export class LLMService {
       const story = this.extractStoryFromResponse(data)
       onProgress?.(100)
       
+      // Önbellekle
+      storyCache.setStory(storyType, customTopic, {
+        llmSettings: { temperature: this.temperature, maxTokens: this.maxTokens },
+        customPrompt: this.customPrompt
+      }, story)
+      
       return story
 
     } catch (error) {
@@ -90,7 +127,7 @@ export class LLMService {
           }
         ],
         max_tokens: this.getMaxTokens(),
-        temperature: 0.8,
+        temperature: this.temperature,
         top_p: 0.9
       }
     }
@@ -122,12 +159,7 @@ export class LLMService {
 
   // Get max tokens based on story length
   getMaxTokens() {
-    const tokenMap = {
-      short: 400,
-      medium: 800,
-      long: 1200
-    }
-    return tokenMap[this.storyLength] || 800
+    return this.maxTokens
   }
 
   // Extract story from different response formats

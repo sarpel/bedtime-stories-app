@@ -4,10 +4,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Progress } from '@/components/ui/progress.jsx'
-import { Moon, Settings, Play, Pause, Square, Volume2, VolumeX, Sparkles, Heart } from 'lucide-react'
+import { Moon, Settings, Sparkles, Heart, AlertCircle } from 'lucide-react'
 import SettingsPanel from './components/Settings.jsx'
+import StoryTypeSelector from './components/StoryTypeSelector.jsx'
+import StoryCard from './components/StoryCard.jsx'
+import FavoritesPanel from './components/FavoritesPanel.jsx'
 import { LLMService } from './services/llmService.js'
 import { TTSService } from './services/ttsService.js'
+import { getStoryTypeName } from './utils/storyTypes.js'
+import { getDefaultSettings, isConfigReady, validateConfig } from './services/configService.js'
+import { useFavorites } from './hooks/useFavorites.js'
+import { useStoryHistory } from './hooks/useStoryHistory.js'
 import './App.css'
 
 function App() {
@@ -22,59 +29,64 @@ function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false)
+  const [selectedStoryType, setSelectedStoryType] = useState('animals')
+  const [customTopic, setCustomTopic] = useState('')
+  const [error, setError] = useState('')
+  const [showFavorites, setShowFavorites] = useState(false)
   const audioRef = useRef(null)
 
-  const [settings, setSettings] = useState({
-    llmEndpoint: '',
-    llmModelId: '',
-    llmApiKey: '',
-    ttsEndpoint: '',
-    ttsModelId: '',
-    voiceId: '',
-    ttsApiKey: '',
-    customPrompt: '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.',
-    storyLength: 'medium',
-    voiceSettings: {
-      speed: 0.9,
-      pitch: 1.0,
-      volume: 0.75
-    }
-  })
+  const [settings, setSettings] = useState(getDefaultSettings())
+  
+  // Favori masallar hook'u
+  const { favorites, toggleFavorite, removeFavorite, isFavorite } = useFavorites()
+  
+  // Masal geçmişi hook'u
+  const { addToHistory, updateStoryAudio } = useStoryHistory()
 
   const generateStory = async () => {
     setIsGenerating(true)
     setStory('')
     setProgress(0)
+    setError('')
     
     try {
       const llmService = new LLMService(settings)
       
       const story = await llmService.generateStory((progressValue) => {
         setProgress(progressValue)
-      })
+      }, selectedStoryType, customTopic)
       
       setStory(story)
+      
+      // Masal geçmişine ekle
+      addToHistory({
+        story,
+        storyType: selectedStoryType,
+        customTopic
+      })
     } catch (error) {
       console.error('Story generation failed:', error)
       
       // Show user-friendly error message
       let errorMessage = 'Masal oluşturulurken bir hata oluştu.'
       
-      if (error.message.includes('LLM ayarları eksik')) {
-        errorMessage = 'LLM ayarları eksik. Lütfen ayarlar panelinden endpoint, model ID ve API anahtarını yapılandırın.'
+      if (error.message.includes('OpenAI ayarları eksik')) {
+        errorMessage = 'OpenAI API anahtarı eksik. Lütfen .env dosyasını kontrol edin.'
       } else if (error.message.includes('API hatası')) {
-        errorMessage = 'LLM API\'sine bağlanırken hata oluştu. Lütfen ayarları kontrol edin.'
+        errorMessage = 'OpenAI API\'sine bağlanırken hata oluştu. Lütfen internet bağlantınızı ve API anahtarınızı kontrol edin.'
       } else if (error.message.includes('yanıtından masal metni çıkarılamadı')) {
-        errorMessage = 'LLM yanıtı işlenirken hata oluştu. API yanıt formatını kontrol edin.'
+        errorMessage = 'OpenAI yanıtı işlenirken hata oluştu. Lütfen tekrar deneyin.'
       }
+      
+      setError(errorMessage)
       
       // Try to generate a fallback story
       try {
         const llmService = new LLMService(settings)
         const fallbackStory = llmService.generateFallbackStory()
-        setStory(`${errorMessage}\n\nBu arada size güzel bir masal:\n\n${fallbackStory}`)
+        setStory(fallbackStory)
       } catch {
-        setStory(errorMessage + ' Lütfen ayarları kontrol edin ve tekrar deneyin.')
+        setStory('')
       }
     } finally {
       setIsGenerating(false)
@@ -87,6 +99,7 @@ function App() {
     
     setIsGeneratingAudio(true)
     setProgress(0)
+    setError('')
     
     try {
       const ttsService = new TTSService(settings)
@@ -102,6 +115,11 @@ function App() {
       
       setAudioUrl(audioUrl)
       
+      // Masal geçmişindeki ses dosyasını güncelle
+      if (story) {
+        updateStoryAudio(Date.now(), audioUrl)
+      }
+      
       // Set up audio element
       if (audioRef.current) {
         audioRef.current.src = audioUrl
@@ -115,15 +133,15 @@ function App() {
       // Show user-friendly error message
       let errorMessage = 'Ses oluşturulurken bir hata oluştu.'
       
-      if (error.message.includes('TTS ayarları eksik')) {
-        errorMessage = 'TTS ayarları eksik. Lütfen ayarlar panelinden endpoint, model ID ve API anahtarını yapılandırın.'
+      if (error.message.includes('ElevenLabs ayarları eksik')) {
+        errorMessage = 'ElevenLabs API anahtarı eksik. Lütfen .env dosyasını kontrol edin.'
       } else if (error.message.includes('API hatası')) {
-        errorMessage = 'TTS API\'sine bağlanırken hata oluştu. Lütfen ayarları kontrol edin.'
+        errorMessage = 'ElevenLabs API\'sine bağlanırken hata oluştu. Lütfen internet bağlantınızı ve API anahtarınızı kontrol edin.'
       } else if (error.message.includes('ses dosyası çıkarılamadı')) {
-        errorMessage = 'TTS yanıtı işlenirken hata oluştu. API yanıt formatını kontrol edin.'
+        errorMessage = 'ElevenLabs yanıtı işlenirken hata oluştu. Lütfen tekrar deneyin.'
       }
       
-      alert(errorMessage)
+      setError(errorMessage)
     } finally {
       setIsGeneratingAudio(false)
       setProgress(0)
@@ -235,33 +253,37 @@ function App() {
               <p className="text-sm text-muted-foreground">Bedtime Stories</p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowSettings(!showSettings)}
-            className="gap-2"
-          >
-            <Settings className="h-4 w-4" />
-            Ayarlar
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFavorites(true)}
+              className="gap-2"
+            >
+              <Heart className="h-4 w-4" />
+              Favoriler ({favorites.length})
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSettings(!showSettings)}
+              className="gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              Ayarlar
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Welcome Card */}
-        <Card className="mb-8 bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <div className="p-4 bg-primary/20 rounded-full">
-                <Sparkles className="h-8 w-8 text-primary" />
-              </div>
-            </div>
-            <CardTitle className="text-2xl mb-2">Hoş Geldin, Küçük Prenses!</CardTitle>
-            <CardDescription className="text-lg">
-              Sana özel masallar oluşturmaya hazırım. Hangi konuda bir masal duymak istersin?
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        {/* Story Type Selector */}
+        <StoryTypeSelector
+          selectedType={selectedStoryType}
+          customTopic={customTopic}
+          onTypeChange={setSelectedStoryType}
+          onCustomTopicChange={setCustomTopic}
+        />
 
         {/* Story Generation */}
         <Card className="mb-8">
@@ -330,79 +352,47 @@ function App() {
           </CardContent>
         </Card>
 
-        {/* Story Display */}
-        {story && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Senin Masalın</CardTitle>
-              <div className="flex gap-2">
-                <Badge variant="secondary">Türkçe</Badge>
-                <Badge variant="outline">5 Yaş</Badge>
-                <Badge variant="outline">Uyku Vakti</Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                value={story}
-                readOnly
-                className="min-h-[300px] text-base leading-relaxed resize-none"
-                placeholder="Masalın burada görünecek..."
-              />
-            </CardContent>
-          </Card>
-        )}
+        {/* Story Card */}
+        <StoryCard
+          story={story}
+          storyType={selectedStoryType}
+          isGenerating={isGenerating}
+          isGeneratingAudio={isGeneratingAudio}
+          progress={progress}
+          audioUrl={audioUrl}
+          isPlaying={isPlaying}
+          isPaused={isPaused}
+          audioProgress={audioProgress}
+          audioDuration={audioDuration}
+          onGenerateAudio={generateAudio}
+          onPlayAudio={playAudio}
+          onPauseAudio={pauseAudio}
+          onStopAudio={stopAudio}
+          onToggleMute={toggleMute}
+          isMuted={isMuted}
+          isFavorite={story ? isFavorite({ story, storyType: selectedStoryType }) : false}
+          onToggleFavorite={() => {
+            if (story) {
+              toggleFavorite({ 
+                story, 
+                storyType: selectedStoryType, 
+                customTopic,
+                audioUrl 
+              })
+            }
+          }}
+        />
 
-        {/* Audio Player */}
-        {audioUrl && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Volume2 className="h-5 w-5 text-primary" />
-                Masal Dinle
-              </CardTitle>
-              <CardDescription>
-                Masalını dinlemek için oynatma butonuna tıkla
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
-                <div className="flex gap-2">
-                  {!isPlaying ? (
-                    <Button onClick={playAudio} size="sm" disabled={!audioUrl}>
-                      <Play className="h-4 w-4" />
-                    </Button>
-                  ) : (
-                    <Button onClick={pauseAudio} size="sm">
-                      <Pause className="h-4 w-4" />
-                    </Button>
-                  )}
-                  <Button onClick={stopAudio} size="sm" variant="outline" disabled={!audioUrl}>
-                    <Square className="h-4 w-4" />
-                  </Button>
-                  <Button onClick={toggleMute} size="sm" variant="outline" disabled={!audioUrl}>
-                    {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                  </Button>
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm text-muted-foreground mb-1 flex justify-between">
-                    <span>
-                      {!audioUrl ? 'Ses dosyası hazır değil' : 
-                       isPlaying ? 'Oynatılıyor...' : 
-                       isPaused ? 'Duraklatıldı' : 'Hazır'}
-                    </span>
-                    {audioDuration > 0 && (
-                      <span>
-                        {Math.floor((audioDuration * audioProgress / 100) / 60)}:
-                        {Math.floor((audioDuration * audioProgress / 100) % 60).toString().padStart(2, '0')} / 
-                        {Math.floor(audioDuration / 60)}:
-                        {Math.floor(audioDuration % 60).toString().padStart(2, '0')}
-                      </span>
-                    )}
-                  </div>
-                  <Progress value={audioProgress} className="h-1" />
-                </div>
+
+
+        {/* Error Display */}
+        {error && (
+          <Card className="mb-8 border-destructive/50 bg-destructive/5">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                <span className="text-sm font-medium">{error}</span>
               </div>
-              <audio ref={audioRef} className="hidden" />
             </CardContent>
           </Card>
         )}
@@ -415,6 +405,19 @@ function App() {
             onClose={() => setShowSettings(false)}
           />
         )}
+
+        {/* Favorites Panel */}
+        {showFavorites && (
+          <FavoritesPanel
+            favorites={favorites}
+            onRemove={removeFavorite}
+            onPlay={(favorite) => {
+              // TODO: Favori masalı yükle ve seslendir
+              console.log('Favori masal oynatılıyor:', favorite)
+            }}
+            onClose={() => setShowFavorites(false)}
+          />
+        )}
       </main>
 
       {/* Footer */}
@@ -423,6 +426,9 @@ function App() {
           <p>Tatlı rüyalar dileriz 💙</p>
         </div>
       </footer>
+
+      {/* Hidden Audio Element */}
+      <audio ref={audioRef} className="hidden" />
     </div>
   )
 }

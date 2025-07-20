@@ -9,7 +9,9 @@ import { Slider } from '@/components/ui/slider.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Separator } from '@/components/ui/separator.jsx'
-import { Brain, Mic, Volume2, MessageSquare, Save, RotateCcw, Eye, EyeOff } from 'lucide-react'
+import { Brain, Volume2, MessageSquare, Save, RotateCcw, Settings as SettingsIcon } from 'lucide-react'
+import { getDefaultSettings } from '@/services/configService.js'
+import VoiceSelector from './VoiceSelector.jsx'
 
 export default function Settings({ settings, onSettingsChange, onClose }) {
   const [localSettings, setLocalSettings] = useState(settings)
@@ -37,22 +39,7 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
   }
 
   const handleReset = () => {
-    const defaultSettings = {
-      llmEndpoint: '',
-      llmModelId: '',
-      llmApiKey: '',
-      ttsEndpoint: '',
-      ttsModelId: '',
-      voiceId: '',
-      ttsApiKey: '',
-      customPrompt: 'Türk kültürüne uygun, 5 yaşındaki bir kız çocuğu için uyku vakti masalı yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.',
-      storyLength: 'medium',
-      voiceSettings: {
-        speed: 1.0,
-        pitch: 1.0,
-        volume: 0.8
-      }
-    }
+    const defaultSettings = getDefaultSettings()
     setLocalSettings(defaultSettings)
   }
 
@@ -92,14 +79,10 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
         
         <CardContent className="p-6">
           <Tabs defaultValue="llm" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="llm" className="flex items-center gap-2">
                 <Brain className="h-4 w-4" />
                 LLM
-              </TabsTrigger>
-              <TabsTrigger value="tts" className="flex items-center gap-2">
-                <Mic className="h-4 w-4" />
-                TTS
               </TabsTrigger>
               <TabsTrigger value="voice" className="flex items-center gap-2">
                 <Volume2 className="h-4 w-4" />
@@ -117,122 +100,63 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Brain className="h-5 w-5 text-primary" />
-                    LLM Model Ayarları
+                    LLM Ayarları
                   </CardTitle>
                   <CardDescription>
-                    Masal oluşturma için kullanılacak dil modelini yapılandırın
+                    Masal oluşturma parametrelerini ayarlayın
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="llm-endpoint">API Endpoint URL</Label>
-                      <Input
-                        id="llm-endpoint"
-                        placeholder="https://api.example.com/v1/chat/completions"
-                        value={localSettings.llmEndpoint}
-                        onChange={(e) => updateSetting('llmEndpoint', e.target.value)}
-                      />
+                <CardContent className="space-y-6">
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <SettingsIcon className="h-4 w-4 text-primary" />
+                      <span className="font-medium">Sabit Model: OpenAI GPT-4o-mini</span>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="llm-model">Model ID</Label>
-                      <Input
-                        id="llm-model"
-                        placeholder="gpt-4, claude-3, llama-2, vb."
-                        value={localSettings.llmModelId}
-                        onChange={(e) => updateSetting('llmModelId', e.target.value)}
-                      />
-                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Model ayarları .env dosyasından yönetilmektedir. Değişiklik için .env dosyasını düzenleyin.
+                    </p>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="llm-api-key">API Anahtarı</Label>
-                    <div className="relative">
-                      <Input
-                        id="llm-api-key"
-                        type={showApiKeys.llm ? "text" : "password"}
-                        placeholder="sk-..."
-                        value={localSettings.llmApiKey}
-                        onChange={(e) => updateSetting('llmApiKey', e.target.value)}
-                        className="pr-10"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3"
-                        onClick={() => toggleApiKeyVisibility('llm')}
-                      >
-                        {showApiKeys.llm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
 
-            {/* TTS Settings */}
-            <TabsContent value="tts" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Mic className="h-5 w-5 text-primary" />
-                    TTS Model Ayarları
-                  </CardTitle>
-                  <CardDescription>
-                    Metni sese dönüştürme için kullanılacak modeli yapılandırın
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="tts-endpoint">API Endpoint URL</Label>
-                      <Input
-                        id="tts-endpoint"
-                        placeholder="https://api.example.com/v1/audio/speech"
-                        value={localSettings.ttsEndpoint}
-                        onChange={(e) => updateSetting('ttsEndpoint', e.target.value)}
+                  <Separator />
+
+                  <div className="space-y-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label>Yaratıcılık Seviyesi (Temperature)</Label>
+                        <Badge variant="outline">{localSettings.llmSettings?.temperature || 0.7}</Badge>
+                      </div>
+                      <Slider
+                        value={[localSettings.llmSettings?.temperature || 0.7]}
+                        onValueChange={(value) => updateSetting('llmSettings.temperature', value[0])}
+                        min={0.1}
+                        max={1.0}
+                        step={0.1}
+                        className="w-full"
                       />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Daha Tutarlı (0.1)</span>
+                        <span>Daha Yaratıcı (1.0)</span>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="tts-model">TTS Model ID</Label>
-                      <Input
-                        id="tts-model"
-                        placeholder="tts-1, elevenlabs, vb."
-                        value={localSettings.ttsModelId}
-                        onChange={(e) => updateSetting('ttsModelId', e.target.value)}
+
+                    <Separator />
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label>Maksimum Kelime Sayısı</Label>
+                        <Badge variant="outline">{localSettings.llmSettings?.maxTokens || 800}</Badge>
+                      </div>
+                      <Slider
+                        value={[localSettings.llmSettings?.maxTokens || 800]}
+                        onValueChange={(value) => updateSetting('llmSettings.maxTokens', value[0])}
+                        min={400}
+                        max={1200}
+                        step={100}
+                        className="w-full"
                       />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="voice-id">Ses ID</Label>
-                      <Input
-                        id="voice-id"
-                        placeholder="alloy, nova, shimmer, vb."
-                        value={localSettings.voiceId}
-                        onChange={(e) => updateSetting('voiceId', e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="tts-api-key">API Anahtarı</Label>
-                      <div className="relative">
-                        <Input
-                          id="tts-api-key"
-                          type={showApiKeys.tts ? "text" : "password"}
-                          placeholder="sk-..."
-                          value={localSettings.ttsApiKey}
-                          onChange={(e) => updateSetting('ttsApiKey', e.target.value)}
-                          className="pr-10"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3"
-                          onClick={() => toggleApiKeyVisibility('tts')}
-                        >
-                          {showApiKeys.tts ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Kısa (400)</span>
+                        <span>Uzun (1200)</span>
                       </div>
                     </div>
                   </div>
@@ -240,8 +164,17 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
               </Card>
             </TabsContent>
 
+
+
             {/* Voice Settings */}
             <TabsContent value="voice" className="space-y-6">
+              {/* Voice Selector */}
+              <VoiceSelector
+                selectedVoiceId={localSettings.voiceId || 'xsGHrtxT5AdDzYXTQT0d'}
+                onVoiceChange={(voiceId) => updateSetting('voiceId', voiceId)}
+              />
+
+              {/* Voice Settings */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -253,6 +186,18 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <SettingsIcon className="h-4 w-4 text-primary" />
+                      <span className="font-medium">Sabit Model: ElevenLabs Turbo</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      TTS model ayarları .env dosyasından yönetilmektedir. Değişiklik için .env dosyasını düzenleyin.
+                    </p>
+                  </div>
+
+                  <Separator />
+
                   <div className="space-y-4">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">

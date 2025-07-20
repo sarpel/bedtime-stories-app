@@ -1,23 +1,37 @@
+import { config } from './configService.js'
+import { audioCache } from '@/utils/cache.js'
+
 // TTS Service for audio generation
 export class TTSService {
   constructor(settings) {
-    this.endpoint = settings.ttsEndpoint
-    this.modelId = settings.ttsModelId
-    this.voiceId = settings.voiceId
-    this.apiKey = settings.ttsApiKey
+    // Sabit ElevenLabs ayarları
+    this.endpoint = config.elevenlabs.endpoint
+    this.modelId = config.elevenlabs.model
+    this.voiceId = settings.voiceId || config.elevenlabs.voiceId
+    this.apiKey = config.elevenlabs.apiKey
+    
+    // Kullanıcı ses ayarları
     this.voiceSettings = settings.voiceSettings
   }
 
   // Generate audio from text using custom TTS endpoint
   async generateAudio(text, onProgress) {
     try {
-      // API anahtarını buradan SİLİN. Bu doğru, backend'de kalacak.
+      // Sabit model kontrolü
       if (!this.endpoint || !this.modelId || !this.voiceId) {
-        throw new Error('TTS ayarları eksik. Lütfen ayarlar panelinden endpoint, model ID ve voice ID\'yi yapılandırın.')
+        throw new Error('ElevenLabs ayarları eksik. Lütfen .env dosyasını kontrol edin.')
       }
 
       if (!text || text.trim().length === 0) {
         throw new Error('Seslendirilecek metin bulunamadı.')
+      }
+
+      // Önbellekten kontrol et
+      const cachedAudioUrl = audioCache.getAudio(text, this.voiceId, this.voiceSettings)
+      
+      if (cachedAudioUrl) {
+        onProgress?.(100)
+        return cachedAudioUrl
       }
 
       onProgress?.(10)
@@ -59,6 +73,9 @@ export class TTSService {
       
       const audioUrl = URL.createObjectURL(audioBlob)
       onProgress?.(100)
+      
+      // Önbellekle
+      audioCache.setAudio(text, this.voiceId, this.voiceSettings, audioUrl)
       
       return audioUrl
 

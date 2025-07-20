@@ -23,10 +23,10 @@ app.use(cors({ origin: 'http://localhost:5173' }));
 app.post('/api/llm', async (req, res) => {
   // Frontend'den gelen ayarları ve prompt'u al
   const { endpoint, modelId, prompt, max_tokens } = req.body;
-  const apiKey = process.env.LLM_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
-    return res.status(500).json({ error: 'LLM API anahtarı sunucuda tanımlanmamış.' });
+    return res.status(500).json({ error: 'OpenAI API anahtarı sunucuda tanımlanmamış.' });
   }
 
   // llmService.js'deki prepareRequestBody fonksiyonuna benzer bir yapı
@@ -68,13 +68,13 @@ app.post('/api/llm', async (req, res) => {
 app.post('/api/tts', async (req, res) => {
   // Frontend'den gelen ayarları ve metni al
   const { endpoint, requestBody } = req.body;
-  const apiKey = process.env.TTS_API_KEY;
+  const apiKey = process.env.ELEVENLABS_API_KEY;
 
   console.log('TTS Request received:', { endpoint, hasApiKey: !!apiKey });
 
   if (!apiKey) {
-    console.error('TTS API key missing from environment variables');
-    return res.status(500).json({ error: 'TTS API anahtarı sunucuda tanımlanmamış.' });
+    console.error('ElevenLabs API key missing from environment variables');
+    return res.status(500).json({ error: 'ElevenLabs API anahtarı sunucuda tanımlanmamış.' });
   }
 
   try {
