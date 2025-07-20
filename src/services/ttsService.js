@@ -26,6 +26,11 @@ export class TTSService {
         throw new Error('Seslendirilecek metin bulunamadı.')
       }
 
+      // API anahtarı kontrolü
+      if (!this.apiKey || this.apiKey === 'your-elevenlabs-api-key-here') {
+        throw new Error('ElevenLabs API anahtarı eksik veya geçersiz. Lütfen .env dosyasında ELEVENLABS_API_KEY değerini ayarlayın.')
+      }
+
       // Önbellekten kontrol et
       const cachedAudioUrl = audioCache.getAudio(text, this.voiceId, this.voiceSettings)
       

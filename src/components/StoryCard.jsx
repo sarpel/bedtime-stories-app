@@ -23,6 +23,7 @@ import { shareStory, shareToSocialMedia, downloadStory } from '@/utils/share.js'
 export default function StoryCard({ 
   story, 
   storyType, 
+  customTopic = '',
   isGenerating, 
   isGeneratingAudio, 
   progress, 

@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Progress } from '@/components/ui/progress.jsx'
-import { Moon, Settings, Sparkles, Heart, AlertCircle } from 'lucide-react'
+import { Moon, Settings, Sparkles, Heart, AlertCircle, Volume2 } from 'lucide-react'
 import SettingsPanel from './components/Settings.jsx'
 import StoryTypeSelector from './components/StoryTypeSelector.jsx'
 import StoryCard from './components/StoryCard.jsx'
@@ -15,6 +15,7 @@ import { getStoryTypeName } from './utils/storyTypes.js'
 import { getDefaultSettings, isConfigReady, validateConfig } from './services/configService.js'
 import { useFavorites } from './hooks/useFavorites.js'
 import { useStoryHistory } from './hooks/useStoryHistory.js'
+import ApiKeyHelp from './components/ApiKeyHelp.jsx'
 import './App.css'
 
 function App() {
@@ -33,6 +34,7 @@ function App() {
   const [customTopic, setCustomTopic] = useState('')
   const [error, setError] = useState('')
   const [showFavorites, setShowFavorites] = useState(false)
+  const [showApiKeyHelp, setShowApiKeyHelp] = useState(false)
   const audioRef = useRef(null)
 
   const [settings, setSettings] = useState(getDefaultSettings())
@@ -133,10 +135,10 @@ function App() {
       // Show user-friendly error message
       let errorMessage = 'Ses oluşturulurken bir hata oluştu.'
       
-      if (error.message.includes('ElevenLabs ayarları eksik')) {
-        errorMessage = 'ElevenLabs API anahtarı eksik. Lütfen .env dosyasını kontrol edin.'
-      } else if (error.message.includes('API hatası')) {
-        errorMessage = 'ElevenLabs API\'sine bağlanırken hata oluştu. Lütfen internet bağlantınızı ve API anahtarınızı kontrol edin.'
+      if (error.message.includes('ElevenLabs ayarları eksik') || error.message.includes('API anahtarı eksik')) {
+        errorMessage = 'ElevenLabs API anahtarı eksik. Lütfen .env dosyasında ELEVENLABS_API_KEY değerini ayarlayın.'
+      } else if (error.message.includes('API hatası') || error.message.includes('401')) {
+        errorMessage = 'ElevenLabs API anahtarı geçersiz. Lütfen ElevenLabs hesabınızdan doğru API anahtarını alın.'
       } else if (error.message.includes('ses dosyası çıkarılamadı')) {
         errorMessage = 'ElevenLabs yanıtı işlenirken hata oluştu. Lütfen tekrar deneyin.'
       }
@@ -356,6 +358,7 @@ function App() {
         <StoryCard
           story={story}
           storyType={selectedStoryType}
+          customTopic={customTopic}
           isGenerating={isGenerating}
           isGeneratingAudio={isGeneratingAudio}
           progress={progress}
@@ -389,9 +392,20 @@ function App() {
         {error && (
           <Card className="mb-8 border-destructive/50 bg-destructive/5">
             <CardContent className="p-4">
-              <div className="flex items-center gap-2 text-destructive">
-                <AlertCircle className="h-4 w-4" />
-                <span className="text-sm font-medium">{error}</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <span className="text-sm font-medium">{error}</span>
+                </div>
+                {(error.includes('API anahtarı') || error.includes('ElevenLabs') || error.includes('OpenAI')) && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowApiKeyHelp(true)}
+                  >
+                    Yardım Al
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -417,6 +431,11 @@ function App() {
             }}
             onClose={() => setShowFavorites(false)}
           />
+        )}
+
+        {/* API Key Help Panel */}
+        {showApiKeyHelp && (
+          <ApiKeyHelp onClose={() => setShowApiKeyHelp(false)} />
         )}
       </main>
 

@@ -70,7 +70,12 @@ app.post('/api/tts', async (req, res) => {
   const { endpoint, requestBody } = req.body;
   const apiKey = process.env.ELEVENLABS_API_KEY;
 
-  console.log('TTS Request received:', { endpoint, hasApiKey: !!apiKey });
+  console.log('TTS Request received:', { 
+    endpoint, 
+    hasApiKey: !!apiKey,
+    apiKeyLength: apiKey ? apiKey.length : 0,
+    apiKeyPrefix: apiKey ? apiKey.substring(0, 10) + '...' : 'none'
+  });
 
   if (!apiKey) {
     console.error('ElevenLabs API key missing from environment variables');
@@ -116,9 +121,26 @@ app.post('/api/tts', async (req, res) => {
     response.data.pipe(res);
 
   } catch (error) {
-    console.error('TTS API Hatası:', error.response ? error.response.data.detail || error.response.data : error.message);
-    const errorDetail = error.response?.data?.detail || { error: "TTS API'sine istek gönderilirken hata oluştu." };
-    res.status(error.response?.status || 500).json(errorDetail);
+    console.error('TTS API Hatası:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+      endpoint: endpoint,
+      hasApiKey: !!apiKey
+    });
+    
+    let errorMessage = "TTS API'sine istek gönderilirken hata oluştu.";
+    
+    if (error.response?.status === 401) {
+      errorMessage = "ElevenLabs API anahtarı geçersiz. Lütfen .env dosyasındaki ELEVENLABS_API_KEY değerini kontrol edin.";
+    } else if (error.response?.status === 400) {
+      errorMessage = "ElevenLabs API isteği hatalı. Lütfen metin ve ses ayarlarını kontrol edin.";
+    } else if (error.response?.data?.detail) {
+      errorMessage = `ElevenLabs API Hatası: ${error.response.data.detail}`;
+    }
+    
+    res.status(error.response?.status || 500).json({ error: errorMessage });
   }
 });
 
