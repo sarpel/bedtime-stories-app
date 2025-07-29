@@ -36,6 +36,8 @@ function App() {
   const [showFavorites, setShowFavorites] = useState(false)
   const [showApiKeyHelp, setShowApiKeyHelp] = useState(false)
   const audioRef = useRef(null)
+  // Son oluşturulan masalın geçmiş ID'si
+  const [currentStoryId, setCurrentStoryId] = useState(null)
 
   const [settings, setSettings] = useState(getDefaultSettings())
   
@@ -60,12 +62,13 @@ function App() {
       
       setStory(story)
       
-      // Masal geçmişine ekle
-      addToHistory({
+      // Masal geçmişine ekle ve ID'yi sakla
+      const id = addToHistory({
         story,
         storyType: selectedStoryType,
         customTopic
       })
+      setCurrentStoryId(id)
     } catch (error) {
       console.error('Story generation failed:', error)
       
@@ -118,8 +121,8 @@ function App() {
       setAudioUrl(audioUrl)
       
       // Masal geçmişindeki ses dosyasını güncelle
-      if (story) {
-        updateStoryAudio(Date.now(), audioUrl)
+      if (currentStoryId) {
+        updateStoryAudio(currentStoryId, audioUrl)
       }
       
       // Set up audio element
