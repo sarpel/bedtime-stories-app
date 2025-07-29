@@ -146,6 +146,12 @@ app.post('/api/tts', async (req, res) => {
 
 
 // Sunucuyu belirtilen port'ta dinlemeye başla
-app.listen(PORT, () => {
-  console.log(`Backend proxy sunucusu http://localhost:${PORT} adresinde çalışıyor`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(
+      `Backend proxy sunucusu http://localhost:${PORT} adresinde çalışıyor`
+    );
+  });
+}
+
+module.exports = app;
