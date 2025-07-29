@@ -2,7 +2,8 @@
 
 export const shareStory = async (story, storyType, customTopic = '') => {
   const storyTypeName = getStoryTypeName(storyType)
-  const shareText = `${storyTypeName} Masalı\n\n${story.substring(0, 200)}...\n\nBedtime Stories App ile oluşturuldu 💙`
+  const topicText = customTopic ? `Konu: ${customTopic}\n\n` : ''
+  const shareText = `${storyTypeName} Masalı\n\n${topicText}${story.substring(0, 200)}...\n\nBedtime Stories App ile oluşturuldu 💙`
   
   try {
     if (navigator.share) {
