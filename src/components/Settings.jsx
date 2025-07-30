@@ -15,10 +15,6 @@ import VoiceSelector from './VoiceSelector.jsx'
 
 export default function Settings({ settings, onSettingsChange, onClose }) {
   const [localSettings, setLocalSettings] = useState(settings)
-  const [showApiKeys, setShowApiKeys] = useState({
-    llm: false,
-    tts: false
-  })
 
   const updateSetting = (path, value) => {
     const newSettings = { ...localSettings }
@@ -43,12 +39,6 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
     setLocalSettings(defaultSettings)
   }
 
-  const toggleApiKeyVisibility = (type) => {
-    setShowApiKeys(prev => ({
-      ...prev,
-      [type]: !prev[type]
-    }))
-  }
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">

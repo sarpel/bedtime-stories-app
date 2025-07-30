@@ -37,6 +37,15 @@ The application is deployed and accessible at: **https://udpqrpuq.manus.space**
    - **Voice ID**: The voice to use (e.g., `alloy`, `nova`, `shimmer`)
    - **API Key**: Your TTS API authentication key
 
+### Backend Environment
+
+Create a `backend/.env` file with your API keys so the proxy server can forward requests:
+
+```bash
+OPENAI_API_KEY=sk-your-openai-key
+ELEVENLABS_API_KEY=xi-api-key-your-key
+```
+
 ### Voice Settings
 
 1. Go to the "Ses" (Voice) tab
