@@ -112,10 +112,10 @@ export class TTSService {
 				language_code: 'tr',
 				voice_settings: {
 					similarity_boost: 0.75,   // Yüksek benzerlik
-					use_speaker_boost: true   // Ses netliğini artırmak için bu ayar genellikle 'true' kalmalı
+					use_speaker_boost: true,   // Ses netliğini artırmak için bu ayar genellikle 'true' kalmalı
 					stability: 0.75,          // Yüksek istikrar
 					style: 0.0,               // Sıfır stil/vurgu
-					speed: this.voiceSettings?.speed || 0.9,  // Kullanıcının ayarladığı hız
+					speed: this.voiceSettings?.speed || 0.9  // Kullanıcının ayarladığı hız
 				}
 			}
 		}
