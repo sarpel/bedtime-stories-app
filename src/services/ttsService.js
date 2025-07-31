@@ -108,13 +108,14 @@ export class TTSService {
 		    (this.endpoint && this.voiceId && this.endpoint.includes('api.elevenlabs.io'))) {
 			return {
 				text: text,
-				model_id: this.modelId || 'eleven_multilingual_v2',
+				model_id: this.modelId || 'eleven_turbo_v2_5',
+				language_code: 'tr',
 				voice_settings: {
 					similarity_boost: 0.75,   // Yüksek benzerlik
-					stability: 0.75,          // Yüksek istikrar
-					speed: this.voiceSettings?.speed || 0.9,  // Kullanıcının ayarladığı hız
-					style: 0.0,               // Sıfır stil/vurgu
 					use_speaker_boost: true   // Ses netliğini artırmak için bu ayar genellikle 'true' kalmalı
+					stability: 0.75,          // Yüksek istikrar
+					style: 0.0,               // Sıfır stil/vurgu
+					speed: this.voiceSettings?.speed || 0.9,  // Kullanıcının ayarladığı hız
 				}
 			}
 		}
@@ -227,11 +228,11 @@ export class TTSService {
 
     if (endpoint.includes('elevenlabs') || endpoint.includes('api.elevenlabs.io')) {
       return [
-        { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella (Kadın)' },
-        { id: 'ErXwobaYiN019PkySvjV', name: 'Antoni (Erkek)' },
-        { id: 'VR6AewLTigWG4xSOukaG', name: 'Arnold (Erkek)' },
-        { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam (Erkek)' },
-        { id: 'xsGHrtxT5AdDzYXTQT0d', name: 'Sarah (Kadın)' }  // Added from your example
+        { id: 'xsGHrtxT5AdDzYXTQT0d', name: 'Gönül Filiz (Kadın)' },
+        { id: 'tjK3OIAY4lI4rHe3Ig84', name: 'Dilara ŞEKERCİ GÜRAY (Erkek)' },
+        { id: 'NNn9dv8zq2kUo7d3JSGG', name: 'Derya (Kadın)' },
+        { id: 'NsFK0aDGLbVusA7tQfOB', name: 'Irem (Kadın)' },
+        { id: 'KAGDtM2gzDrjWlUp2KNe', name: 'Deniz (Kadın)' }  // Added from your example
       ]
     }
 
