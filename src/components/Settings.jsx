@@ -100,7 +100,7 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                   <div className="p-4 bg-muted/50 rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
                       <SettingsIcon className="h-4 w-4 text-primary" />
-                      <span className="font-medium">Sabit Model: OpenAI GPT-4o-mini</span>
+                      <span className="font-medium">Sabit Model: OpenAI GPT-4.1-Mini</span>
                     </div>
                     <p className="text-sm text-muted-foreground">
                       Model ayarları .env dosyasından yönetilmektedir. Değişiklik için .env dosyasını düzenleyin.

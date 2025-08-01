@@ -14,12 +14,12 @@ cp .env.example .env
 ```env
 # OpenAI Configuration
 VITE_OPENAI_API_KEY=sk-your-openai-api-key
-VITE_OPENAI_MODEL=gpt-4o-mini
+VITE_OPENAI_MODEL=gpt-4.1-mini
 
 # ElevenLabs Configuration  
 VITE_ELEVENLABS_API_KEY=your-elevenlabs-api-key
 VITE_ELEVENLABS_VOICE_ID=xsGHrtxT5AdDzYXTQT0d
-VITE_ELEVENLABS_MODEL=eleven_turbo_v2
+VITE_ELEVENLABS_MODEL=eleven_turbo_v2_5
 
 # Backend Configuration
 VITE_BACKEND_URL=http://localhost:3001
@@ -75,7 +75,7 @@ npm run dev
 
 ### ✅ Tamamlanan Özellikler
 - **Masal Türü Seçimi**: 7 farklı masal türü + özel konu
-- **Sabit Modeller**: OpenAI GPT-4o-mini + ElevenLabs Turbo
+- **Sabit Modeller**: OpenAI GPT-4.1-Mini + ElevenLabs Turbo
 - **Environment Variables**: Güvenli API key yönetimi
 - **Sadeleştirilmiş Ayarlar**: Sadece ses ve LLM parametreleri
 

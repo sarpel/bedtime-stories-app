@@ -58,19 +58,19 @@ const buildPrompt = (storyType, customTopic) => {
 ### 2. Öncelik: Model Sabitleme ve .env Desteği
 
 #### Sabit Modeller:
-- **LLM**: OpenAI GPT-4o-mini (gpt-4o-mini)
-- **TTS**: ElevenLabs Turbo (eleven_turbo_v2)
+- **LLM**: OpenAI GPT-4.1-mini (gpt-4.1-mini)
+- **TTS**: ElevenLabs Turbo v2.5 (eleven_turbo_v2_5)
 
 #### .env Dosyası Yapısı:
 ```env
 # OpenAI Configuration
 OPENAI_API_KEY=sk-your-openai-api-key
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=gpt-4.1-mini
 
 # ElevenLabs Configuration  
 ELEVENLABS_API_KEY=your-elevenlabs-api-key
 ELEVENLABS_VOICE_ID=xsGHrtxT5AdDzYXTQT0d
-ELEVENLABS_MODEL=eleven_turbo_v2
+ELEVENLABS_MODEL=eleven_turbo_v2_5
 ```
 
 #### Settings Panel Sadeleştirme:
@@ -184,13 +184,13 @@ src/
 export const config = {
   openai: {
     apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-    model: import.meta.env.VITE_OPENAI_MODEL || 'gpt-4o-mini',
+    model: import.meta.env.VITE_OPENAI_MODEL || 'gpt-4.1-mini',
     endpoint: 'https://api.openai.com/v1/chat/completions'
   },
   elevenlabs: {
     apiKey: import.meta.env.VITE_ELEVENLABS_API_KEY,
     voiceId: import.meta.env.VITE_ELEVENLABS_VOICE_ID,
-    model: import.meta.env.VITE_ELEVENLABS_MODEL || 'eleven_turbo_v2',
+    model: import.meta.env.VITE_ELEVENLABS_MODEL || 'eleven_turbo_v2_5',
     endpoint: 'https://api.elevenlabs.io/v1/text-to-speech'
   }
 }
@@ -244,7 +244,7 @@ export const config = {
 
 ### İş Faydaları:
 - ✅ Düşük maliyet (ElevenLabs turbo modelleri)
-- ✅ Yüksek kalite (OpenAI GPT-4o-mini)
+- ✅ Yüksek kalite (OpenAI GPT-4.1-Mini)
 - ✅ Kolay dağıtım ve deployment
 - ✅ Ölçeklenebilir yapı
 

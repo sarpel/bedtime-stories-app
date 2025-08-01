@@ -229,7 +229,7 @@ export class TTSService {
     if (endpoint.includes('elevenlabs') || endpoint.includes('api.elevenlabs.io')) {
       return [
         { id: 'xsGHrtxT5AdDzYXTQT0d', name: 'Gönül Filiz (Kadın)' },
-        { id: 'tjK3OIAY4lI4rHe3Ig84', name: 'Dilara ŞEKERCİ GÜRAY (Erkek)' },
+        { id: 'tjK3OIAY4lI4rHe3Ig84', name: 'Dilara ŞEKERCİ GÜRAY (Kadın)' },
         { id: 'NNn9dv8zq2kUo7d3JSGG', name: 'Derya (Kadın)' },
         { id: 'NsFK0aDGLbVusA7tQfOB', name: 'Irem (Kadın)' },
         { id: 'KAGDtM2gzDrjWlUp2KNe', name: 'Deniz (Kadın)' }  // Added from your example

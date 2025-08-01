@@ -4,7 +4,7 @@ export const config = {
   // OpenAI Configuration
   openai: {
     apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-    model: import.meta.env.VITE_OPENAI_MODEL || 'gpt-4o-mini',
+    model: import.meta.env.VITE_OPENAI_MODEL || 'gpt-4.1-mini',
     endpoint: 'https://api.openai.com/v1/chat/completions'
   },
   
@@ -12,7 +12,7 @@ export const config = {
   elevenlabs: {
     apiKey: import.meta.env.VITE_ELEVENLABS_API_KEY,
     voiceId: import.meta.env.VITE_ELEVENLABS_VOICE_ID || 'xsGHrtxT5AdDzYXTQT0d',
-    model: import.meta.env.VITE_ELEVENLABS_MODEL || 'eleven_turbo_v2',
+    model: import.meta.env.VITE_ELEVENLABS_MODEL || 'eleven_turbo_v2_5',
     endpoint: 'https://api.elevenlabs.io/v1/text-to-speech'
   },
   

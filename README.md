@@ -21,7 +21,7 @@ A beautiful React + Vite + Tailwind CSS web application that communicates with c
 2. Go to the "LLM" tab
 3. Configure:
    - **API Endpoint URL**: Your LLM API endpoint (e.g., `https://api.openai.com/v1/chat/completions`)
-   - **Model ID**: The model to use (e.g., `gpt-4`, `gpt-4o-mini`, `gpt-4.1-mini`)
+   - **Model ID**: The model to use (e.g., `gpt-4`, `gpt-4.1-mini`, `gpt-4.1-mini`)
    - **API Key**: Your API authentication key
 
 ### TTS Settings
@@ -68,7 +68,7 @@ ELEVENLABS_API_KEY=xi-api-key-your-key
 ## 🔧 Supported API Providers
 
 ### LLM Providers
-- **OpenAI**: GPT-4o-Mini
+- **OpenAI**: GPT-4.1-Mini
 - **Custom APIs**: Any OpenAI-compatible API
 
 ### TTS Providers
