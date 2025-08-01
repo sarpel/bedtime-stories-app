@@ -13,7 +13,7 @@ export class LLMService {
     // Kullanıcı ayarları
     this.customPrompt = settings.customPrompt
     this.storyLength = settings.storyLength
-    this.temperature = settings.llmSettings?.temperature || 0.7
+    this.temperature = settings.llmSettings?.temperature || 0.9
     this.maxTokens = settings.llmSettings?.maxTokens || 800
   }
 
@@ -41,7 +41,7 @@ export class LLMService {
       }
     }
     
-    return `${this.customPrompt}${storyTypeText}\n\n${lengthInstruction}\n\nMasal Türkçe olmalı ve şu özellikleri içermeli:\n- 5 yaşındaki bir kız çocuğu için uygun\n- Eğitici ve pozitif değerler içeren\n- Uyku vakti için rahatlatıcı\n- Türk kültürüne uygun\n- Hayal gücünü geliştiren\n\nMasalı şimdi yaz:`
+    return `${this.customPrompt}${storyTypeText}\n\n${lengthInstruction}\n\nMasal Türkçe olmalı ve şu özellikleri içermeli:\n- 5 yaşındaki bir kız çocuğu için uygun\n- Eğitici ve pozitif değerler içeren\n- Uyku vakti için rahatlatıcı\n- Hayal gücünü geliştiren\n\nMasalı şimdi yaz:`
   }
 
   // Generate story using custom LLM endpoint
@@ -152,7 +152,7 @@ export class LLMService {
       model: this.modelId,
       prompt: prompt,
       max_tokens: this.getMaxTokens(),
-      temperature: 0.8,
+      temperature: 0.9,
       top_p: 0.9
     }
   }

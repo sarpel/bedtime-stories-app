@@ -3,7 +3,7 @@
 export const voiceOptions = [
   {
     id: 'xsGHrtxT5AdDzYXTQT0d',
-    name: 'Sarah',
+    name: 'Gönül Filiz',
     description: 'Sıcak ve anne sesi',
     language: 'Türkçe',
     gender: 'Kadın',
@@ -11,8 +11,8 @@ export const voiceOptions = [
     style: 'Sakin ve rahatlatıcı'
   },
   {
-    id: 'EXAVITQu4vr4xnSDxMaL',
-    name: 'Bella',
+    id: 'tjK3OIAY4lI4rHe3Ig84',
+    name: 'Dilara ŞEKERCİ GÜRAY',
     description: 'Genç ve enerjik',
     language: 'Türkçe',
     gender: 'Kadın',
@@ -20,29 +20,29 @@ export const voiceOptions = [
     style: 'Neşeli ve canlı'
   },
   {
-    id: 'ErXwobaYiN019PkySvjV',
-    name: 'Antoni',
+    id: 'NNn9dv8zq2kUo7d3JSGG',
+    name: 'Derya',
     description: 'Sakin ve güvenilir',
     language: 'Türkçe',
-    gender: 'Erkek',
+    gender: 'Kadın',
     age: 'Yetişkin',
     style: 'Sakin ve güven verici'
   },
   {
-    id: 'VR6AewLTigWG4xSOukaG',
-    name: 'Arnold',
+    id: 'NsFK0aDGLbVusA7tQfOB',
+    name: 'Irem',
     description: 'Güçlü ve etkileyici',
     language: 'Türkçe',
-    gender: 'Erkek',
+    gender: 'Kadın',
     age: 'Yetişkin',
     style: 'Güçlü ve etkileyici'
   },
   {
-    id: 'pNInz6obpgDQGcFmaJgB',
-    name: 'Adam',
+    id: 'KAGDtM2gzDrjWlUp2KNe',
+    name: 'Deniz',
     description: 'Genç ve dinamik',
     language: 'Türkçe',
-    gender: 'Erkek',
+    gender: 'Kadın',
     age: 'Genç',
     style: 'Dinamik ve enerjik'
   }

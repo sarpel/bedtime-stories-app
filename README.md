@@ -4,18 +4,14 @@ A beautiful React + Vite + Tailwind CSS web application that communicates with c
 
 ## 🌟 Features
 
-- **Custom LLM Integration**: Connect to any LLM API (OpenAI, Claude, Llama, etc.) for story generation
-- **Custom TTS Integration**: Connect to any TTS API (OpenAI TTS, ElevenLabs, Azure, Google Cloud, etc.) for audio conversion
+- **Custom LLM Integration**: Connect to any LLM API (OpenAI, OpenAI Compatible) for story generation
+- **Custom TTS Integration**: Connect to any TTS API (ElevenLabs, ElevenLabs Compatible) for audio conversion
 - **Beautiful UI**: Modern bluish-blackish theme with responsive design
 - **Comprehensive Settings**: Configurable endpoints, models, voices, and story parameters
 - **Turkish Language**: Specifically designed for Turkish bedtime stories
 - **Audio Player**: Full-featured audio player with progress tracking
 - **Error Handling**: Graceful error handling with fallback stories
 - **Mobile Friendly**: Responsive design that works on all devices
-
-## 🚀 Live Demo
-
-The application is deployed and accessible at: **https://udpqrpuq.manus.space**
 
 ## 🛠️ Configuration
 
@@ -25,7 +21,7 @@ The application is deployed and accessible at: **https://udpqrpuq.manus.space**
 2. Go to the "LLM" tab
 3. Configure:
    - **API Endpoint URL**: Your LLM API endpoint (e.g., `https://api.openai.com/v1/chat/completions`)
-   - **Model ID**: The model to use (e.g., `gpt-4`, `claude-3-sonnet`, `llama-2`)
+   - **Model ID**: The model to use (e.g., `gpt-4`, `gpt-4o-mini`, `gpt-4.1-mini`)
    - **API Key**: Your API authentication key
 
 ### TTS Settings
@@ -33,8 +29,8 @@ The application is deployed and accessible at: **https://udpqrpuq.manus.space**
 1. Go to the "TTS" tab in settings
 2. Configure:
    - **API Endpoint URL**: Your TTS API endpoint (e.g., `https://api.openai.com/v1/audio/speech`)
-   - **TTS Model ID**: The TTS model to use (e.g., `tts-1`, `elevenlabs`)
-   - **Voice ID**: The voice to use (e.g., `alloy`, `nova`, `shimmer`)
+   - **TTS Model ID**: The TTS model to use (e.g., `eleven_turbo_v2_5`)
+   - **Voice ID**: The voice to use (e.g., `'xsGHrtxT5AdDzYXTQT0d', name: 'Gönül Filiz (Kadın)'`)
    - **API Key**: Your TTS API authentication key
 
 ### Backend Environment
@@ -63,7 +59,7 @@ ELEVENLABS_API_KEY=xi-api-key-your-key
 
 ## 📖 How to Use
 
-1. **Open the Application**: Visit https://udpqrpuq.manus.space
+1. **Open the Application**: Visit http://localhost:3000
 2. **Configure Settings**: Click "Ayarlar" and set up your LLM and TTS API credentials
 3. **Generate Story**: Click "Yeni Masal Oluştur" to create a new bedtime story
 4. **Convert to Audio**: Click "Seslendir" to convert the story to speech
@@ -72,17 +68,11 @@ ELEVENLABS_API_KEY=xi-api-key-your-key
 ## 🔧 Supported API Providers
 
 ### LLM Providers
-- **OpenAI**: GPT-3.5, GPT-4, GPT-4 Turbo
-- **Anthropic**: Claude 3 (Haiku, Sonnet, Opus)
-- **Meta**: Llama 2, Code Llama
-- **Google**: Gemini Pro
+- **OpenAI**: GPT-4o-Mini
 - **Custom APIs**: Any OpenAI-compatible API
 
 ### TTS Providers
-- **OpenAI TTS**: High-quality neural voices
 - **ElevenLabs**: Premium AI voices with emotion
-- **Azure Cognitive Services**: Microsoft's TTS service
-- **Google Cloud TTS**: Google's text-to-speech API
 - **Custom APIs**: Any compatible TTS service
 
 ## 🎨 Customization
@@ -95,10 +85,6 @@ The app includes several example prompts you can use:
 - "Fantastik öğeler içeren, hayal gücünü geliştiren hikayeler"
 
 ### Voice Options
-Different providers offer various voice options:
-- **OpenAI**: Alloy, Echo, Fable, Onyx, Nova, Shimmer
-- **Azure**: Turkish voices (Emel, Ahmet)
-- **Google Cloud**: Turkish Wavenet voices
 - **ElevenLabs**: Premium AI voices
 
 ## 🔒 Privacy & Security
@@ -166,24 +152,49 @@ src/
 
 ### OpenAI LLM
 ```
-Endpoint: https://api.openai.com/v1/chat/completions
-Model: gpt-4
-API Key: sk-...
-```
+import OpenAI from "openai";
 
-### OpenAI TTS
-```
-Endpoint: https://api.openai.com/v1/audio/speech
-Model: tts-1
-Voice: nova
-API Key: sk-...
+const openai = new OpenAI();
+
+async function main() {
+  const completion = await openai.chat.completions.create({
+    messages: [{ role: "developer", content: "You are a helpful assistant." }],
+    model: "gpt-4.1-mini",
+    store: true,
+  });
+
+  console.log(completion.choices[0]);
+}
+
+main();
+
 ```
 
 ### ElevenLabs TTS
 ```
-Endpoint: https://api.elevenlabs.io/v1/text-to-speech/{voice_id}
-Voice ID: EXAVITQu4vr4xnSDxMaL
-API Key: your-elevenlabs-key
+// Create speech (POST /v1/text-to-speech/:voice_id)
+const response = await fetch("https://api.elevenlabs.io/v1/text-to-speech/xsGHrtxT5AdDzYXTQT0d?output_format=mp3_44100_128", {
+  method: "POST",
+  headers: {
+    "xi-api-key": "sk-your-api-key",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    "text": "Sevgi katılarak tatlı rüyalar için yapıldı.",
+    "model_id": "eleven_turbo_v2_5",
+    "language_code": "tr",
+    "voice_settings": {
+      "stability": 0.75,
+      "use_speaker_boost": false,
+      "similarity_boost": 0.75,
+      "style": 0,
+      "speed": 0.9
+    }
+  }),
+});
+
+const body = await response.json();
+console.log(body);
 ```
 
 ## 🎯 Future Enhancements
