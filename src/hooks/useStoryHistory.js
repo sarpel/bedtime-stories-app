@@ -73,6 +73,16 @@ export function useStoryHistory() {
     )
   }
 
+  const updateStory = (id, updates) => {
+    setHistory(prev => 
+      prev.map(item => 
+        item.id === id 
+          ? { ...item, ...updates, updatedAt: new Date().toISOString() }
+          : item
+      )
+    )
+  }
+
   const getStoryById = (id) => {
     return history.find(item => item.id === id)
   }
@@ -91,6 +101,7 @@ export function useStoryHistory() {
     removeFromHistory,
     clearHistory,
     updateStoryAudio,
+    updateStory,
     getStoryById,
     getRecentStories,
     getStoriesByType

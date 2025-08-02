@@ -63,6 +63,11 @@ export const getStoryTypeName = (id) => {
   return type ? type.name : 'Genel Masal'
 }
 
+// Masal türü label'ını getirme (aynı fonksiyon)
+export const getStoryTypeLabel = (id) => {
+  return getStoryTypeName(id)
+}
+
 // Masal türü prompt'unu getirme
 export const getStoryTypePrompt = (id, customTopic = '') => {
   const type = getStoryTypeById(id)

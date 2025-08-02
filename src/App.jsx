@@ -4,16 +4,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Progress } from '@/components/ui/progress.jsx'
-import { Moon, Settings, Sparkles, Heart, AlertCircle, Volume2 } from 'lucide-react'
+import { Moon, Settings, Sparkles, Heart, AlertCircle, Volume2, BookOpen } from 'lucide-react'
 import SettingsPanel from './components/Settings.jsx'
 import StoryTypeSelector from './components/StoryTypeSelector.jsx'
 import StoryCard from './components/StoryCard.jsx'
 import FavoritesPanel from './components/FavoritesPanel.jsx'
+import StoryManagementPanel from './components/StoryManagementPanel.jsx'
 import { LLMService } from './services/llmService.js'
 import { TTSService } from './services/ttsService.js'
 import { getDefaultSettings } from './services/configService.js'
 import { useFavorites } from './hooks/useFavorites.js'
 import { useStoryHistory } from './hooks/useStoryHistory.js'
+import { getStoryTypeLabel } from './utils/storyTypes.js'
 import ApiKeyHelp from './components/ApiKeyHelp.jsx'
 import './App.css'
 
@@ -34,6 +36,7 @@ function App() {
   const [error, setError] = useState('')
   const [showFavorites, setShowFavorites] = useState(false)
   const [showApiKeyHelp, setShowApiKeyHelp] = useState(false)
+  const [showStoryManagement, setShowStoryManagement] = useState(false)
   const audioRef = useRef(null)
   // Son oluşturulan masalın geçmiş ID'si
   const [currentStoryId, setCurrentStoryId] = useState(null)
@@ -44,7 +47,7 @@ function App() {
   const { favorites, toggleFavorite, removeFavorite, isFavorite } = useFavorites()
   
   // Masal geçmişi hook'u
-  const { addToHistory, updateStoryAudio } = useStoryHistory()
+  const { history, addToHistory, updateStoryAudio, updateStory, removeFromHistory, clearHistory } = useStoryHistory()
 
   const generateStory = async () => {
     setIsGenerating(true)
@@ -261,6 +264,15 @@ function App() {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setShowStoryManagement(true)}
+              className="gap-2"
+            >
+              <BookOpen className="h-4 w-4" />
+              Masal Yönetimi ({history.length})
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setShowFavorites(true)}
               className="gap-2"
             >
@@ -413,6 +425,18 @@ function App() {
           </Card>
         )}
 
+        {/* Story Management Panel */}
+        {showStoryManagement && (
+          <StoryManagementPanel
+            history={history}
+            onUpdateStory={updateStory}
+            onDeleteStory={removeFromHistory}
+            onClearHistory={clearHistory}
+            onClose={() => setShowStoryManagement(false)}
+            settings={settings}
+          />
+        )}
+
         {/* Settings Panel */}
         {showSettings && (
           <SettingsPanel
@@ -438,6 +462,93 @@ function App() {
         {/* API Key Help Panel */}
         {showApiKeyHelp && (
           <ApiKeyHelp onClose={() => setShowApiKeyHelp(false)} />
+        )}
+
+        {/* Story Management Section */}
+        {history.length > 0 && (
+          <Card className="mt-8">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-primary" />
+                    Masal Koleksiyonum
+                  </CardTitle>
+                  <CardDescription>
+                    Kaydettiğiniz masalları yönetin, düzenleyin ve dinleyin
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowStoryManagement(true)}
+                  className="gap-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  Tümünü Yönet
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 max-h-64 overflow-y-auto">
+                {history.slice(0, 3).map((story) => (
+                  <div key={story.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant="secondary" className="text-xs">
+                          {getStoryTypeLabel(story.storyType)}
+                        </Badge>
+                        {story.customTopic && (
+                          <Badge variant="outline" className="text-xs">
+                            {story.customTopic}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {story.story.substring(0, 80)}...
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(story.createdAt).toLocaleDateString('tr-TR')}
+                      </p>
+                    </div>
+                    <div className="flex gap-1 ml-3">
+                      {story.audioUrl && (
+                        <Button variant="ghost" size="sm" onClick={() => {
+                          // Masal sesini çal
+                          const audio = new Audio(story.audioUrl)
+                          audio.play()
+                        }}>
+                          <Volume2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => {
+                          setStory(story.story)
+                          setSelectedStoryType(story.storyType)
+                          setCustomTopic(story.customTopic || '')
+                          if (story.audioUrl) {
+                            setAudioUrl(story.audioUrl)
+                          }
+                        }}
+                      >
+                        <BookOpen className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {history.length > 3 && (
+                  <Button
+                    variant="ghost"
+                    className="text-sm text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowStoryManagement(true)}
+                  >
+                    +{history.length - 3} masal daha görüntüle
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         )}
       </main>
 
