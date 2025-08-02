@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { ScrollArea } from '@/components/ui/scroll-area.jsx'
+import AudioControls from './AudioControls.jsx'
 import { 
   Heart, 
   Trash2, 
@@ -14,7 +15,25 @@ import {
 } from 'lucide-react'
 import { getStoryTypeName } from '@/utils/storyTypes.js'
 
-export default function FavoritesPanel({ favorites, onRemove, onPlay, onClose }) {
+export default function FavoritesPanel({ 
+  favorites, 
+  onRemove, 
+  onClose,
+  // Audio control props
+  audioIsPlaying,
+  audioIsPaused,
+  audioProgress,
+  audioDuration,
+  audioVolume,
+  audioIsMuted,
+  audioCurrentStoryId,
+  playAudio,
+  pauseAudio,
+  stopAudio,
+  audioToggleMute,
+  setVolumeLevel,
+  seekTo
+}) {
   const formatDate = (dateString) => {
     const date = new Date(dateString)
     return date.toLocaleDateString('tr-TR', {
@@ -89,13 +108,24 @@ export default function FavoritesPanel({ favorites, onRemove, onPlay, onClose })
                         </div>
                         <div className="flex gap-2 ml-4">
                           {favorite.audioUrl && (
-                            <Button
+                            <AudioControls
+                              storyId={favorite.id}
+                              audioUrl={favorite.audioUrl}
+                              isPlaying={audioIsPlaying}
+                              isPaused={audioIsPaused}
+                              progress={audioProgress}
+                              duration={audioDuration}
+                              volume={audioVolume}
+                              isMuted={audioIsMuted}
+                              currentStoryId={audioCurrentStoryId}
+                              onPlay={playAudio}
+                              onPause={pauseAudio}
+                              onStop={stopAudio}
+                              onToggleMute={audioToggleMute}
+                              onVolumeChange={setVolumeLevel}
+                              onSeek={seekTo}
                               size="sm"
-                              variant="outline"
-                              onClick={() => onPlay(favorite)}
-                            >
-                              <Volume2 className="h-4 w-4" />
-                            </Button>
+                            />
                           )}
                           <Button
                             size="sm"

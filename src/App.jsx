@@ -10,12 +10,14 @@ import StoryTypeSelector from './components/StoryTypeSelector.jsx'
 import StoryCard from './components/StoryCard.jsx'
 import FavoritesPanel from './components/FavoritesPanel.jsx'
 import StoryManagementPanel from './components/StoryManagementPanel.jsx'
+import AudioControls from './components/AudioControls.jsx'
 import { LLMService } from './services/llmService.js'
 import { TTSService } from './services/ttsService.js'
 import { getDefaultSettings } from './services/configService.js'
 import { useFavorites } from './hooks/useFavorites.js'
 import { useStoryHistory } from './hooks/useStoryHistory.js'
 import { useStoryDatabase } from './hooks/useStoryDatabase.js'
+import { useAudioPlayer } from './hooks/useAudioPlayer.js'
 import { getStoryTypeLabel } from './utils/storyTypes.js'
 import ApiKeyHelp from './components/ApiKeyHelp.jsx'
 import './App.css'
@@ -23,14 +25,9 @@ import './App.css'
 function App() {
   const [story, setStory] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [isPaused, setIsPaused] = useState(false)
   const [audioUrl, setAudioUrl] = useState('')
   const [progress, setProgress] = useState(0)
-  const [audioProgress, setAudioProgress] = useState(0)
-  const [audioDuration, setAudioDuration] = useState(0)
   const [showSettings, setShowSettings] = useState(false)
-  const [isMuted, setIsMuted] = useState(false)
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false)
   const [selectedStoryType, setSelectedStoryType] = useState('animals')
   const [customTopic, setCustomTopic] = useState('')
@@ -38,7 +35,6 @@ function App() {
   const [showFavorites, setShowFavorites] = useState(false)
   const [showApiKeyHelp, setShowApiKeyHelp] = useState(false)
   const [showStoryManagement, setShowStoryManagement] = useState(false)
-  const audioRef = useRef(null)
   // Son oluşturulan masalın geçmiş ID'si
   const [currentStoryId, setCurrentStoryId] = useState(null)
 
@@ -79,6 +75,24 @@ function App() {
     getAudioUrl: getDbAudioUrl,
     findStoryById
   } = useStoryDatabase()
+
+  // Audio player hook'u
+  const {
+    isPlaying: audioIsPlaying,
+    isPaused: audioIsPaused,
+    progress: audioProgress,
+    duration: audioDuration,
+    volume: audioVolume,
+    isMuted: audioIsMuted,
+    currentStoryId: audioCurrentStoryId,
+    playAudio,
+    pauseAudio,
+    stopAudio,
+    toggleMute: audioToggleMute,
+    setVolumeLevel,
+    seekTo,
+    audioRef: globalAudioRef
+  } = useAudioPlayer()
 
   // Hybrid update function - veritabanı varsa onu kullan, yoksa localStorage
   const hybridUpdateStory = async (id, updates) => {
@@ -193,23 +207,11 @@ function App() {
         setProgress(progressValue)
       }, currentStoryId)
       
-      // Clean up previous audio URL
-      if (audioRef.current && audioRef.current.src) {
-        TTSService.cleanupAudioUrl(audioRef.current.src)
-      }
-      
       setAudioUrl(audioUrl)
       
       // Backward compatibility için localStorage'a da kaydet
       if (currentStoryId) {
         updateStoryAudio(currentStoryId, audioUrl)
-      }
-      
-      // Set up audio element
-      if (audioRef.current) {
-        audioRef.current.src = audioUrl
-        audioRef.current.volume = settings.voiceSettings.volume
-        audioRef.current.muted = isMuted
       }
       
     } catch (error) {
@@ -230,97 +232,6 @@ function App() {
     } finally {
       setIsGeneratingAudio(false)
       setProgress(0)
-    }
-  }
-
-  // Audio event handlers
-  useEffect(() => {
-    const audio = audioRef.current
-    if (!audio) return
-
-    const handleLoadedMetadata = () => {
-      setAudioDuration(audio.duration)
-    }
-
-    const handleTimeUpdate = () => {
-      if (audio.duration) {
-        setAudioProgress((audio.currentTime / audio.duration) * 100)
-      }
-    }
-
-    const handleEnded = () => {
-      setIsPlaying(false)
-      setIsPaused(false)
-      setAudioProgress(0)
-    }
-
-    const handlePlay = () => {
-      setIsPlaying(true)
-      setIsPaused(false)
-    }
-
-    const handlePause = () => {
-      setIsPlaying(false)
-      setIsPaused(true)
-    }
-
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata)
-    audio.addEventListener('timeupdate', handleTimeUpdate)
-    audio.addEventListener('ended', handleEnded)
-    audio.addEventListener('play', handlePlay)
-    audio.addEventListener('pause', handlePause)
-
-    return () => {
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
-      audio.removeEventListener('timeupdate', handleTimeUpdate)
-      audio.removeEventListener('ended', handleEnded)
-      audio.removeEventListener('play', handlePlay)
-      audio.removeEventListener('pause', handlePause)
-    }
-  }, [audioUrl])
-
-  // Cleanup audio URL on unmount
-  useEffect(() => {
-    return () => {
-      if (audioUrl) {
-        TTSService.cleanupAudioUrl(audioUrl)
-      }
-    }
-  }, [audioUrl])
-
-  const playAudio = () => {
-    if (audioRef.current) {
-      if (isPaused) {
-        audioRef.current.play()
-        setIsPaused(false)
-      } else {
-        audioRef.current.play()
-      }
-      setIsPlaying(true)
-    }
-  }
-
-  const pauseAudio = () => {
-    if (audioRef.current) {
-      audioRef.current.pause()
-      setIsPlaying(false)
-      setIsPaused(true)
-    }
-  }
-
-  const stopAudio = () => {
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current.currentTime = 0
-      setIsPlaying(false)
-      setIsPaused(false)
-    }
-  }
-
-  const toggleMute = () => {
-    if (audioRef.current) {
-      audioRef.current.muted = !isMuted
-      setIsMuted(!isMuted)
     }
   }
 
@@ -455,16 +366,7 @@ function App() {
           isGeneratingAudio={isGeneratingAudio}
           progress={progress}
           audioUrl={audioUrl}
-          isPlaying={isPlaying}
-          isPaused={isPaused}
-          audioProgress={audioProgress}
-          audioDuration={audioDuration}
           onGenerateAudio={generateAudio}
-          onPlayAudio={playAudio}
-          onPauseAudio={pauseAudio}
-          onStopAudio={stopAudio}
-          onToggleMute={toggleMute}
-          isMuted={isMuted}
           isFavorite={story ? isFavorite({ story, storyType: selectedStoryType }) : false}
           onToggleFavorite={() => {
             if (story) {
@@ -477,6 +379,36 @@ function App() {
             }
           }}
         />
+
+        {/* Audio Controls for Generated Story */}
+        {audioUrl && (
+          <Card className="mb-8">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Ses Kontrolleri</h3>
+              </div>
+              <div className="mt-4">
+                <AudioControls
+                  storyId={currentStoryId}
+                  audioUrl={audioUrl}
+                  isPlaying={audioIsPlaying}
+                  isPaused={audioIsPaused}
+                  progress={audioProgress}
+                  duration={audioDuration}
+                  volume={audioVolume}
+                  isMuted={audioIsMuted}
+                  currentStoryId={audioCurrentStoryId}
+                  onPlay={playAudio}
+                  onPause={pauseAudio}
+                  onStop={stopAudio}
+                  onToggleMute={audioToggleMute}
+                  onVolumeChange={setVolumeLevel}
+                  onSeek={seekTo}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
 
 
@@ -537,21 +469,21 @@ function App() {
           <FavoritesPanel
             favorites={favorites}
             onRemove={removeFavorite}
-            onPlay={(favorite) => {
-              // Favori masalı yükle ve görüntüle
-              setStory(favorite.story)
-              setSelectedStoryType(favorite.storyType)
-              setCustomTopic(favorite.customTopic || '')
-              if (favorite.audioUrl) {
-                setAudioUrl(favorite.audioUrl)
-                // Audio element'i de güncelle
-                if (audioRef.current) {
-                  audioRef.current.src = favorite.audioUrl
-                }
-              }
-              setShowFavorites(false) // Paneli kapat
-            }}
             onClose={() => setShowFavorites(false)}
+            // Audio control props
+            audioIsPlaying={audioIsPlaying}
+            audioIsPaused={audioIsPaused}
+            audioProgress={audioProgress}
+            audioDuration={audioDuration}
+            audioVolume={audioVolume}
+            audioIsMuted={audioIsMuted}
+            audioCurrentStoryId={audioCurrentStoryId}
+            playAudio={playAudio}
+            pauseAudio={pauseAudio}
+            stopAudio={stopAudio}
+            audioToggleMute={audioToggleMute}
+            setVolumeLevel={setVolumeLevel}
+            seekTo={seekTo}
           />
         )}
 
@@ -608,14 +540,24 @@ function App() {
                     </div>
                     <div className="flex gap-1 ml-3">
                       {(story.audio || story.audioUrl) && (
-                        <Button variant="ghost" size="sm" onClick={() => {
-                          // Masal sesini çal
-                          const audioSrc = story.audio ? getDbAudioUrl(story.audio.file_name) : story.audioUrl;
-                          const audio = new Audio(audioSrc)
-                          audio.play()
-                        }}>
-                          <Volume2 className="h-3 w-3" />
-                        </Button>
+                        <AudioControls
+                          storyId={story.id}
+                          audioUrl={story.audio ? getDbAudioUrl(story.audio.file_name) : story.audioUrl}
+                          isPlaying={audioIsPlaying}
+                          isPaused={audioIsPaused}
+                          progress={audioProgress}
+                          duration={audioDuration}
+                          volume={audioVolume}
+                          isMuted={audioIsMuted}
+                          currentStoryId={audioCurrentStoryId}
+                          onPlay={playAudio}
+                          onPause={pauseAudio}
+                          onStop={stopAudio}
+                          onToggleMute={audioToggleMute}
+                          onVolumeChange={setVolumeLevel}
+                          onSeek={seekTo}
+                          size="sm"
+                        />
                       )}
                       <Button 
                         variant="ghost" 
@@ -658,7 +600,7 @@ function App() {
       </footer>
 
       {/* Hidden Audio Element */}
-      <audio ref={audioRef} className="hidden" />
+      <audio ref={globalAudioRef} className="hidden" />
     </div>
   )
 }
