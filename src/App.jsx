@@ -15,6 +15,7 @@ import { TTSService } from './services/ttsService.js'
 import { getDefaultSettings } from './services/configService.js'
 import { useFavorites } from './hooks/useFavorites.js'
 import { useStoryHistory } from './hooks/useStoryHistory.js'
+import { useStoryDatabase } from './hooks/useStoryDatabase.js'
 import { getStoryTypeLabel } from './utils/storyTypes.js'
 import ApiKeyHelp from './components/ApiKeyHelp.jsx'
 import './App.css'
@@ -41,13 +42,79 @@ function App() {
   // Son oluşturulan masalın geçmiş ID'si
   const [currentStoryId, setCurrentStoryId] = useState(null)
 
-  const [settings, setSettings] = useState(getDefaultSettings())
+  const [settings, setSettings] = useState(() => {
+    // localStorage'dan ayarları yükle
+    const savedSettings = localStorage.getItem('bedtime-stories-settings')
+    if (savedSettings) {
+      try {
+        return { ...getDefaultSettings(), ...JSON.parse(savedSettings) }
+      } catch (error) {
+        console.error('Ayarlar yüklenirken hata:', error)
+        return getDefaultSettings()
+      }
+    }
+    return getDefaultSettings()
+  })
+  
+  // Ayarları localStorage'a kaydet
+  const updateSettings = (newSettings) => {
+    setSettings(newSettings)
+    localStorage.setItem('bedtime-stories-settings', JSON.stringify(newSettings))
+  }
   
   // Favori masallar hook'u
   const { favorites, toggleFavorite, removeFavorite, isFavorite } = useFavorites()
   
-  // Masal geçmişi hook'u
+  // Masal geçmişi hook'u (localStorage için backward compatibility)
   const { history, addToHistory, updateStoryAudio, updateStory, removeFromHistory, clearHistory } = useStoryHistory()
+
+  // Veritabanı hook'u (yeni sistem)
+  const { 
+    stories: dbStories, 
+    loading: dbLoading, 
+    error: dbError,
+    createStory: createDbStory,
+    updateStory: updateDbStory,
+    deleteStory: deleteDbStory,
+    getAudioUrl: getDbAudioUrl,
+    findStoryById
+  } = useStoryDatabase()
+
+  // Hybrid update function - veritabanı varsa onu kullan, yoksa localStorage
+  const hybridUpdateStory = async (id, updates) => {
+    try {
+      // Eğer dbStories'te varsa veritabanından güncelle
+      const dbStory = dbStories.find(s => s.id === id)
+      if (dbStory) {
+        await updateDbStory(id, updates.story, dbStory.story_type, updates.customTopic)
+      } else {
+        // Backward compatibility için localStorage
+        updateStory(id, updates)
+      }
+    } catch (error) {
+      console.error('Masal güncelleme hatası:', error)
+      // Fallback to localStorage
+      updateStory(id, updates)
+    }
+  }
+
+  // Hybrid delete function
+  const hybridDeleteStory = async (id) => {
+    try {
+      // Eğer dbStories'te varsa veritabanından sil
+      const dbStory = dbStories.find(s => s.id === id)
+      if (dbStory) {
+        await deleteDbStory(id)
+      } else {
+        // Backward compatibility için localStorage
+        removeFromHistory(id)
+      }
+    } catch (error) {
+      console.error('Masal silme hatası:', error)
+      // Fallback to localStorage
+      removeFromHistory(id)
+    }
+  }
 
   const generateStory = async () => {
     setIsGenerating(true)
@@ -64,13 +131,23 @@ function App() {
       
       setStory(story)
       
-      // Masal geçmişine ekle ve ID'yi sakla
-      const id = addToHistory({
-        story,
-        storyType: selectedStoryType,
-        customTopic
-      })
-      setCurrentStoryId(id)
+      // Veritabanına kaydet
+      try {
+        const dbStory = await createDbStory(story, selectedStoryType, customTopic)
+        setCurrentStoryId(dbStory.id)
+        console.log('Masal veritabanına kaydedildi:', dbStory.id)
+      } catch (dbError) {
+        console.error('Veritabanına kaydetme hatası:', dbError)
+        
+        // Fallback olarak localStorage kullan
+        const id = addToHistory({
+          story,
+          storyType: selectedStoryType,
+          customTopic
+        })
+        setCurrentStoryId(id)
+      }
+      
     } catch (error) {
       console.error('Story generation failed:', error)
       
@@ -111,9 +188,10 @@ function App() {
     try {
       const ttsService = new TTSService(settings)
       
+      // Story ID'si ile ses oluştur (veritabanına kaydedilir)
       const audioUrl = await ttsService.generateAudio(story, (progressValue) => {
         setProgress(progressValue)
-      })
+      }, currentStoryId)
       
       // Clean up previous audio URL
       if (audioRef.current && audioRef.current.src) {
@@ -122,7 +200,7 @@ function App() {
       
       setAudioUrl(audioUrl)
       
-      // Masal geçmişindeki ses dosyasını güncelle
+      // Backward compatibility için localStorage'a da kaydet
       if (currentStoryId) {
         updateStoryAudio(currentStoryId, audioUrl)
       }
@@ -268,7 +346,7 @@ function App() {
               className="gap-2"
             >
               <BookOpen className="h-4 w-4" />
-              Masal Yönetimi ({history.length})
+              Masal Yönetimi ({dbStories.length > 0 ? dbStories.length : history.length})
             </Button>
             <Button
               variant="outline"
@@ -428,9 +506,17 @@ function App() {
         {/* Story Management Panel */}
         {showStoryManagement && (
           <StoryManagementPanel
-            history={history}
-            onUpdateStory={updateStory}
-            onDeleteStory={removeFromHistory}
+            history={dbStories.length > 0 ? dbStories.map(dbStory => ({
+              id: dbStory.id,
+              story: dbStory.story_text,
+              storyType: dbStory.story_type,
+              customTopic: dbStory.custom_topic,
+              createdAt: dbStory.created_at,
+              audioUrl: dbStory.audio ? getDbAudioUrl(dbStory.audio.file_name) : null,
+              audioGenerated: !!dbStory.audio
+            })) : history}
+            onUpdateStory={hybridUpdateStory}
+            onDeleteStory={hybridDeleteStory}
             onClearHistory={clearHistory}
             onClose={() => setShowStoryManagement(false)}
             settings={settings}
@@ -441,7 +527,7 @@ function App() {
         {showSettings && (
           <SettingsPanel
             settings={settings}
-            onSettingsChange={setSettings}
+            onSettingsChange={updateSettings}
             onClose={() => setShowSettings(false)}
           />
         )}
@@ -452,8 +538,18 @@ function App() {
             favorites={favorites}
             onRemove={removeFavorite}
             onPlay={(favorite) => {
-              // TODO: Favori masalı yükle ve seslendir
-              console.log('Favori masal oynatılıyor:', favorite)
+              // Favori masalı yükle ve görüntüle
+              setStory(favorite.story)
+              setSelectedStoryType(favorite.storyType)
+              setCustomTopic(favorite.customTopic || '')
+              if (favorite.audioUrl) {
+                setAudioUrl(favorite.audioUrl)
+                // Audio element'i de güncelle
+                if (audioRef.current) {
+                  audioRef.current.src = favorite.audioUrl
+                }
+              }
+              setShowFavorites(false) // Paneli kapat
             }}
             onClose={() => setShowFavorites(false)}
           />
@@ -465,7 +561,7 @@ function App() {
         )}
 
         {/* Story Management Section */}
-        {history.length > 0 && (
+        {(dbStories.length > 0 || history.length > 0) && (
           <Card className="mt-8">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -490,31 +586,32 @@ function App() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-3 max-h-64 overflow-y-auto">
-                {history.slice(0, 3).map((story) => (
+                {(dbStories.length > 0 ? dbStories : history).slice(0, 3).map((story) => (
                   <div key={story.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <Badge variant="secondary" className="text-xs">
-                          {getStoryTypeLabel(story.storyType)}
+                          {getStoryTypeLabel(story.story_type || story.storyType)}
                         </Badge>
-                        {story.customTopic && (
+                        {(story.custom_topic || story.customTopic) && (
                           <Badge variant="outline" className="text-xs">
-                            {story.customTopic}
+                            {story.custom_topic || story.customTopic}
                           </Badge>
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground truncate">
-                        {story.story.substring(0, 80)}...
+                        {(story.story_text || story.story).substring(0, 80)}...
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(story.createdAt).toLocaleDateString('tr-TR')}
+                        {new Date(story.created_at || story.createdAt).toLocaleDateString('tr-TR')}
                       </p>
                     </div>
                     <div className="flex gap-1 ml-3">
-                      {story.audioUrl && (
+                      {(story.audio || story.audioUrl) && (
                         <Button variant="ghost" size="sm" onClick={() => {
                           // Masal sesini çal
-                          const audio = new Audio(story.audioUrl)
+                          const audioSrc = story.audio ? getDbAudioUrl(story.audio.file_name) : story.audioUrl;
+                          const audio = new Audio(audioSrc)
                           audio.play()
                         }}>
                           <Volume2 className="h-3 w-3" />
@@ -524,11 +621,12 @@ function App() {
                         variant="ghost" 
                         size="sm"
                         onClick={() => {
-                          setStory(story.story)
-                          setSelectedStoryType(story.storyType)
-                          setCustomTopic(story.customTopic || '')
-                          if (story.audioUrl) {
-                            setAudioUrl(story.audioUrl)
+                          setStory(story.story_text || story.story)
+                          setSelectedStoryType(story.story_type || story.storyType)
+                          setCustomTopic(story.custom_topic || story.customTopic || '')
+                          const audioSrc = story.audio ? getDbAudioUrl(story.audio.file_name) : story.audioUrl;
+                          if (audioSrc) {
+                            setAudioUrl(audioSrc)
                           }
                         }}
                       >
@@ -537,13 +635,13 @@ function App() {
                     </div>
                   </div>
                 ))}
-                {history.length > 3 && (
+                {(dbStories.length > 3 || history.length > 3) && (
                   <Button
                     variant="ghost"
                     className="text-sm text-muted-foreground hover:text-foreground"
                     onClick={() => setShowStoryManagement(true)}
                   >
-                    +{history.length - 3} masal daha görüntüle
+                    +{(dbStories.length > 0 ? dbStories.length : history.length) - 3} masal daha görüntüle
                   </Button>
                 )}
               </div>

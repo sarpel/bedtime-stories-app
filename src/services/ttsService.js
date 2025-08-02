@@ -15,7 +15,7 @@ export class TTSService {
   }
 
   // Generate audio from text using custom TTS endpoint
-  async generateAudio(text, onProgress) {
+  async generateAudio(text, onProgress, storyId = null) {
     try {
       // Sabit model kontrolü
       if (!this.endpoint || !this.modelId || !this.voiceId) {
@@ -29,6 +29,21 @@ export class TTSService {
       // API anahtarı kontrolü
       if (!this.apiKey || this.apiKey === 'your-elevenlabs-api-key-here') {
         throw new Error('ElevenLabs API anahtarı eksik veya geçersiz. Lütfen .env dosyasında ELEVENLABS_API_KEY değerini ayarlayın.')
+      }
+
+      // Eğer storyId varsa, önce veritabanından ses dosyasını kontrol et
+      if (storyId) {
+        try {
+          const databaseService = (await import('./databaseService.js')).default;
+          const story = await databaseService.getStory(storyId);
+          if (story && story.audio && story.audio.file_name) {
+            const audioUrl = databaseService.getAudioUrl(story.audio.file_name);
+            onProgress?.(100);
+            return audioUrl;
+          }
+        } catch (dbError) {
+          console.warn('Veritabanından ses dosyası alınamadı, yeni ses oluşturuluyor:', dbError);
+        }
       }
 
       // Önbellekten kontrol et
@@ -63,6 +78,7 @@ export class TTSService {
         body: JSON.stringify({
           endpoint: fullUrl, // Değişiklik burada!
           requestBody: requestBody,
+          storyId: storyId // Story ID'si eklendi
         })
       })
 

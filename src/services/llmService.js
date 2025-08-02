@@ -14,7 +14,7 @@ export class LLMService {
     this.customPrompt = settings.customPrompt
     this.storyLength = settings.storyLength
     this.temperature = settings.llmSettings?.temperature || 0.9
-    this.maxTokens = settings.llmSettings?.maxTokens || 800
+    this.maxTokens = settings.llmSettings?.maxTokens || 500
   }
 
   // Get story length instructions based on setting
@@ -143,7 +143,7 @@ export class LLMService {
             content: prompt
           }
         ],
-        temperature: 0.8
+        temperature: 0.9
       }
     }
 

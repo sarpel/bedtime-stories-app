@@ -63,7 +63,7 @@ export const getDefaultSettings = () => ({
   },
   llmSettings: {
     temperature: 0.7,
-    maxTokens: 800
+    maxTokens: 600
   }
 })
 

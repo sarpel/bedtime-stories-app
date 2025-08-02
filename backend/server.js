@@ -7,6 +7,12 @@ require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
+
+// Veritabanı modülü
+const storyDb = require('./database/db');
 
 // Express uygulamasını oluştur
 const app = express();
@@ -18,6 +24,22 @@ app.use(express.json());
 // Sadece bizim Vite sunucumuzdan (http://localhost:5173) gelen isteklere izin ver.
 // Bu, başkalarının sizin backend'inizi kullanmasını engeller.
 app.use(cors({ origin: 'http://localhost:5173' }));
+
+// Static dosyalar için middleware (ses dosyalarını serve etmek için)
+app.use('/audio', express.static(path.join(__dirname, 'audio')));
+
+// Multer konfigürasyonu (ses dosyası upload için)
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, storyDb.getAudioDir());
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'story-' + uniqueSuffix + '.mp3');
+  }
+});
+
+const upload = multer({ storage: storage });
 
 // --- LLM İSTEKLERİ İÇİN ENDPOINT ---
 app.post('/api/llm', async (req, res) => {
@@ -64,17 +86,119 @@ app.post('/api/llm', async (req, res) => {
 });
 
 
-// --- TTS İSTEKLERİ İÇİN ENDPOINT ---
+// --- VERİTABANI API ENDPOINT'LERİ ---
+
+// Tüm masalları getir
+app.get('/api/stories', (req, res) => {
+  try {
+    const stories = storyDb.getAllStories();
+    res.json(stories);
+  } catch (error) {
+    console.error('Masalları getirme hatası:', error);
+    res.status(500).json({ error: 'Masallar getirilirken hata oluştu.' });
+  }
+});
+
+// Belirli bir masalı getir
+app.get('/api/stories/:id', (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const story = storyDb.getStoryWithAudio(id);
+    
+    if (!story) {
+      return res.status(404).json({ error: 'Masal bulunamadı.' });
+    }
+    
+    res.json(story);
+  } catch (error) {
+    console.error('Masal getirme hatası:', error);
+    res.status(500).json({ error: 'Masal getirilirken hata oluştu.' });
+  }
+});
+
+// Yeni masal oluştur
+app.post('/api/stories', (req, res) => {
+  try {
+    const { storyText, storyType, customTopic } = req.body;
+    
+    if (!storyText || !storyType) {
+      return res.status(400).json({ error: 'Masal metni ve türü gereklidir.' });
+    }
+    
+    const storyId = storyDb.createStory(storyText, storyType, customTopic);
+    const story = storyDb.getStory(storyId);
+    
+    res.status(201).json(story);
+  } catch (error) {
+    console.error('Masal oluşturma hatası:', error);
+    res.status(500).json({ error: 'Masal oluşturulurken hata oluştu.' });
+  }
+});
+
+// Masal güncelle
+app.put('/api/stories/:id', (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { storyText, storyType, customTopic } = req.body;
+    
+    if (!storyText || !storyType) {
+      return res.status(400).json({ error: 'Masal metni ve türü gereklidir.' });
+    }
+    
+    const updated = storyDb.updateStory(id, storyText, storyType, customTopic);
+    
+    if (!updated) {
+      return res.status(404).json({ error: 'Güncellenecek masal bulunamadı.' });
+    }
+    
+    const story = storyDb.getStory(id);
+    res.json(story);
+  } catch (error) {
+    console.error('Masal güncelleme hatası:', error);
+    res.status(500).json({ error: 'Masal güncellenirken hata oluştu.' });
+  }
+});
+
+// Masal sil
+app.delete('/api/stories/:id', (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const deleted = storyDb.deleteStory(id);
+    
+    if (!deleted) {
+      return res.status(404).json({ error: 'Silinecek masal bulunamadı.' });
+    }
+    
+    res.json({ message: 'Masal başarıyla silindi.' });
+  } catch (error) {
+    console.error('Masal silme hatası:', error);
+    res.status(500).json({ error: 'Masal silinirken hata oluştu.' });
+  }
+});
+
+// Belirli türdeki masalları getir
+app.get('/api/stories/type/:storyType', (req, res) => {
+  try {
+    const storyType = req.params.storyType;
+    const stories = storyDb.getStoriesByType(storyType);
+    res.json(stories);
+  } catch (error) {
+    console.error('Tip bazlı masal getirme hatası:', error);
+    res.status(500).json({ error: 'Masallar getirilirken hata oluştu.' });
+  }
+});
+
+
+// --- TTS İSTEKLERİ İÇİN ENDPOINT (GÜNCELLEN VERSİYON) ---
 app.post('/api/tts', async (req, res) => {
   // Frontend'den gelen ayarları ve metni al
-  const { endpoint, requestBody } = req.body;
+  const { endpoint, requestBody, storyId } = req.body;
   const apiKey = process.env.ELEVENLABS_API_KEY;
 
   console.log('TTS Request received:', { 
     endpoint, 
     hasApiKey: !!apiKey,
-    apiKeyLength: apiKey ? apiKey.length : 0,
-    apiKeyPrefix: apiKey ? apiKey.substring(0, 10) + '...' : 'none'
+    storyId: storyId
   });
 
   if (!apiKey) {
@@ -88,9 +212,6 @@ app.post('/api/tts', async (req, res) => {
     // Axios ile TTS API'sine isteği gönder.
     const response = await axios.post(endpoint, requestBody, {
       headers: {
-        // --- DEĞİŞİKLİK BURADA ---
-        // 'Authorization' başlığını sildik ve ElevenLabs'in istediği
-        // 'xi-api-key' başlığını ekledik.
         'xi-api-key': apiKey,
         'Content-Type': 'application/json'
       },
@@ -99,26 +220,52 @@ app.post('/api/tts', async (req, res) => {
 
     console.log('ElevenLabs response received:', { 
       status: response.status, 
-      headers: response.headers,
-      hasData: !!response.data 
+      headers: response.headers
     });
 
-    // Gelen ses verisini (stream) doğrudan frontend'e geri gönderiyoruz
-    res.setHeader('Content-Type', 'audio/mpeg');
-    
-    // Stream error handling
-    response.data.on('error', (streamError) => {
-      console.error('Stream error:', streamError);
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Audio stream error: ' + streamError.message });
+    // Eğer storyId varsa, ses dosyasını kaydet
+    if (storyId) {
+      try {
+        // Dosya adı oluştur
+        const fileName = `story-${storyId}-${Date.now()}.mp3`;
+        const filePath = path.join(storyDb.getAudioDir(), fileName);
+        
+        // Ses dosyasını kaydet
+        const writeStream = fs.createWriteStream(filePath);
+        response.data.pipe(writeStream);
+        
+        writeStream.on('finish', () => {
+          console.log('Audio file saved:', filePath);
+          // Veritabanına ses dosyası bilgisini kaydet
+          try {
+            // Voice ID'yi request body'den çıkar
+            const voiceId = endpoint.includes('/') ? endpoint.split('/').pop() : 'unknown';
+            storyDb.saveAudio(storyId, fileName, filePath, voiceId, requestBody);
+            console.log('Audio info saved to database for story:', storyId);
+          } catch (dbError) {
+            console.error('Database save error:', dbError);
+          }
+        });
+        
+        writeStream.on('error', (error) => {
+          console.error('File write error:', error);
+        });
+        
+        // Aynı zamanda client'a da stream gönder
+        res.setHeader('Content-Type', 'audio/mpeg');
+        response.data.pipe(res);
+        
+      } catch (fileError) {
+        console.error('File handling error:', fileError);
+        // Dosya hatası olsa bile client'a stream gönder
+        res.setHeader('Content-Type', 'audio/mpeg');
+        response.data.pipe(res);
       }
-    });
-    
-    response.data.on('end', () => {
-      console.log('Audio stream completed successfully');
-    });
-    
-    response.data.pipe(res);
+    } else {
+      // StoryId yoksa sadece client'a stream gönder
+      res.setHeader('Content-Type', 'audio/mpeg');
+      response.data.pipe(res);
+    }
 
   } catch (error) {
     console.error('TTS API Hatası:', {
