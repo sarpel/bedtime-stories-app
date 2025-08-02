@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Progress } from '@/components/ui/progress.jsx'
-import { Moon, Settings, Sparkles, Heart, AlertCircle, Volume2, BookOpen } from 'lucide-react'
+import { Moon, Settings, Sparkles, Heart, AlertCircle, Volume2, BookOpen, X } from 'lucide-react'
 import SettingsPanel from './components/Settings.jsx'
 import StoryTypeSelector from './components/StoryTypeSelector.jsx'
 import StoryCard from './components/StoryCard.jsx'
@@ -29,7 +29,7 @@ function App() {
   const [progress, setProgress] = useState(0)
   const [showSettings, setShowSettings] = useState(false)
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false)
-  const [selectedStoryType, setSelectedStoryType] = useState('animals')
+  const [selectedStoryType, setSelectedStoryType] = useState('')
   const [customTopic, setCustomTopic] = useState('')
   const [error, setError] = useState('')
   const [showFavorites, setShowFavorites] = useState(false)
@@ -131,6 +131,12 @@ function App() {
   }
 
   const generateStory = async () => {
+    // Hem selectedStoryType hem de customTopic boşsa masal oluşturma
+    if (!selectedStoryType && !customTopic.trim()) {
+      setError('Lütfen bir masal türü seçin veya özel bir konu yazın.')
+      return
+    }
+
     setIsGenerating(true)
     setStory('')
     setProgress(0)
@@ -139,15 +145,19 @@ function App() {
     try {
       const llmService = new LLMService(settings)
       
+      // Eğer customTopic varsa onu kullan, yoksa selectedStoryType kullan
+      const storyTypeToUse = customTopic.trim() ? 'custom' : selectedStoryType
+      const topicToUse = customTopic.trim() || ''
+      
       const story = await llmService.generateStory((progressValue) => {
         setProgress(progressValue)
-      }, selectedStoryType, customTopic)
+      }, storyTypeToUse, topicToUse)
       
       setStory(story)
       
       // Veritabanına kaydet
       try {
-        const dbStory = await createDbStory(story, selectedStoryType, customTopic)
+        const dbStory = await createDbStory(story, storyTypeToUse, topicToUse)
         setCurrentStoryId(dbStory.id)
         console.log('Masal veritabanına kaydedildi:', dbStory.id)
       } catch (dbError) {
@@ -156,8 +166,8 @@ function App() {
         // Fallback olarak localStorage kullan
         const id = addToHistory({
           story,
-          storyType: selectedStoryType,
-          customTopic
+          storyType: storyTypeToUse,
+          customTopic: topicToUse
         })
         setCurrentStoryId(id)
       }
@@ -235,6 +245,13 @@ function App() {
     }
   }
 
+  const clearStory = () => {
+    setStory('')
+    setAudioUrl('')
+    setCurrentStoryId(null)
+    setError('')
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
@@ -288,74 +305,13 @@ function App() {
           customTopic={customTopic}
           onTypeChange={setSelectedStoryType}
           onCustomTopicChange={setCustomTopic}
+          onGenerateStory={generateStory}
+          onGenerateAudio={generateAudio}
+          isGenerating={isGenerating}
+          isGeneratingAudio={isGeneratingAudio}
+          story={story}
+          progress={progress}
         />
-
-        {/* Story Generation */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Heart className="h-5 w-5 text-primary" />
-              Masal Oluştur
-            </CardTitle>
-            <CardDescription>
-              Sana özel bir uyku masalı oluşturmak için butona tıkla
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-3">
-              <Button 
-                onClick={generateStory}
-                disabled={isGenerating}
-                className="flex-1"
-                size="lg"
-              >
-                {isGenerating ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground border-t-transparent mr-2" />
-                    Masal Oluşturuluyor...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Yeni Masal Oluştur
-                  </>
-                )}
-              </Button>
-              {story && (
-                <Button 
-                  onClick={generateAudio}
-                  disabled={isGenerating || isGeneratingAudio}
-                  variant="outline"
-                  size="lg"
-                >
-                  {isGeneratingAudio ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent mr-2" />
-                      Ses Oluşturuluyor...
-                    </>
-                  ) : (
-                    <>
-                      <Volume2 className="h-4 w-4 mr-2" />
-                      Seslendir
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
-            
-            {(isGenerating || isGeneratingAudio) && progress > 0 && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>
-                    {isGenerating ? 'Masal oluşturuluyor...' : 'Ses oluşturuluyor...'}
-                  </span>
-                  <span>{progress}%</span>
-                </div>
-                <Progress value={progress} className="h-2" />
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         {/* Story Card */}
         <StoryCard
@@ -363,10 +319,9 @@ function App() {
           storyType={selectedStoryType}
           customTopic={customTopic}
           isGenerating={isGenerating}
-          isGeneratingAudio={isGeneratingAudio}
           progress={progress}
           audioUrl={audioUrl}
-          onGenerateAudio={generateAudio}
+          onClearStory={clearStory}
           isFavorite={story ? isFavorite({ story, storyType: selectedStoryType }) : false}
           onToggleFavorite={() => {
             if (story) {
@@ -452,6 +407,9 @@ function App() {
             onClearHistory={clearHistory}
             onClose={() => setShowStoryManagement(false)}
             settings={settings}
+            favorites={favorites}
+            onToggleFavorite={toggleFavorite}
+            isFavorite={isFavorite}
           />
         )}
 
@@ -539,6 +497,47 @@ function App() {
                       </p>
                     </div>
                     <div className="flex gap-1 ml-3">
+                      {/* Favorite Button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleFavorite({
+                          story: story.story_text || story.story,
+                          storyType: story.story_type || story.storyType,
+                          customTopic: story.custom_topic || story.customTopic,
+                          audioUrl: story.audio ? getDbAudioUrl(story.audio.file_name) : story.audioUrl
+                        })}
+                        className={`h-8 w-8 p-0 ${
+                          isFavorite({ 
+                            story: story.story_text || story.story, 
+                            storyType: story.story_type || story.storyType 
+                          }) 
+                          ? 'text-red-500 hover:text-red-600' 
+                          : 'hover:text-red-500'
+                        }`}
+                        title="Favorilere ekle/çıkar"
+                      >
+                        <Heart className={`h-3 w-3 ${
+                          isFavorite({ 
+                            story: story.story_text || story.story, 
+                            storyType: story.story_type || story.storyType 
+                          }) 
+                          ? 'fill-current' 
+                          : ''
+                        }`} />
+                      </Button>
+                      
+                      {/* Delete Button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => hybridDeleteStory(story.id)}
+                        className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                        title="Masalı sil"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+
                       {(story.audio || story.audioUrl) && (
                         <AudioControls
                           storyId={story.id}
@@ -571,6 +570,8 @@ function App() {
                             setAudioUrl(audioSrc)
                           }
                         }}
+                        className="h-8 w-8 p-0"
+                        title="Masalı görüntüle"
                       >
                         <BookOpen className="h-3 w-3" />
                       </Button>

@@ -1,28 +1,43 @@
-import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
-import { Input } from '@/components/ui/input.jsx'
+import { Textarea } from '@/components/ui/textarea.jsx'
 import { Label } from '@/components/ui/label.jsx'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
-import { Separator } from '@/components/ui/separator.jsx'
-import { Sparkles, BookOpen } from 'lucide-react'
-import { storyTypes, popularStoryTypes, getStoryTypeById } from '@/utils/storyTypes.js'
+import { Progress } from '@/components/ui/progress.jsx'
+import { BookOpen, Sparkles, Volume2 } from 'lucide-react'
+import { storyTypes } from '@/utils/storyTypes.js'
 
-export default function StoryTypeSelector({ selectedType, customTopic, onTypeChange, onCustomTopicChange }) {
-  const [showCustomInput, setShowCustomInput] = useState(selectedType === 'custom')
-
+export default function StoryTypeSelector({ 
+  selectedType, 
+  customTopic, 
+  onTypeChange, 
+  onCustomTopicChange,
+  onGenerateStory,
+  onGenerateAudio,
+  isGenerating,
+  isGeneratingAudio,
+  story,
+  progress
+}) {
   const handleTypeChange = (typeId) => {
     onTypeChange(typeId)
-    setShowCustomInput(typeId === 'custom')
-    
-    // Özel konu seçildiğinde custom topic'i temizle
-    if (typeId !== 'custom') {
-      onCustomTopicChange('')
+  }
+
+  const handleCustomTopicChange = (e) => {
+    const value = e.target.value
+    onCustomTopicChange(value)
+    // Özel konu yazılmaya başlandığında seçili türü temizle
+    if (value.trim() && selectedType) {
+      onTypeChange('')
     }
   }
 
-  const selectedStoryType = getStoryTypeById(selectedType)
+  const handleCustomTopicFocus = () => {
+    // Text area'ya odaklanıldığında seçili türü temizle
+    if (selectedType) {
+      onTypeChange('')
+    }
+  }
 
   return (
     <Card className="mb-8">
@@ -32,86 +47,136 @@ export default function StoryTypeSelector({ selectedType, customTopic, onTypeCha
           Hangi Masalı Duymak İstersin?
         </CardTitle>
         <CardDescription>
-          Masal türünü seç veya kendi konunu belirt
+          Masal türünü seç veya istediğin konuyu yaz
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4">
         
-        {/* Hızlı Seçim Butonları */}
+        {/* Masal Türü Butonları - 2 satırda */}
         <div className="space-y-3">
-          <Label className="text-sm font-medium">Popüler Masal Türleri</Label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {popularStoryTypes.map((type) => (
+          <Label className="text-sm font-medium">En Sevilen Masal Türleri</Label>
+          <div className="grid grid-cols-5 gap-2">
+            {storyTypes.slice(0, 5).map((type) => (
               <Button
                 key={type.id}
                 variant={selectedType === type.id ? "default" : "outline"}
                 onClick={() => handleTypeChange(type.id)}
-                className="h-auto p-4 flex flex-col items-center gap-2"
+                className="flex flex-col items-center gap-1 h-16 p-2 text-xs"
+                size="sm"
               >
-                <span className="text-2xl">{type.icon}</span>
-                <span className="text-xs font-medium">{type.name}</span>
+                <span className="text-lg">{type.icon}</span>
+                <span className="leading-none text-center">{type.name}</span>
+              </Button>
+            ))}
+          </div>
+          <div className="grid grid-cols-5 gap-2">
+            {storyTypes.slice(5, 10).map((type) => (
+              <Button
+                key={type.id}
+                variant={selectedType === type.id ? "default" : "outline"}
+                onClick={() => handleTypeChange(type.id)}
+                className="flex flex-col items-center gap-1 h-16 p-2 text-xs"
+                size="sm"
+              >
+                <span className="text-lg">{type.icon}</span>
+                <span className="leading-none text-center">{type.name}</span>
               </Button>
             ))}
           </div>
         </div>
 
-        <Separator />
-
-        {/* Detaylı Seçim */}
+        {/* Özel Konu Girişi ve Butonlar */}
         <div className="space-y-3">
-          <Label htmlFor="story-type">Masal Türü</Label>
-          <Select value={selectedType} onValueChange={handleTypeChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Masal türünü seçin" />
-            </SelectTrigger>
-            <SelectContent>
-              {storyTypes.map((type) => (
-                <SelectItem key={type.id} value={type.id}>
-                  <div className="flex items-center gap-2">
-                    <span>{type.icon}</span>
-                    <span>{type.name}</span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <Label htmlFor="custom-topic">Özel Masal Konun</Label>
+              <Textarea
+                id="custom-topic"
+                placeholder="Hangi konuda bir masal duymak istiyorsun? Örn: Uzay yolculuğu yapan kedinin macerası..." 
+                value={customTopic}
+                onChange={handleCustomTopicChange}
+                onFocus={handleCustomTopicFocus}
+                className="min-h-[80px] resize-none"
+              />
+            </div>
+            <div className="flex flex-col gap-2 min-w-[120px]">
+              <Button 
+                onClick={onGenerateStory}
+                disabled={isGenerating || (!selectedType && !customTopic.trim())}
+                className="flex items-center gap-2 w-full"
+                size="default"
+              >
+                {isGenerating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground border-t-transparent" />
+                    <span className="text-xs">Oluşturuluyor...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    <span className="text-xs">Masal Oluştur</span>
+                  </>
+                )}
+              </Button>
+              {story && (
+                <Button 
+                  onClick={onGenerateAudio}
+                  disabled={isGeneratingAudio}
+                  variant="outline"
+                  className="flex items-center gap-2 w-full"
+                  size="default"
+                >
+                  {isGeneratingAudio ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
+                      <span className="text-xs">Sesli...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="h-4 w-4" />
+                      <span className="text-xs">Seslendir</span>
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
           
-          {selectedStoryType && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Sparkles className="h-4 w-4" />
-              <span>{selectedStoryType.description}</span>
+          {/* Progress gösterimi */}
+          {(isGenerating || isGeneratingAudio) && progress > 0 && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>
+                  {isGenerating ? 'Masal oluşturuluyor...' : 'Ses oluşturuluyor...'}
+                </span>
+                <span>{progress}%</span>
+              </div>
+              <Progress value={progress} className="h-2" />
             </div>
           )}
         </div>
 
-        {/* Özel Konu Girişi */}
-        {showCustomInput && (
-          <div className="space-y-3">
-            <Label htmlFor="custom-topic">Özel Konu</Label>
-            <Input
-              id="custom-topic"
-              placeholder="Örn: Uzay yolculuğu, Deniz altı macerası, Orman dostları..."
-              value={customTopic}
-              onChange={(e) => onCustomTopicChange(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Hangi konuda bir masal duymak istediğini yaz
-            </p>
-          </div>
-        )}
-
         {/* Seçim Özeti */}
-        {selectedType && (
-          <div className="p-4 bg-muted/50 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <Badge variant="secondary">
-                {selectedStoryType.icon} {selectedStoryType.name}
-              </Badge>
+        {(selectedType || customTopic.trim()) && (
+          <div className="p-3 bg-muted/50 rounded-lg">
+            <div className="flex items-center gap-2 mb-1">
+              {selectedType && (
+                <Badge variant="secondary" className="text-xs">
+                  {storyTypes.find(t => t.id === selectedType)?.icon} {storyTypes.find(t => t.id === selectedType)?.name}
+                </Badge>
+              )}
+              {customTopic.trim() && !selectedType && (
+                <Badge variant="outline" className="text-xs">
+                  Özel Konu
+                </Badge>
+              )}
             </div>
-            <p className="text-sm text-muted-foreground">
-              {selectedType === 'custom' && customTopic 
-                ? `"${customTopic}" konulu özel bir masal oluşturulacak`
-                : selectedStoryType.description
+            <p className="text-xs text-muted-foreground">
+              {customTopic.trim() && !selectedType
+                ? `"${customTopic.substring(0, 80)}${customTopic.length > 80 ? '...' : ''}" konulu özel masal oluşturulacak`
+                : selectedType 
+                ? storyTypes.find(t => t.id === selectedType)?.description
+                : ''
               }
             </p>
           </div>

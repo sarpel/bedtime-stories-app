@@ -15,7 +15,8 @@ import {
   Sparkles,
   CheckCircle,
   AlertCircle,
-  MoreHorizontal
+  MoreHorizontal,
+  X
 } from 'lucide-react'
 import { getStoryTypeName } from '@/utils/storyTypes.js'
 import { shareStory, shareToSocialMedia, downloadStory } from '@/utils/share.js'
@@ -25,20 +26,19 @@ export default function StoryCard({
   storyType, 
   customTopic = '',
   isGenerating, 
-  isGeneratingAudio, 
   progress, 
   audioUrl, 
   isPlaying, 
   audioProgress,
   audioDuration,
-  onGenerateAudio, 
   onPlayAudio, 
   onPauseAudio, 
   onStopAudio, 
   onToggleMute, 
   isMuted,
   isFavorite,
-  onToggleFavorite
+  onToggleFavorite,
+  onClearStory
 }) {
   const [copied, setCopied] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
@@ -218,33 +218,26 @@ export default function StoryCard({
         {/* Masal İçeriği */}
         {!isGenerating && story && (
           <div className="space-y-4">
-            <Textarea
-              value={story}
-              readOnly
-              className="min-h-[300px] text-base leading-relaxed resize-none border-0 bg-transparent p-0 focus-visible:ring-0"
-              placeholder="Masalın burada görünecek..."
-            />
+            <div className="relative">
+              <Textarea
+                value={story}
+                readOnly
+                className="min-h-[300px] text-base leading-relaxed resize-none border-0 bg-transparent p-0 focus-visible:ring-0"
+                placeholder="Masalın burada görünecek..."
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClearStory}
+                className="absolute top-2 right-2 h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                title="Metni temizle"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
             
             {/* Aksiyon Butonları */}
             <div className="flex flex-wrap gap-3 pt-4 border-t">
-              <Button 
-                onClick={onGenerateAudio}
-                disabled={isGeneratingAudio}
-                className="flex items-center gap-2"
-              >
-                {isGeneratingAudio ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground border-t-transparent" />
-                    Ses Oluşturuluyor...
-                  </>
-                ) : (
-                  <>
-                    <Volume2 className="h-4 w-4" />
-                    Seslendir
-                  </>
-                )}
-              </Button>
-
               {audioUrl && (
                 <div className="flex items-center gap-2">
                   <Button 

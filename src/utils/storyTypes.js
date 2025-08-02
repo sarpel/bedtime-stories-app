@@ -2,39 +2,67 @@
 
 export const storyTypes = [
   {
-    id: 'animals',
-    name: 'Hayvan Masalları',
-    icon: '🐾',
-    description: 'Sevimli hayvanların maceraları',
-    prompt: 'Hayvanların başrol oynadığı, dostluk ve yardımlaşma temalı'
-  },
-  {
     id: 'princess',
     name: 'Prenses Masalları',
-    icon: '👑',
+    icon: '�',
     description: 'Büyülü prenses hikayeleri',
     prompt: 'Prenseslerin, büyülü krallıkların ve iyiliğin zaferi temalı'
   },
   {
-    id: 'adventure',
-    name: 'Macera Masalları',
-    icon: '🗺️',
-    description: 'Heyecan dolu keşif hikayeleri',
-    prompt: 'Keşif, macera ve cesaret temalı, heyecan verici'
+    id: 'unicorn',
+    name: 'Unicorn Masalları',
+    icon: '🦄',
+    description: 'Tek boynuzlu at masalları',
+    prompt: 'Unicornlar, büyü ve masalsı yaratıklar temalı'
   },
   {
-    id: 'friendship',
-    name: 'Arkadaşlık Masalları',
-    icon: '🤝',
-    description: 'Dostluk ve paylaşım hikayeleri',
-    prompt: 'Arkadaşlık, paylaşım ve yardımlaşma değerlerini öğreten'
+    id: 'fairy',
+    name: 'Peri Masalları',
+    icon: '🧚‍♀️',
+    description: 'Peri ve büyü hikayeleri',
+    prompt: 'Periler, büyülü değnekler ve iyilik yapan yaratıklar temalı'
   },
   {
-    id: 'nature',
-    name: 'Doğa Masalları',
-    icon: '🌳',
-    description: 'Doğa ve çevre bilinci hikayeleri',
-    prompt: 'Doğa sevgisi, çevre bilinci ve hayvan dostluğu temalı'
+    id: 'butterfly',
+    name: 'Kelebek Masalları',
+    icon: '🦋',
+    description: 'Rengarenk kelebek maceraları',
+    prompt: 'Kelebekler, çiçekler ve doğa güzellikleri temalı'
+  },
+  {
+    id: 'mermaid',
+    name: 'Deniz Kızı Masalları',
+    icon: '�‍♀️',
+    description: 'Deniz altı prenses hikayeleri',
+    prompt: 'Deniz kızları, okyanus maceraları ve su altı krallıkları temalı'
+  },
+  {
+    id: 'rainbow',
+    name: 'Gökkuşağı Masalları',
+    icon: '🌈',
+    description: 'Renkli gökkuşağı hikayeleri',
+    prompt: 'Gökkuşağı, renkler ve neşe temalı masallar'
+  },
+  {
+    id: 'flower',
+    name: 'Çiçek Masalları',
+    icon: '�',
+    description: 'Güzel çiçek bahçesi hikayeleri',
+    prompt: 'Çiçekler, bahçe dostları ve doğa sevgisi temalı'
+  },
+  {
+    id: 'cat',
+    name: 'Kedi Masalları',
+    icon: '🐱',
+    description: 'Sevimli kedi dostlar',
+    prompt: 'Kediler, dostluk ve sevimli maceralar temalı'
+  },
+  {
+    id: 'star',
+    name: 'Yıldız Masalları',
+    icon: '⭐',
+    description: 'Parıldayan yıldız hikayeleri',
+    prompt: 'Yıldızlar, gece gökyüzü ve hayaller temalı'
   },
   {
     id: 'magic',
@@ -42,13 +70,6 @@ export const storyTypes = [
     icon: '✨',
     description: 'Büyülü ve fantastik hikayeler',
     prompt: 'Sihir, büyü ve fantastik öğeler içeren, hayal gücünü geliştiren'
-  },
-  {
-    id: 'custom',
-    name: 'Özel Konu',
-    icon: '✏️',
-    description: 'Kendi konunu seç',
-    prompt: 'Kullanıcının belirttiği özel konu temalı'
   }
 ]
 

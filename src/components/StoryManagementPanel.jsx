@@ -38,7 +38,8 @@ import {
   FileText,
   Loader2,
   Save,
-  X
+  X,
+  Heart
 } from 'lucide-react'
 import { getStoryTypeLabel } from '@/utils/storyTypes.js'
 import { TTSService } from '@/services/ttsService.js'
@@ -49,7 +50,10 @@ const StoryManagementPanel = ({
   onDeleteStory, 
   onClearHistory,
   onClose,
-  settings 
+  settings,
+  favorites,
+  onToggleFavorite,
+  isFavorite
 }) => {
   const [selectedStory, setSelectedStory] = useState(null)
   const [editedStory, setEditedStory] = useState('')
@@ -291,6 +295,29 @@ const StoryManagementPanel = ({
                             >
                               <Edit3 className="h-3 w-3 mr-1" />
                               Düzenle
+                            </Button>
+
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onToggleFavorite({
+                                story: story.story,
+                                storyType: story.storyType,
+                                customTopic: story.customTopic,
+                                audioUrl: story.audioUrl
+                              })}
+                              className={`${
+                                isFavorite({ story: story.story, storyType: story.storyType }) 
+                                ? 'text-red-500 hover:text-red-600' 
+                                : 'hover:text-red-500'
+                              }`}
+                              title="Favorilere ekle/çıkar"
+                            >
+                              <Heart className={`h-3 w-3 ${
+                                isFavorite({ story: story.story, storyType: story.storyType }) 
+                                ? 'fill-current' 
+                                : ''
+                              }`} />
                             </Button>
                           </div>
 
