@@ -1,10 +1,24 @@
-import { useTheme } from "next-themes"
+import { useState, useEffect } from "react"
 import { Toaster as Sonner } from "sonner";
 
 const Toaster = ({
   ...props
 }) => {
-  const { theme = "system" } = useTheme()
+  // Next.js yerine native React dark mode detection
+  const [theme, setTheme] = useState("system")
+  
+  useEffect(() => {
+    // System theme detection
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const updateTheme = () => {
+      setTheme(mediaQuery.matches ? 'dark' : 'light')
+    }
+    
+    updateTheme()
+    mediaQuery.addEventListener('change', updateTheme)
+    
+    return () => mediaQuery.removeEventListener('change', updateTheme)
+  }, [])
 
   return (
     <Sonner

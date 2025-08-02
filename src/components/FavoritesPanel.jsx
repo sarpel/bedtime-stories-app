@@ -28,7 +28,6 @@ export default function FavoritesPanel({
   audioIsMuted,
   audioCurrentStoryId,
   playAudio,
-  pauseAudio,
   stopAudio,
   audioToggleMute,
   setVolumeLevel,
@@ -119,7 +118,6 @@ export default function FavoritesPanel({
                               isMuted={audioIsMuted}
                               currentStoryId={audioCurrentStoryId}
                               onPlay={playAudio}
-                              onPause={pauseAudio}
                               onStop={stopAudio}
                               onToggleMute={audioToggleMute}
                               onVolumeChange={setVolumeLevel}

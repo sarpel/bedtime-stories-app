@@ -51,7 +51,6 @@ const StoryManagementPanel = ({
   onClearHistory,
   onClose,
   settings,
-  favorites,
   onToggleFavorite,
   isFavorite
 }) => {

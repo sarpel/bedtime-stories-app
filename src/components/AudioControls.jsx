@@ -20,7 +20,6 @@ export default function AudioControls({
   isMuted,
   currentStoryId,
   onPlay,
-  onPause,
   onStop,
   onToggleMute,
   onVolumeChange,

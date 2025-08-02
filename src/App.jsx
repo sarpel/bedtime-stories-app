@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Textarea } from '@/components/ui/textarea.jsx'
@@ -67,13 +67,10 @@ function App() {
   // Veritabanı hook'u (yeni sistem)
   const { 
     stories: dbStories, 
-    loading: dbLoading, 
-    error: dbError,
     createStory: createDbStory,
     updateStory: updateDbStory,
     deleteStory: deleteDbStory,
-    getAudioUrl: getDbAudioUrl,
-    findStoryById
+    getAudioUrl: getDbAudioUrl
   } = useStoryDatabase()
 
   // Audio player hook'u
@@ -86,7 +83,6 @@ function App() {
     isMuted: audioIsMuted,
     currentStoryId: audioCurrentStoryId,
     playAudio,
-    pauseAudio,
     stopAudio,
     toggleMute: audioToggleMute,
     setVolumeLevel,
@@ -354,7 +350,6 @@ function App() {
                   isMuted={audioIsMuted}
                   currentStoryId={audioCurrentStoryId}
                   onPlay={playAudio}
-                  onPause={pauseAudio}
                   onStop={stopAudio}
                   onToggleMute={audioToggleMute}
                   onVolumeChange={setVolumeLevel}
@@ -407,7 +402,6 @@ function App() {
             onClearHistory={clearHistory}
             onClose={() => setShowStoryManagement(false)}
             settings={settings}
-            favorites={favorites}
             onToggleFavorite={toggleFavorite}
             isFavorite={isFavorite}
           />
@@ -437,7 +431,6 @@ function App() {
             audioIsMuted={audioIsMuted}
             audioCurrentStoryId={audioCurrentStoryId}
             playAudio={playAudio}
-            pauseAudio={pauseAudio}
             stopAudio={stopAudio}
             audioToggleMute={audioToggleMute}
             setVolumeLevel={setVolumeLevel}
@@ -550,7 +543,6 @@ function App() {
                           isMuted={audioIsMuted}
                           currentStoryId={audioCurrentStoryId}
                           onPlay={playAudio}
-                          onPause={pauseAudio}
                           onStop={stopAudio}
                           onToggleMute={audioToggleMute}
                           onVolumeChange={setVolumeLevel}

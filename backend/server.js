@@ -7,7 +7,7 @@ require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
-const multer = require('multer');
+// const multer = require('multer'); // Şu anda kullanılmıyor
 const fs = require('fs');
 const path = require('path');
 
@@ -28,18 +28,18 @@ app.use(cors({ origin: 'http://localhost:5173' }));
 // Static dosyalar için middleware (ses dosyalarını serve etmek için)
 app.use('/audio', express.static(path.join(__dirname, 'audio')));
 
-// Multer konfigürasyonu (ses dosyası upload için)
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, storyDb.getAudioDir());
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'story-' + uniqueSuffix + '.mp3');
-  }
-});
+// Multer konfigürasyonu (ses dosyası upload için - şu anda kullanılmıyor)
+// const storage = multer.diskStorage({
+//   destination: function (req, file, cb) {
+//     cb(null, storyDb.getAudioDir());
+//   },
+//   filename: function (req, file, cb) {
+//     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+//     cb(null, 'story-' + uniqueSuffix + '.mp3');
+//   }
+// });
 
-const upload = multer({ storage: storage });
+// const upload = multer({ storage: storage });
 
 // --- LLM İSTEKLERİ İÇİN ENDPOINT ---
 app.post('/api/llm', async (req, res) => {
