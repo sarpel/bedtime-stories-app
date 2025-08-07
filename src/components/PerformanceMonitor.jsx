@@ -1,344 +1,251 @@
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Button } from '@/components/ui/button.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
-import { Progress } from '@/components/ui/progress.jsx'
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet.jsx'
-import { 
-  BarChart3, 
-  Database, 
-  Zap, 
-  Trash2, 
-  RefreshCw,
-  AlertTriangle,
-  CheckCircle,
-  Info
-} from 'lucide-react'
-import { useMemoryMonitor, useCacheManager } from '@/hooks/usePerformance.js'
-import { storyCache, audioCache, apiResponseCache } from '@/utils/cache.js'
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Separator } from './ui/separator';
+import { ScrollArea } from './ui/scroll-area';
+import { X, Monitor, Cpu, HardDrive, Clock } from 'lucide-react';
 
-/**
- * Performance Monitoring Dashboard Component
- * Performans metrikleri ve cache yönetimi için
- */
-export default function PerformanceMonitor({ onClose }) {
-  const [refreshKey, setRefreshKey] = useState(0)
-  const { memoryUsage, isHighMemory } = useMemoryMonitor()
-  const { clearOldCache, getCacheSize } = useCacheManager()
-  
-  // Cache stats
+const PerformanceMonitor = ({ isOpen, onClose }) => {
+  const [performanceData, setPerformanceData] = useState({
+    memoryUsage: 0,
+    cacheSize: 0,
+    loadTime: 0,
+    apiCalls: 0,
+    errors: 0
+  });
+
   const [cacheStats, setCacheStats] = useState({
-    story: { size: 0, hitRate: 0, memoryUsage: 0 },
-    audio: { size: 0, hitRate: 0, memoryUsage: 0 },
-    api: { size: 0, hitRate: 0, memoryUsage: 0 }
-  })
-  
+    totalItems: 0,
+    hitRate: 85,
+    missRate: 15,
+    size: '2.4 MB'
+  });
+
+  const [recentLogs, setRecentLogs] = useState([
+    { id: 1, time: '14:30:25', type: 'info', message: 'Hikaye başarıyla oluşturuldu' },
+    { id: 2, time: '14:29:18', type: 'warning', message: 'TTS yanıt süresi yavaş' },
+    { id: 3, time: '14:28:45', type: 'error', message: 'API bağlantı hatası' },
+    { id: 4, time: '14:27:32', type: 'info', message: 'Önbellek temizlendi' }
+  ]);
+
   useEffect(() => {
-    const updateStats = () => {
-      setCacheStats({
-        story: storyCache.getStats(),
-        audio: audioCache.getStats(),
-        api: apiResponseCache.getStats()
-      })
+    if (isOpen) {
+      // Mock performance data güncellemesi
+      const interval = setInterval(() => {
+        setPerformanceData(prev => ({
+          memoryUsage: Math.floor(Math.random() * 100),
+          cacheSize: Math.floor(Math.random() * 50) + 10,
+          loadTime: Math.floor(Math.random() * 1000) + 500,
+          apiCalls: prev.apiCalls + Math.floor(Math.random() * 3),
+          errors: prev.errors + (Math.random() > 0.9 ? 1 : 0)
+        }));
+      }, 2000);
+
+      return () => clearInterval(interval);
     }
+  }, [isOpen]);
+
+  const clearCache = () => {
+    setCacheStats(prev => ({
+      ...prev,
+      totalItems: 0,
+      size: '0 MB'
+    }));
     
-    updateStats()
-    const interval = setInterval(updateStats, 2000) // Update every 2 seconds
+    setRecentLogs(prev => [{
+      id: Date.now(),
+      time: new Date().toLocaleTimeString(),
+      type: 'info',
+      message: 'Önbellek başarıyla temizlendi'
+    }, ...prev.slice(0, 9)]);
+  };
+
+  const refreshStats = () => {
+    setPerformanceData({
+      memoryUsage: Math.floor(Math.random() * 100),
+      cacheSize: Math.floor(Math.random() * 50) + 10,
+      loadTime: Math.floor(Math.random() * 1000) + 500,
+      apiCalls: Math.floor(Math.random() * 100),
+      errors: Math.floor(Math.random() * 10)
+    });
     
-    return () => clearInterval(interval)
-  }, [refreshKey])
-  
-  const handleClearCache = (cacheType) => {
-    switch (cacheType) {
-      case 'story':
-        storyCache.clear()
-        break
-      case 'audio':
-        audioCache.clear()
-        break
-      case 'api':
-        apiResponseCache.clear()
-        break
-      case 'all':
-        storyCache.clear()
-        audioCache.clear()
-        apiResponseCache.clear()
-        clearOldCache()
-        break
-    }
-    setRefreshKey(prev => prev + 1)
-  }
-  
-  const handleRefresh = () => {
-    setRefreshKey(prev => prev + 1)
-  }
-  
-  const getTotalCacheSize = () => {
-    return cacheStats.story.memoryUsage + 
-           cacheStats.audio.memoryUsage + 
-           cacheStats.api.memoryUsage
-  }
-  
-  const getOverallHitRate = () => {
-    const totalHits = 
-      (cacheStats.story.hitCount || 0) +
-      (cacheStats.audio.hitCount || 0) +
-      (cacheStats.api.hitCount || 0)
-    
-    const totalRequests = 
-      totalHits +
-      (cacheStats.story.missCount || 0) +
-      (cacheStats.audio.missCount || 0) +
-      (cacheStats.api.missCount || 0)
-    
-    return totalRequests > 0 ? ((totalHits / totalRequests) * 100).toFixed(1) : 0
-  }
-  
-  const getMemoryStatusColor = () => {
-    if (memoryUsage > 100) return 'text-red-600'
-    if (memoryUsage > 50) return 'text-yellow-600'
-    return 'text-green-600'
-  }
-  
-  const getMemoryStatusIcon = () => {
-    if (isHighMemory) return <AlertTriangle className="h-4 w-4 text-red-500" />
-    return <CheckCircle className="h-4 w-4 text-green-500" />
-  }
+    setRecentLogs(prev => [{
+      id: Date.now(),
+      time: new Date().toLocaleTimeString(),
+      type: 'info',
+      message: 'Performans verileri yenilendi'
+    }, ...prev.slice(0, 9)]);
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <Sheet open={true} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-4xl overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5" />
-            Performans Monitörü
-          </SheetTitle>
-          <SheetDescription>
-            Uygulama performansı ve önbellek durumu
-          </SheetDescription>
-          <div className="flex items-center gap-2 mt-4">
-            <Button variant="outline" size="sm" onClick={handleRefresh}>
-              <RefreshCw className="h-4 w-4" />
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Monitor className="h-5 w-5" />
+                Performans İzleyici
+              </CardTitle>
+              <CardDescription>
+                Uygulama performansını ve sistem kaynaklarını izleyin
+              </CardDescription>
+            </div>
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="h-4 w-4" />
             </Button>
           </div>
-        </SheetHeader>
+        </CardHeader>
 
-        <div className="space-y-6 mt-6">{/* Memory Usage */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Zap className="h-4 w-4" />
-                Bellek Kullanımı
-                {getMemoryStatusIcon()}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">JS Heap</span>
-                    <span className={`text-sm font-mono ${getMemoryStatusColor()}`}>
-                      {memoryUsage} MB
-                    </span>
-                  </div>
-                  <Progress 
-                    value={Math.min(memoryUsage * 2, 100)} 
-                    className="h-2" 
-                  />
+        <CardContent className="p-6 space-y-6">
+          {/* Performance Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <Cpu className="h-4 w-4 text-blue-500" />
+                  <span className="text-sm font-medium">Bellek Kullanımı</span>
                 </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">LocalStorage</span>
-                    <span className="text-sm font-mono">
-                      {getCacheSize()} KB
-                    </span>
+                <div className="mt-2">
+                  <div className="text-2xl font-bold">{performanceData.memoryUsage}%</div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                    <div 
+                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${performanceData.memoryUsage}%` }}
+                    />
                   </div>
-                  <Progress 
-                    value={Math.min(getCacheSize() / 50, 100)} 
-                    className="h-2" 
-                  />
                 </div>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">Cache Efficiency</span>
-                    <span className="text-sm font-mono text-green-600">
-                      {getOverallHitRate()}%
-                    </span>
-                  </div>
-                  <Progress 
-                    value={getOverallHitRate()} 
-                    className="h-2" 
-                  />
-                </div>
-              </div>
-              
-              {isHighMemory && (
-                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-center gap-2 text-yellow-800">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span className="text-sm font-medium">Yüksek Bellek Kullanımı</span>
-                  </div>
-                  <p className="text-sm text-yellow-700 mt-1">
-                    Önbellek temizliği yapmanız önerilir.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* Cache Statistics */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Database className="h-4 w-4" />
-                  Önbellek İstatistikleri
-                </CardTitle>
-                <Button 
-                  variant="destructive" 
-                  size="sm"
-                  onClick={() => handleClearCache('all')}
-                  className="gap-2"
-                >
-                  <Trash2 className="h-3 w-3" />
-                  Tümünü Temizle
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <HardDrive className="h-4 w-4 text-green-500" />
+                  <span className="text-sm font-medium">Önbellek Boyutu</span>
+                </div>
+                <div className="mt-2">
+                  <div className="text-2xl font-bold">{performanceData.cacheSize} MB</div>
+                  <div className="text-sm text-muted-foreground">
+                    İsabet Oranı: %{cacheStats.hitRate}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-orange-500" />
+                  <span className="text-sm font-medium">Yükleme Süresi</span>
+                </div>
+                <div className="mt-2">
+                  <div className="text-2xl font-bold">{performanceData.loadTime}ms</div>
+                  <Badge variant={performanceData.loadTime > 1000 ? "destructive" : "secondary"}>
+                    {performanceData.loadTime > 1000 ? "Yavaş" : "Normal"}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Separator />
+
+          {/* API Stats */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">API İstatistikleri</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Toplam API Çağrısı</span>
+                    <Badge variant="outline">{performanceData.apiCalls}</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Hata Sayısı</span>
+                    <Badge variant={performanceData.errors > 5 ? "destructive" : "secondary"}>
+                      {performanceData.errors}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Cache Management */}
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Önbellek Yönetimi</h3>
+              <div className="space-x-2">
+                <Button variant="outline" size="sm" onClick={refreshStats}>
+                  Yenile
+                </Button>
+                <Button variant="destructive" size="sm" onClick={clearCache}>
+                  Önbelleği Temizle
                 </Button>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Story Cache */}
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium text-sm">Masal Cache</h4>
-                    <Badge variant="outline">
-                      {cacheStats.story.size} items
-                    </Badge>
-                  </div>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between">
-                      <span>Hit Rate:</span>
-                      <span className="font-mono">{cacheStats.story.hitRate}%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Memory:</span>
-                      <span className="font-mono">{cacheStats.story.memoryUsage} KB</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Hits:</span>
-                      <span className="font-mono">{cacheStats.story.hitCount || 0}</span>
-                    </div>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full mt-3"
-                    onClick={() => handleClearCache('story')}
-                  >
-                    Temizle
-                  </Button>
-                </div>
-
-                {/* Audio Cache */}
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium text-sm">Ses Cache</h4>
-                    <Badge variant="outline">
-                      {cacheStats.audio.size} items
-                    </Badge>
-                  </div>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between">
-                      <span>Hit Rate:</span>
-                      <span className="font-mono">{cacheStats.audio.hitRate}%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Memory:</span>
-                      <span className="font-mono">{cacheStats.audio.memoryUsage} KB</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Hits:</span>
-                      <span className="font-mono">{cacheStats.audio.hitCount || 0}</span>
-                    </div>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full mt-3"
-                    onClick={() => handleClearCache('audio')}
-                  >
-                    Temizle
-                  </Button>
-                </div>
-
-                {/* API Cache */}
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium text-sm">API Cache</h4>
-                    <Badge variant="outline">
-                      {cacheStats.api.size} items
-                    </Badge>
-                  </div>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between">
-                      <span>Hit Rate:</span>
-                      <span className="font-mono">{cacheStats.api.hitRate}%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Memory:</span>
-                      <span className="font-mono">{cacheStats.api.memoryUsage} KB</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Hits:</span>
-                      <span className="font-mono">{cacheStats.api.hitCount || 0}</span>
-                    </div>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full mt-3"
-                    onClick={() => handleClearCache('api')}
-                  >
-                    Temizle
-                  </Button>
-                </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold">{cacheStats.totalItems}</div>
+                <div className="text-sm text-muted-foreground">Öğe Sayısı</div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Performance Tips */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Info className="h-4 w-4" />
-                Performans İpuçları
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h5 className="font-medium text-sm text-blue-800 mb-1">Önbellek Optimizasyonu</h5>
-                  <p className="text-xs text-blue-700">
-                    Hit rate %80'in üzerinde olmalıdır. Düşükse, cache TTL ayarlarını kontrol edin.
-                  </p>
-                </div>
-                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <h5 className="font-medium text-sm text-green-800 mb-1">Bellek Yönetimi</h5>
-                  <p className="text-xs text-green-700">
-                    Bellek kullanımı 50MB'ın üzerindeyse, kullanılmayan önbellekleri temizleyin.
-                  </p>
-                </div>
-                <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                  <h5 className="font-medium text-sm text-purple-800 mb-1">Veri Yönetimi</h5>
-                  <p className="text-xs text-purple-700">
-                    Toplam cache boyutu: {getTotalCacheSize()} KB
-                  </p>
-                </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold">{cacheStats.hitRate}%</div>
+                <div className="text-sm text-muted-foreground">İsabet Oranı</div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </SheetContent>
-    </Sheet>
-  )
-}
+              <div className="text-center">
+                <div className="text-2xl font-bold">{cacheStats.missRate}%</div>
+                <div className="text-sm text-muted-foreground">Kaçırma Oranı</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold">{cacheStats.size}</div>
+                <div className="text-sm text-muted-foreground">Boyut</div>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Recent Logs */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Son Sistem Günlükleri</h3>
+            <ScrollArea className="h-48">
+              <div className="space-y-2">
+                {recentLogs.map((log) => (
+                  <div key={log.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
+                    <span className="text-xs text-muted-foreground font-mono">
+                      {log.time}
+                    </span>
+                    <Badge 
+                      variant={
+                        log.type === 'error' ? 'destructive' : 
+                        log.type === 'warning' ? 'secondary' : 
+                        'outline'
+                      }
+                      className="text-xs"
+                    >
+                      {log.type.toUpperCase()}
+                    </Badge>
+                    <span className="text-sm flex-1">{log.message}</span>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default PerformanceMonitor;

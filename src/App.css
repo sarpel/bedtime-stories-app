@@ -117,3 +117,34 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom scrollbar styles */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thumb-muted {
+  scrollbar-color: var(--muted) transparent;
+}
+
+.scrollbar-track-transparent {
+  scrollbar-color: var(--muted) transparent;
+}
+
+/* Webkit scrollbar for better theme support */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}

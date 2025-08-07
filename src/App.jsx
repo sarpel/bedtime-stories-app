@@ -68,8 +68,7 @@ function App() {
     toggleFavorite, 
     removeFavorite, 
     isFavorite, 
-    refreshFavorites,
-    setFavorites 
+    refreshFavorites
   } = useFavorites()
   
   // Masal geçmişi hook'u (localStorage için backward compatibility)
@@ -332,6 +331,40 @@ function App() {
     setError('')
   }
 
+  // Save story manually when user clicks save button
+  const saveStory = async () => {
+    if (!story) return
+    
+    try {
+      // Eğer zaten bir ID varsa güncelle, yoksa yeni oluştur
+      if (currentStoryId) {
+        // Zaten kaydedilmiş
+        return
+      }
+      
+      // Yeni bir masal olarak kaydet
+      const storyTypeToUse = customTopic.trim() ? 'custom' : selectedStoryType
+      const topicToUse = customTopic.trim() || ''
+      
+      const dbStory = await createDbStory(story, storyTypeToUse, topicToUse)
+      setCurrentStoryId(dbStory.id)
+      console.log('Masal manuel olarak kaydedildi:', dbStory.id)
+      
+      // Favorileri refresh et
+      refreshFavorites()
+    } catch (dbError) {
+      console.error('Manuel kaydetme hatası:', dbError)
+      
+      // Fallback olarak localStorage kullan
+      const id = addToHistory({
+        story,
+        storyType: selectedStoryType,
+        customTopic
+      })
+      setCurrentStoryId(id)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
@@ -433,6 +466,7 @@ function App() {
             }
           }}
           onClearStory={clearStory}
+          onSaveStory={saveStory}
         />
 
         {/* Error Display */}
@@ -461,6 +495,7 @@ function App() {
         {/* Story Management Panel */}
         {showStoryManagement && (
           <StoryManagementPanel
+            isOpen={showStoryManagement}
             history={dbStories.length > 0 ? dbStories.map(dbStory => ({
               id: dbStory.id,
               story: dbStory.story_text,
@@ -529,7 +564,10 @@ function App() {
 
         {/* Performance Monitor */}
         {showPerformanceMonitor && (
-          <PerformanceMonitor onClose={() => setShowPerformanceMonitor(false)} />
+          <PerformanceMonitor 
+            isOpen={showPerformanceMonitor}
+            onClose={() => setShowPerformanceMonitor(false)} 
+          />
         )}
 
         {/* Story Queue Panel - Replace old story list */}

@@ -48,7 +48,8 @@ export default function StoryCreator({
   isMuted,
   isFavorite,
   onToggleFavorite,
-  onClearStory
+  onClearStory,
+  onSaveStory // Yeni prop eklendi
 }) {
   const [copied, setCopied] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
@@ -194,30 +195,105 @@ export default function StoryCreator({
           
           {story && (
             <div className="flex gap-2">
+              {/* Geri butonu */}
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                onClick={onToggleFavorite}
-                className={isFavorite ? 'text-red-500 hover:text-red-600' : ''}
+                onClick={onClearStory}
+                className="self-end"
               >
-                <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
+                <X className="h-4 w-4 mr-2" />
+                Geri
               </Button>
-              <div className="relative">
+              
+              {/* Kaydet butonu */}
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onSaveStory}
+                className="self-end"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Kaydet
+              </Button>
+              
+              {/* Seslendir butonu */}
+              {!isGeneratingAudio && !audioUrl && (
                 <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => setShowShareMenu(!showShareMenu)}
+                  onClick={onGenerateAudio}
+                  variant="secondary"
+                  size="sm"
+                  className="self-end"
                 >
-                  <MoreHorizontal className="h-4 w-4" />
+                  <Volume2 className="h-4 w-4 mr-2" />
+                  Seslendir
                 </Button>
-                
-                {showShareMenu && (
-                  <div className="absolute right-0 top-full mt-1 bg-background border rounded-lg shadow-lg p-2 z-10 min-w-[200px]">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="w-full justify-start"
-                      onClick={handleShare}
+              )}
+            </div>
+          )}
+          
+          {story && (
+            <div className="flex flex-col gap-2">
+              {/* Audio controls */}
+              {(isGeneratingAudio || audioUrl) && (
+                <div className="self-end">
+                  {isGeneratingAudio ? (
+                    <Button disabled size="sm">
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
+                      Seslendiriliyor...
+                    </Button>
+                  ) : (
+                    <div className="flex gap-1">
+                      <Button 
+                        variant={isPlaying ? "secondary" : "default"}
+                        size="sm"
+                        onClick={isPlaying ? onPauseAudio : onPlayAudio}
+                      >
+                        <Volume2 className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={onStopAudio}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Favori ve diğer butonlar */}
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onToggleFavorite({ 
+                    story, 
+                    storyType: selectedType, 
+                    customTopic,
+                    audioUrl 
+                  })}
+                  className={isFavorite ? 'text-red-500 hover:text-red-600' : ''}
+                >
+                  <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
+                </Button>
+                <div className="relative">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setShowShareMenu(!showShareMenu)}
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                  
+                  {showShareMenu && (
+                    <div className="absolute right-0 top-full mt-1 bg-background border rounded-lg shadow-lg p-2 z-10 min-w-[200px]">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="w-full justify-start"
+                        onClick={handleShare}
                       disabled={isSharing}
                     >
                       {isSharing ? (
@@ -277,6 +353,7 @@ export default function StoryCreator({
                     </Button>
                   </div>
                 )}
+                </div>
               </div>
             </div>
           )}

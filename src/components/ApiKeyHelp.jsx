@@ -1,24 +1,26 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
-import { AlertCircle, ExternalLink, Key, HelpCircle } from 'lucide-react'
+import { Separator } from '@/components/ui/separator.jsx'
+import { AlertCircle, ExternalLink, Key, HelpCircle, X } from 'lucide-react'
 
 export default function ApiKeyHelp({ onClose }) {
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Key className="h-6 w-6 text-primary" />
-              <div>
-                <CardTitle>API Anahtarı Kurulumu</CardTitle>
-                <CardDescription>
-                  ElevenLabs ve OpenAI API anahtarlarını nasıl alacağınızı öğrenin
-                </CardDescription>
-              </div>
+            <div>
+              <CardTitle className="text-2xl flex items-center gap-2">
+                <Key className="h-6 w-6 text-primary" />
+                API Anahtarı Kurulumu
+              </CardTitle>
+              <CardDescription>
+                ElevenLabs ve OpenAI API anahtarlarını nasıl alacağınızı öğrenin
+              </CardDescription>
             </div>
             <Button variant="outline" onClick={onClose} size="sm">
+              <X className="h-4 w-4 mr-2" />
               Kapat
             </Button>
           </div>

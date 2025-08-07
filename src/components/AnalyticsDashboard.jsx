@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
 import { Progress } from '@/components/ui/progress.jsx'
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet.jsx'
+import { Separator } from '@/components/ui/separator.jsx'
 import { 
   BarChart3, 
   TrendingUp, 
@@ -88,66 +88,105 @@ export default function AnalyticsDashboard({ onClose }) {
 
   if (isLoading) {
     return (
-      <Sheet open={true} onOpenChange={onClose}>
-        <SheetContent className="w-full sm:max-w-6xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              Analitik Panosu
-            </SheetTitle>
-            <SheetDescription>
-              Analitik veriler yükleniyor...
-            </SheetDescription>
-          </SheetHeader>
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
-            <span className="ml-3">Analitik veriler yükleniyor...</span>
-          </div>
-        </SheetContent>
-      </Sheet>
+      <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-2xl flex items-center gap-2">
+                  <BarChart3 className="h-6 w-6 text-primary" />
+                  Analitik Panosu
+                </CardTitle>
+                <CardDescription>
+                  Analitik veriler yükleniyor...
+                </CardDescription>
+              </div>
+              <Button variant="outline" onClick={onClose} size="sm">
+                <X className="h-4 w-4 mr-2" />
+                Kapat
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+              <span className="ml-3">Analitik veriler yükleniyor...</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     )
   }
 
   if (!overview) {
     return (
-      <Sheet open={true} onOpenChange={onClose}>
-        <SheetContent className="w-full sm:max-w-6xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              Analitik Panosu
-            </SheetTitle>
-            <SheetDescription>
-              Uygulama kullanım istatistikleri ve performans metrikleri
-            </SheetDescription>
-          </SheetHeader>
-          <div className="text-center py-12">
-            <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">Henüz analitik veri yok</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Uygulama kullanıldıkça veriler burada görünecek
-            </p>
-          </div>
-        </SheetContent>
-      </Sheet>
+      <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-2xl flex items-center gap-2">
+                  <BarChart3 className="h-6 w-6 text-primary" />
+                  Analitik Panosu
+                </CardTitle>
+                <CardDescription>
+                  Uygulama kullanım istatistikleri ve performans metrikleri
+                </CardDescription>
+              </div>
+              <Button variant="outline" onClick={onClose} size="sm">
+                <X className="h-4 w-4 mr-2" />
+                Kapat
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="text-center py-12">
+              <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">Henüz analitik veri yok</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Uygulama kullanıldıkça veriler burada görünecek
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     )
   }
 
   return (
-    <Sheet open={true} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-6xl overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-primary" />
-            Analitik Panosu
-          </SheetTitle>
-          <SheetDescription>
-            Uygulama kullanım istatistikleri ve performans metrikleri
-          </SheetDescription>
-        </SheetHeader>
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-2xl flex items-center gap-2">
+                <BarChart3 className="h-6 w-6 text-primary" />
+                Analitik Panosu
+              </CardTitle>
+              <CardDescription>
+                Uygulama kullanım istatistikleri ve performans metrikleri
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={loadAnalyticsData} size="sm" disabled={isLoading}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Yenile
+              </Button>
+              <Button variant="outline" onClick={exportData} size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Dışa Aktar
+              </Button>
+              <Button variant="outline" onClick={onClose} size="sm">
+                <X className="h-4 w-4 mr-2" />
+                Kapat
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
         
-        {/* Time Range Selector */}
-        <div className="flex gap-2 mt-4">
+        <CardContent className="p-6">
+          {/* Time Range Selector */}
+          <div className="flex gap-2 mb-6">
           {timeRangeOptions.map((option) => (
             <Button
               key={option.value}
@@ -470,7 +509,8 @@ export default function AnalyticsDashboard({ onClose }) {
             )}
           </TabsContent>
         </Tabs>
-      </SheetContent>
-    </Sheet>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

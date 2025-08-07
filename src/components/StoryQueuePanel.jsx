@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
-import { BookOpen, Heart, X, GripVertical, Settings } from 'lucide-react'
+import { Separator } from '@/components/ui/separator.jsx'
+import { ScrollArea } from '@/components/ui/scroll-area.jsx'
+import { BookOpen, Heart, X, GripVertical, Settings, Calendar, Clock } from 'lucide-react'
 import AudioControls from './AudioControls.jsx'
 import { getStoryTypeLabel } from '@/utils/storyTypes.js'
 import {
@@ -248,7 +250,7 @@ export default function StoryQueuePanel({
     setLocalStories(stories)
   }, [stories])
 
-  const displayStories = localStories.slice(0, 15) // Limit to 15 for queue
+  const displayStories = localStories.slice(0, 12) // Limit to 12 for better UI
 
   return (
     <Card className="mt-8">
@@ -260,7 +262,7 @@ export default function StoryQueuePanel({
               Masal Kuyruğu
             </CardTitle>
             <CardDescription className="text-sm">
-              Masalları sürükleyerek sıralayın - İlk 15 masal gösteriliyor
+              Masalları sürükleyerek sıralayın - İlk 12 masal gösteriliyor
             </CardDescription>
           </div>
           <Button
@@ -275,7 +277,7 @@ export default function StoryQueuePanel({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="max-h-80 overflow-y-auto">
+        <div className="max-h-80 overflow-hidden">
           {displayStories.length > 0 ? (
             <DndContext 
               sensors={sensors}
@@ -286,7 +288,7 @@ export default function StoryQueuePanel({
                 items={displayStories.map(story => story.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="space-y-1">
+                <div className="space-y-1 max-h-80 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
                   {displayStories.map((story) => (
                     <SortableStoryItem
                       key={story.id}
@@ -322,7 +324,7 @@ export default function StoryQueuePanel({
             </div>
           )}
           
-          {stories.length > 15 && (
+          {stories.length > 12 && (
             <div className="text-center py-3 border-t mt-2">
               <Button
                 variant="outline"
@@ -330,7 +332,7 @@ export default function StoryQueuePanel({
                 onClick={onShowStoryManagement}
                 className="text-xs"
               >
-                +{stories.length - 15} masal daha - Tümünü Görüntüle
+                +{stories.length - 12} masal daha - Tümünü Görüntüle
               </Button>
             </div>
           )}
