@@ -87,66 +87,66 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
 
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card ref={panelRef} className="w-full max-w-4xl max-h-[90vh] overflow-y-auto relative z-[60]">
-        <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b">
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-2 sm:p-4">
+      <Card ref={panelRef} className="w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto relative z-[60] mt-2 sm:mt-0">
+        <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-3 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-2xl">Ayarlar</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-lg sm:text-2xl">Ayarlar</CardTitle>
+              <CardDescription className="text-sm">
                 LLM ve TTS modellerini yapılandırın
               </CardDescription>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleReset} size="sm">
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Sıfırla
+            <div className="flex gap-1 sm:gap-2">
+              <Button variant="outline" onClick={handleReset} size="sm" className="px-2 sm:px-3">
+                <RotateCcw className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Sıfırla</span>
               </Button>
-              <Button onClick={onClose} variant="outline" size="sm">
-                İptal
+              <Button onClick={onClose} variant="outline" size="sm" className="px-2 sm:px-3">
+                <span className="text-sm">İptal</span>
               </Button>
-              <Button onClick={handleSave} size="sm">
-                <Save className="h-4 w-4 mr-2" />
-                Kaydet
+              <Button onClick={handleSave} size="sm" className="px-2 sm:px-3">
+                <Save className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Kaydet</span>
               </Button>
             </div>
           </div>
         </CardHeader>
         
-        <CardContent className="p-6">
-          <Tabs defaultValue="llm" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="llm" className="flex items-center gap-2">
+        <CardContent className="p-3 sm:p-6">
+          <Tabs defaultValue="llm" className="space-y-4 sm:space-y-6">
+            <TabsList className="grid w-full grid-cols-3 h-auto">
+              <TabsTrigger value="llm" className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
                 <Brain className="h-4 w-4" />
-                LLM
+                <span className="hidden sm:inline">LLM</span>
               </TabsTrigger>
-              <TabsTrigger value="voice" className="flex items-center gap-2">
+              <TabsTrigger value="voice" className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
                 <Volume2 className="h-4 w-4" />
-                Ses
+                <span className="hidden sm:inline">Ses</span>
               </TabsTrigger>
-              <TabsTrigger value="content" className="flex items-center gap-2">
+              <TabsTrigger value="content" className="flex items-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm">
                 <MessageSquare className="h-4 w-4" />
-                İçerik
+                <span className="hidden sm:inline">İçerik</span>
               </TabsTrigger>
             </TabsList>
 
             {/* LLM Settings */}
-            <TabsContent value="llm" className="space-y-6">
+            <TabsContent value="llm" className="space-y-4 sm:space-y-6">
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Brain className="h-5 w-5 text-primary" />
+                <CardHeader className="p-3 sm:p-6">
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <Brain className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                     LLM Ayarları
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-sm">
                     Masal oluşturma parametrelerini ayarlayın
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="p-4 bg-muted/50 rounded-lg">
+                <CardContent className="space-y-4 sm:space-y-6 p-3 sm:p-6">
+                  <div className="p-3 sm:p-4 bg-muted/50 rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
                       <SettingsIcon className="h-4 w-4 text-primary" />
-                      <span className="font-medium">Sabit Model: OpenAI GPT-4.1-Mini</span>
+                      <span className="font-medium text-sm sm:text-base">Sabit Model: OpenAI GPT-4.1-Mini</span>
                     </div>
                     <p className="text-sm text-muted-foreground">
                       Model ayarları .env dosyasından yönetilmektedir. Değişiklik için .env dosyasını düzenleyin.

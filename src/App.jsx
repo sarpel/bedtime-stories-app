@@ -21,11 +21,13 @@ import useFavorites from './hooks/useFavorites.js'
 import { useStoryHistory } from './hooks/useStoryHistory.js'
 import { useStoryDatabase } from './hooks/useStoryDatabase.js'
 import { useAudioPlayer } from './hooks/useAudioPlayer.js'
+import { useIsMobile } from './hooks/use-mobile.js'
 import ApiKeyHelp from './components/ApiKeyHelp.jsx'
 import safeLocalStorage from './utils/safeLocalStorage.js'
 import './App.css'
 
 function App() {
+  const isMobile = useIsMobile()
   const [story, setStory] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [audioUrl, setAudioUrl] = useState('')
@@ -402,68 +404,70 @@ function App() {
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/20 rounded-lg">
-              <Moon className="h-6 w-6 text-primary" />
+        <div className="container mx-auto px-2 sm:px-4 py-3 sm:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="p-1.5 sm:p-2 bg-primary/20 rounded-lg">
+              <Moon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">Uyku Masalları</h1>
-              <p className="text-sm text-muted-foreground">Bedtime Stories</p>
+              <h1 className="text-lg sm:text-xl font-bold">Uyku Masalları</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Bedtime Stories</p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1 sm:gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowStoryManagement(true)}
-              className="gap-2"
+              className="gap-1 sm:gap-2 px-2 sm:px-3"
             >
               <BookOpen className="h-4 w-4" />
-              Masal Yönetimi ({dbStories.length > 0 ? dbStories.length : history.length})
+              <span className="hidden sm:inline">Masal Yönetimi ({dbStories.length > 0 ? dbStories.length : history.length})</span>
+              <span className="sm:hidden">({dbStories.length > 0 ? dbStories.length : history.length})</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowFavorites(true)}
-              className="gap-2"
+              className="gap-1 sm:gap-2 px-2 sm:px-3"
             >
               <Heart className="h-4 w-4" />
-              Favoriler ({favorites.length})
+              <span className="hidden sm:inline">Favoriler ({favorites.length})</span>
+              <span className="sm:hidden">({favorites.length})</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowAnalytics(true)}
-              className="gap-2"
+              className="gap-1 sm:gap-2 px-2 sm:px-3"
             >
               <BarChart3 className="h-4 w-4" />
-              Analitik
+              <span className="hidden sm:inline">Analitik</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowPerformanceMonitor(true)}
-              className="gap-2"
+              className="gap-1 sm:gap-2 px-2 sm:px-3"
               title="Performans Monitörü"
             >
               <Zap className="h-4 w-4" />
-              Performans
+              <span className="hidden sm:inline">Performans</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowSettings(!showSettings)}
-              className="gap-2"
+              className="gap-1 sm:gap-2 px-2 sm:px-3"
             >
               <Settings className="h-4 w-4" />
-              Ayarlar
+              <span className="hidden sm:inline">Ayarlar</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
+      <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-4xl">
         {/* Story Creator - Birleşik bileşen */}
         <StoryCreator
           selectedType={selectedStoryType}
@@ -654,9 +658,12 @@ function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border bg-card/30 backdrop-blur-sm mt-16">
-        <div className="container mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
+      <footer className="border-t border-border bg-card/30 backdrop-blur-sm mt-8 sm:mt-16">
+        <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6 text-center text-xs sm:text-sm text-muted-foreground">
           <p>Tatlı rüyalar dileriz 💙</p>
+          {isMobile && (
+            <p className="mt-2 text-xs opacity-75">Mobil uyumlu tasarım</p>
+          )}
         </div>
       </footer>
 

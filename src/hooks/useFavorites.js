@@ -115,6 +115,19 @@ export default function useFavorites() {
           // Veritabanında var, is_favorite'i true yap
           await databaseService.updateStoryFavorite(existingDbStory.id, true)
           console.log('Favori eklendi: db_' + existingDbStory.id)
+          
+          // State'i hemen güncelle
+          const newFavorite = {
+            id: `db_${existingDbStory.id}`,
+            story: existingDbStory.story_text,
+            storyType: existingDbStory.story_type,
+            customTopic: existingDbStory.custom_topic,
+            createdAt: existingDbStory.created_at,
+            audioUrl: existingDbStory.audio ? `http://localhost:3001/audio/${existingDbStory.audio.file_name}` : null,
+            source: 'database'
+          }
+          setFavorites(prev => [newFavorite, ...prev.filter(fav => fav.id !== newFavorite.id)])
+          
           return `db_${existingDbStory.id}`
         } else {
           // Veritabanında yok, önce masalı oluştur sonra favoriye ekle
@@ -125,6 +138,19 @@ export default function useFavorites() {
           )
           await databaseService.updateStoryFavorite(newStory.id, true)
           console.log('Favori eklendi: db_' + newStory.id)
+          
+          // State'i hemen güncelle
+          const newFavorite = {
+            id: `db_${newStory.id}`,
+            story: newStory.story_text || story.story,
+            storyType: newStory.story_type || story.storyType,
+            customTopic: newStory.custom_topic || story.customTopic,
+            createdAt: newStory.created_at || new Date().toISOString(),
+            audioUrl: story.audioUrl || null,
+            source: 'database'
+          }
+          setFavorites(prev => [newFavorite, ...prev])
+          
           return `db_${newStory.id}`
         }
       } catch (dbError) {
@@ -157,6 +183,13 @@ export default function useFavorites() {
     console.log('Favori siliniyor:', id)
     
     try {
+      // Önce state'den çıkar (optimistic update)
+      setFavorites(prev => {
+        const updated = prev.filter(fav => fav.id !== id)
+        console.log('Favoriler güncellendi, kalan:', updated.length)
+        return updated
+      })
+      
       // Eğer veritabanı ID'si ise (db_ ile başlıyorsa)
       if (id.startsWith('db_')) {
         const dbId = id.replace('db_', '')
@@ -164,16 +197,10 @@ export default function useFavorites() {
         console.log('Veritabanından favori çıkarıldı:', dbId)
       }
       
-      // localStorage'dan da çıkar
-      setFavorites(prev => {
-        const updated = prev.filter(fav => fav.id !== id)
-        console.log('Favoriler güncellendi, kalan:', updated.length)
-        return updated
-      })
     } catch (error) {
       console.error('Favori silme hatası:', error)
-      // Hata olsa bile local state'i güncelle
-      setFavorites(prev => prev.filter(fav => fav.id !== id))
+      // Hata olursa state'i geri yükle
+      await loadFavorites()
     }
   }
 

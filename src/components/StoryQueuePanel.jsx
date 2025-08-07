@@ -68,51 +68,60 @@ function SortableStoryItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center justify-between p-2 border rounded-lg hover:bg-muted/30 transition-colors h-12 bg-background ${
+      className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 border rounded-lg hover:bg-muted/30 transition-colors min-h-16 sm:h-12 bg-background gap-2 ${
         isDragging ? 'shadow-lg ring-2 ring-primary/20' : ''
       }`}
     >
-      {/* Drag Handle */}
+      {/* Drag Handle - Mobile: positioned differently */}
       <div
         {...attributes}
         {...listeners}
-        className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted/50 rounded transition-colors mr-2"
+        className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted/50 rounded transition-colors self-start sm:mr-2 sm:self-center"
         title="Sürükleyerek sırala"
       >
         <GripVertical className="h-3 w-3 text-muted-foreground" />
       </div>
 
       {/* Story Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1 mb-0.5">
-          <Badge variant="secondary" className="text-[9px] px-1 py-0.5 h-3 leading-none">
+      <div className="flex-1 min-w-0 w-full sm:w-auto">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-1 mb-1 sm:mb-0.5">
+          <Badge variant="secondary" className="text-xs sm:text-[9px] px-1.5 sm:px-1 py-0.5 h-4 sm:h-3 leading-none">
             {getStoryTypeLabel(story.story_type || story.storyType)}
           </Badge>
           {(story.custom_topic || story.customTopic) && (
-            <Badge variant="outline" className="text-[9px] px-1 py-0.5 h-3 leading-none">
+            <Badge variant="outline" className="text-xs sm:text-[9px] px-1.5 sm:px-1 py-0.5 h-4 sm:h-3 leading-none max-w-24 truncate">
               {story.custom_topic || story.customTopic}
             </Badge>
           )}
-          <span className="text-[9px] text-muted-foreground font-mono shrink-0">
+          <span className="text-xs sm:text-[9px] text-muted-foreground font-mono shrink-0">
             {new Date(story.created_at || story.createdAt).toLocaleDateString('tr-TR', {
               day: '2-digit',
               month: '2-digit'
             })}
           </span>
         </div>
-        <p className="text-[10px] text-muted-foreground truncate leading-tight">
+        <p className="text-xs sm:text-[10px] text-muted-foreground truncate leading-tight">
           {(story.story_text || story.story).substring(0, 50)}...
         </p>
       </div>
 
       {/* Action Buttons */}
-      <div className="flex items-center gap-0.5 ml-2 shrink-0">
+      <div className="flex items-center gap-1 sm:gap-0.5 ml-0 sm:ml-2 shrink-0 w-full sm:w-auto justify-end">
         {/* Favorite Button */}
         <Button
           variant="ghost"
           size="sm"
-          onClick={async () => {
+          onClick={async (e) => {
+            e.preventDefault()
+            e.stopPropagation()
             console.log('❤️ Favori butonuna tıklandı, story:', story)
+            console.log('❤️ onToggleFavorite fonksiyonu mevcut mu?', typeof onToggleFavorite)
+            
+            if (typeof onToggleFavorite !== 'function') {
+              console.error('❤️ onToggleFavorite bir fonksiyon değil!')
+              return
+            }
+            
             const storyData = {
               story: story.story_text || story.story,
               storyType: story.story_type || story.storyType,
@@ -177,7 +186,19 @@ function SortableStoryItem({
         <Button 
           variant="ghost" 
           size="sm"
-          onClick={() => onSelectStory(story)}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            console.log('👁️ Görüntüle butonuna tıklandı, story:', story)
+            console.log('👁️ onSelectStory fonksiyonu mevcut mu?', typeof onSelectStory)
+            
+            if (typeof onSelectStory !== 'function') {
+              console.error('👁️ onSelectStory bir fonksiyon değil!')
+              return
+            }
+            
+            onSelectStory(story)
+          }}
           className="h-5 w-5 p-0"
           title="Masalı görüntüle"
         >
@@ -188,7 +209,19 @@ function SortableStoryItem({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => onDeleteStory(story.id)}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            console.log('🗑️ Sil butonuna tıklandı, story ID:', story.id)
+            console.log('🗑️ onDeleteStory fonksiyonu mevcut mu?', typeof onDeleteStory)
+            
+            if (typeof onDeleteStory !== 'function') {
+              console.error('🗑️ onDeleteStory bir fonksiyon değil!')
+              return
+            }
+            
+            onDeleteStory(story.id)
+          }}
           className="h-5 w-5 p-0 hover:bg-destructive/10 hover:text-destructive"
           title="Masalı sil"
         >
@@ -255,22 +288,22 @@ export default function StoryQueuePanel({
   const displayStories = localStories.slice(0, 12) // Limit to 12 for better UI
 
   return (
-    <Card className="mt-8">
-      <CardHeader>
-        <div className="flex items-center justify-between">
+    <Card className="mt-4 sm:mt-8">
+      <CardHeader className="p-3 sm:p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <div>
-            <CardTitle className="flex items-center gap-2 text-lg">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <BookOpen className="h-4 w-4 text-primary" />
               Masal Kuyruğu
             </CardTitle>
-            <CardDescription className="text-sm">
+            <CardDescription className="text-xs sm:text-sm">
               Masalları sürükleyerek sıralayın - İlk 12 masal gösteriliyor
             </CardDescription>
           </div>
           <Button
             variant="outline"
             onClick={onShowStoryManagement}
-            className="gap-2 text-sm"
+            className="gap-1 sm:gap-2 text-xs sm:text-sm w-full sm:w-auto"
             size="sm"
           >
             <Settings className="h-3 w-3" />
@@ -278,8 +311,8 @@ export default function StoryQueuePanel({
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="max-h-80 overflow-hidden">
+      <CardContent className="p-3 sm:p-6">
+        <div className="max-h-96 sm:max-h-80 overflow-hidden">
           {displayStories.length > 0 ? (
             <DndContext 
               sensors={sensors}
@@ -290,7 +323,7 @@ export default function StoryQueuePanel({
                 items={displayStories.map(story => story.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="space-y-1 max-h-80 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+                <div className="space-y-2 sm:space-y-1 max-h-96 sm:max-h-80 overflow-y-auto pr-1 sm:pr-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
                   {displayStories.map((story) => (
                     <SortableStoryItem
                       key={story.id}

@@ -181,19 +181,6 @@ const StoryManagementPanel = ({
                             />
                           )}
                           
-                          {/* Play Button - Only if audio exists */}
-                          {(story.audio || story.audioUrl) && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => playAudio?.(story.id, story.audio ? getDbAudioUrl(story.audio.file_name) : story.audioUrl)}
-                              className="h-6 w-6 p-0"
-                              title="Oynat"
-                            >
-                              <Volume2 className="h-3 w-3" />
-                            </Button>
-                          )}
-                          
                           <Button
                             variant="ghost"
                             size="sm"
