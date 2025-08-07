@@ -105,33 +105,44 @@ export function useAudioPlayer() {
     const audio = audioRef.current
     if (!audio) return
 
-    // Eğer aynı ses çalıyorsa, sadece pause/resume yap
-    if (currentStoryId === storyId && currentAudio === audioUrl) {
+    try {
+      // Eğer aynı ses çalıyorsa, sadece pause/resume yap
+      if (currentStoryId === storyId && currentAudio === audioUrl) {
+        if (isPlaying) {
+          audio.pause()
+        } else {
+          audio.play().catch(error => {
+            console.error('Audio resume error:', error)
+            setIsPlaying(false)
+          })
+        }
+        return
+      }
+
+      // Farklı bir ses çalacaksa, önce durdur
       if (isPlaying) {
         audio.pause()
-      } else {
-        audio.play()
+        audio.currentTime = 0
       }
-      return
-    }
 
-    // Farklı bir ses çalacaksa, önce durdur
-    if (isPlaying) {
-      audio.pause()
-      audio.currentTime = 0
-    }
-
-    // Yeni ses dosyasını yükle
-    setCurrentAudio(audioUrl)
-    setCurrentStoryId(storyId)
-    audio.src = audioUrl
-    audio.volume = isMuted ? 0 : volume
-    
-    audio.play().catch(error => {
-      console.error('Audio play error:', error)
+      // Yeni ses dosyasını yükle
+      setCurrentAudio(audioUrl)
+      setCurrentStoryId(storyId)
+      audio.src = audioUrl
+      audio.volume = isMuted ? 0 : volume
+      
+      audio.play().catch(error => {
+        console.error('Audio play error:', error)
+        setIsPlaying(false)
+        setCurrentStoryId(null)
+        setCurrentAudio(null)
+      })
+    } catch (error) {
+      console.error('playAudio function error:', error)
       setIsPlaying(false)
       setCurrentStoryId(null)
-    })
+      setCurrentAudio(null)
+    }
   }
 
   const pauseAudio = () => {

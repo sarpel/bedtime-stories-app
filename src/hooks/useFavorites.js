@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import databaseService from '../services/optimizedDatabaseService.js'
+import safeLocalStorage from '../utils/safeLocalStorage.js'
 
 export default function useFavorites() {
   const [favorites, setFavorites] = useState([])
@@ -23,22 +24,16 @@ export default function useFavorites() {
         console.log('Veritabanı kullanılamıyor, localStorage kullanılıyor:', dbError.message)
       }
 
-      // localStorage'dan da favorileri yükle (backward compatibility)
-      const savedFavorites = localStorage.getItem('bedtime-stories-favorites')
+      // localStorage'dan da favorileri güvenli şekilde yükle
+      const savedFavorites = safeLocalStorage.get('bedtime-stories-favorites', [])
       let localFavorites = []
       
-      if (savedFavorites) {
-        try {
-          localFavorites = JSON.parse(savedFavorites)
-          localFavorites = localFavorites.map(fav => ({
-            ...fav,
-            id: fav.id || `fav_${Date.now()}_${Math.random()}`,
-            createdAt: fav.createdAt || new Date().toISOString()
-          }))
-        } catch (error) {
-          console.error('localStorage favori parse hatası:', error)
-          localFavorites = []
-        }
+      if (Array.isArray(savedFavorites)) {
+        localFavorites = savedFavorites.map(fav => ({
+          ...fav,
+          id: fav.id || `fav_${Date.now()}_${Math.random()}`,
+          createdAt: fav.createdAt || new Date().toISOString()
+        }))
       }
 
       // Veritabanı ve localStorage favorilerini birleştir
@@ -71,20 +66,29 @@ export default function useFavorites() {
 
   // localStorage sync sadece localStorage masallar için (backward compatibility)
   useEffect(() => {
-    if (favorites.length >= 0) {
-      const localStorageOnlyData = favorites
-        .filter(fav => fav.source === 'localStorage')
-        .map(fav => ({
-          id: fav.id,
-          story: fav.story,
-          storyType: fav.storyType,
-          customTopic: fav.customTopic,
-          createdAt: fav.createdAt,
-          audioUrl: fav.audioUrl
-        }))
-      localStorage.setItem('bedtime-stories-favorites', JSON.stringify(localStorageOnlyData))
-      console.log('localStorage favorileri kaydedildi:', localStorageOnlyData.length)
-    }
+    // Debounce localStorage yazma işlemi
+    const timeoutId = setTimeout(() => {
+      if (favorites.length >= 0) {
+        const localStorageOnlyData = favorites
+          .filter(fav => fav.source === 'localStorage')
+          .map(fav => ({
+            id: fav.id,
+            story: fav.story,
+            storyType: fav.storyType,
+            customTopic: fav.customTopic,
+            createdAt: fav.createdAt,
+            audioUrl: fav.audioUrl
+          }))
+        const saved = safeLocalStorage.set('bedtime-stories-favorites', localStorageOnlyData)
+        if (saved) {
+          console.log('localStorage favorileri kaydedildi:', localStorageOnlyData.length)
+        } else {
+          console.warn('localStorage favorileri kaydedilemedi')
+        }
+      }
+    }, 500) // 500ms debounce
+
+    return () => clearTimeout(timeoutId)
   }, [favorites])
 
   const addFavorite = async (story) => {
@@ -198,10 +202,8 @@ export default function useFavorites() {
         result = { action: 'added', favoriteId }
       }
       
-      // Favorileri hemen yenile
-      console.log('🔄 Favoriler yenileniyor...')
-      await refreshFavorites()
-      console.log('🔄 Favoriler yenilendi, yeni sayı:', favorites.length)
+      // addFavorite ve removeFavorite zaten state'i güncelliyor, gereksiz refresh yok
+      console.log('🔄 Favoriler güncellendi, yeni sayı:', favorites.length)
       
       return result
     } catch (error) {
@@ -220,7 +222,44 @@ export default function useFavorites() {
 
   const refreshFavorites = async () => {
     console.log('Favoriler yenileniyor...')
-    await loadFavorites()
+    try {
+      // loadFavorites yerine direkt olarak state'i güncelleyelim
+      const allStories = await databaseService.getAllStories()
+      const dbFavorites = allStories.filter(story => story.is_favorite === 1 || story.is_favorite === true)
+      
+      const savedFavorites = safeLocalStorage.get('bedtime-stories-favorites', [])
+      let localFavorites = []
+      
+      if (savedFavorites) {
+        try {
+          localFavorites = JSON.parse(savedFavorites)
+        } catch (error) {
+          console.error('localStorage favori parse hatası:', error)
+          localFavorites = []
+        }
+      }
+
+      const combinedFavorites = [
+        ...dbFavorites.map(story => ({
+          id: `db_${story.id}`,
+          story: story.story_text,
+          storyType: story.story_type,
+          customTopic: story.custom_topic,
+          createdAt: story.created_at,
+          audioUrl: story.audio ? `http://localhost:3001/audio/${story.audio.file_name}` : null,
+          source: 'database'
+        })),
+        ...localFavorites.filter(local => 
+          !dbFavorites.some(db => db.story_text === local.story && db.story_type === local.storyType)
+        ).map(fav => ({ ...fav, source: 'localStorage' }))
+      ]
+
+      combinedFavorites.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      setFavorites(combinedFavorites)
+      console.log('✅ Favoriler güncellendi:', combinedFavorites.length)
+    } catch (error) {
+      console.error('❌ Favori yenileme hatası:', error)
+    }
   }
 
   return {

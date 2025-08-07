@@ -22,6 +22,7 @@ import { useStoryHistory } from './hooks/useStoryHistory.js'
 import { useStoryDatabase } from './hooks/useStoryDatabase.js'
 import { useAudioPlayer } from './hooks/useAudioPlayer.js'
 import ApiKeyHelp from './components/ApiKeyHelp.jsx'
+import safeLocalStorage from './utils/safeLocalStorage.js'
 import './App.css'
 
 function App() {
@@ -43,11 +44,11 @@ function App() {
   const [currentStoryId, setCurrentStoryId] = useState(null)
 
   const [settings, setSettings] = useState(() => {
-    // localStorage'dan ayarları yükle
-    const savedSettings = localStorage.getItem('bedtime-stories-settings')
+    // localStorage'dan ayarları güvenli şekilde yükle
+    const savedSettings = safeLocalStorage.get('bedtime-stories-settings')
     if (savedSettings) {
       try {
-        return { ...getDefaultSettings(), ...JSON.parse(savedSettings) }
+        return { ...getDefaultSettings(), ...savedSettings }
       } catch (error) {
         console.error('Ayarlar yüklenirken hata:', error)
         return getDefaultSettings()
@@ -60,11 +61,25 @@ function App() {
   const updateSettings = (newSettings) => {
     try {
       console.log('🔧 App updateSettings:', newSettings)
+      
+      // State güncellemesi önce yap
       setSettings(newSettings)
-      localStorage.setItem('bedtime-stories-settings', JSON.stringify(newSettings))
+      
+      // localStorage'a kaydetme işlemini setTimeout ile ertele
+      setTimeout(() => {
+        const saved = safeLocalStorage.set('bedtime-stories-settings', newSettings)
+        if (saved) {
+          console.log('✅ Ayarlar localStorage\'a kaydedildi')
+        } else {
+          console.error('❌ localStorage kaydetme hatası')
+          setError('Ayarlar kaydedilirken bir sorun oluştu, ancak değişiklikler geçerli.')
+        }
+      }, 0)
+      
     } catch (error) {
       console.error('❌ App updateSettings error:', error)
-      setError('Ayarlar kaydedilirken hata oluştu')
+      // Kritik hata durumunda da uygulamayı crash etme
+      setError('Ayarlar güncellenirken hata oluştu')
     }
   }
   
@@ -103,9 +118,7 @@ function App() {
       
       console.log('🎯 App.jsx - Favori toggle tamamlandı:', result ? result.action : 'undefined')
       
-      // Force refresh favorites to trigger re-render
-      await refreshFavorites()
-      console.log('🎯 App.jsx - Favoriler force refresh yapıldı')
+      // toggleFavorite zaten state'i güncelliyor, gereksiz refresh yok
       console.log('🎯 App.jsx - Yeni favori sayısı:', favorites.length)
       
       return result
@@ -222,8 +235,7 @@ function App() {
         setCurrentStoryId(dbStory.id)
         console.log('Masal veritabanına kaydedildi:', dbStory.id)
         
-        // Favorileri refresh et
-        refreshFavorites()
+        // Yeni story eklenmesi favorileri etkilemez, gereksiz refresh yok
       } catch (dbError) {
         console.error('Veritabanına kaydetme hatası:', dbError)
         
@@ -301,8 +313,7 @@ function App() {
         updateStoryAudio(currentStoryId, audioUrl)
       }
       
-      // Favorileri refresh et (ses dosyası eklenmiş olabilir)
-      refreshFavorites()
+      // Ses dosyası eklenmesi favorileri etkilemez, gereksiz refresh yok
       
     } catch (error) {
       console.error('Audio generation failed:', error)

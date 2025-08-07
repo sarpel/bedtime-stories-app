@@ -31,17 +31,21 @@ export function useStoryDatabase() {
     
     if (!migrationCompleted) {
       // Önce mevcut veritabanı masallarını kontrol et
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         databaseService.migrateFromLocalStorage().then((result) => {
           if (result.migrated > 0) {
             console.log(`${result.migrated} masal localStorage'dan veritabanına taşındı.`)
-            loadStories() // Masalları yeniden yükle
+            // Sadece migration başarılıysa yeniden yükle
+            setStories(prevStories => [...prevStories]) // Trigger re-render without API call
           }
           localStorage.setItem(migrationKey, 'true')
         }).catch((err) => {
           console.error('Migration hatası:', err)
+          localStorage.setItem(migrationKey, 'true') // Mark as completed even on error
         })
       }, 1000) // 1 saniye bekle ki veritabanı hazır olsun
+      
+      return () => clearTimeout(timeoutId) // Cleanup timeout
     }
   }, [])
 

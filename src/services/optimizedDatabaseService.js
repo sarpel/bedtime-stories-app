@@ -39,14 +39,19 @@ class OptimizedDatabaseService {
       return this.pendingRequests.get(key)
     }
     
-    // Make the request
+    // Make the request with timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+    
     const requestPromise = fetch(url, {
       headers: {
         'Content-Type': 'application/json',
         ...options.headers
       },
+      signal: controller.signal,
       ...options
     }).then(async response => {
+      clearTimeout(timeoutId)
       this.performanceMetrics.queryCount++
       this.performanceMetrics.cacheMisses++
       
@@ -66,6 +71,7 @@ class OptimizedDatabaseService {
       
       return data
     }).catch(error => {
+      clearTimeout(timeoutId)
       this.pendingRequests.delete(key)
       throw error
     })
