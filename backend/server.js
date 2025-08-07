@@ -499,8 +499,16 @@ app.post('/api/tts', ttsLimiter, async (req, res) => {
           console.log('Audio file saved:', filePath);
           // Veritabanına ses dosyası bilgisini kaydet
           try {
-            // Voice ID'yi request body'den çıkar
-            const voiceId = endpoint.includes('/') ? endpoint.split('/').pop() : 'unknown';
+            // Voice ID'yi endpoint URL'sinden çıkar (query parameters öncesi)
+            let voiceId = 'unknown';
+            try {
+              const url = new URL(endpoint);
+              const pathParts = url.pathname.split('/');
+              voiceId = pathParts[pathParts.length - 1] || 'unknown';
+            } catch (urlError) {
+              console.warn('Voice ID extraction failed, using unknown:', urlError.message);
+            }
+            
             storyDb.saveAudio(sanitizedStoryId, fileName, filePath, voiceId, requestBody);
             console.log('Audio info saved to database for story:', sanitizedStoryId);
           } catch (dbError) {

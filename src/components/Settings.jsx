@@ -22,27 +22,57 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (panelRef.current && !panelRef.current.contains(event.target)) {
-        onClose()
+        // Select dropdown'larının portal ile render edilme durumunu kontrol et
+        const isSelectPortal = event.target.closest('[data-radix-select-content]') ||
+                              event.target.closest('[data-radix-popper-content-wrapper]') ||
+                              event.target.closest('[data-slot="select-content"]') ||
+                              event.target.closest('[role="listbox"]')
+        
+        console.log('🖱️ Click outside check:', {
+          isInModal: panelRef.current.contains(event.target),
+          isSelectPortal,
+          target: event.target,
+          className: event.target.className
+        })
+        
+        if (!isSelectPortal) {
+          console.log('🖱️ Settings click outside, closing modal')
+          onClose()
+        }
       }
     }
 
-    document.addEventListener('mousedown', handleClickOutside)
+    // Delay eklememiz gerekebilir çünkü portal render süresi var
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside)
+    }, 100)
+
     return () => {
+      clearTimeout(timeoutId)
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [onClose])
 
   const updateSetting = (path, value) => {
-    const newSettings = { ...localSettings }
-    const keys = path.split('.')
-    let current = newSettings
-    
-    for (let i = 0; i < keys.length - 1; i++) {
-      current = current[keys[i]]
+    try {
+      console.log('🔧 Settings updateSetting:', path, value, localSettings)
+      const newSettings = { ...localSettings }
+      const keys = path.split('.')
+      let current = newSettings
+      
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!current[keys[i]]) {
+          current[keys[i]] = {}
+        }
+        current = current[keys[i]]
+      }
+      current[keys[keys.length - 1]] = value
+      
+      console.log('🔧 Settings newSettings:', newSettings)
+      setLocalSettings(newSettings)
+    } catch (error) {
+      console.error('❌ Settings updateSetting error:', error, { path, value, localSettings })
     }
-    current[keys[keys.length - 1]] = value
-    
-    setLocalSettings(newSettings)
   }
 
   const handleSave = () => {
@@ -58,7 +88,7 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card ref={panelRef} className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <Card ref={panelRef} className="w-full max-w-4xl max-h-[90vh] overflow-y-auto relative z-[60]">
         <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b">
           <div className="flex items-center justify-between">
             <div>
@@ -286,13 +316,22 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                   <div className="space-y-2">
                     <Label htmlFor="story-length">Masal Uzunluğu</Label>
                     <Select
-                      value={localSettings.storyLength}
-                      onValueChange={(value) => updateSetting('storyLength', value)}
+                      value={localSettings.storyLength || 'medium'}
+                      onValueChange={(value) => {
+                        console.log('📝 Select onValueChange:', value)
+                        updateSetting('storyLength', value)
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Masal uzunluğunu seçin" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent 
+                        className="z-[100]"
+                        onCloseAutoFocus={(e) => {
+                          console.log('🔍 SelectContent onCloseAutoFocus')
+                          e.preventDefault()
+                        }}
+                      >
                         <SelectItem value="short">Kısa (1-2 dakika)</SelectItem>
                         <SelectItem value="medium">Orta (3-5 dakika)</SelectItem>
                         <SelectItem value="long">Uzun (5-8 dakika)</SelectItem>
@@ -307,7 +346,7 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                     <Textarea
                       id="custom-prompt"
                       placeholder="Masalların nasıl olmasını istediğinizi açıklayın..."
-                      value={localSettings.customPrompt}
+                      value={localSettings.customPrompt || ''}
                       onChange={(e) => updateSetting('customPrompt', e.target.value)}
                       className="min-h-[120px]"
                     />

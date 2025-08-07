@@ -58,8 +58,14 @@ function App() {
   
   // Ayarları localStorage'a kaydet
   const updateSettings = (newSettings) => {
-    setSettings(newSettings)
-    localStorage.setItem('bedtime-stories-settings', JSON.stringify(newSettings))
+    try {
+      console.log('🔧 App updateSettings:', newSettings)
+      setSettings(newSettings)
+      localStorage.setItem('bedtime-stories-settings', JSON.stringify(newSettings))
+    } catch (error) {
+      console.error('❌ App updateSettings error:', error)
+      setError('Ayarlar kaydedilirken hata oluştu')
+    }
   }
   
   // Favori masallar hook'u
@@ -333,12 +339,16 @@ function App() {
 
   // Save story manually when user clicks save button
   const saveStory = async () => {
-    if (!story) return
+    if (!story) {
+      setError('Kaydedilecek masal bulunamadı.')
+      return
+    }
     
     try {
       // Eğer zaten bir ID varsa güncelle, yoksa yeni oluştur
       if (currentStoryId) {
         // Zaten kaydedilmiş
+        console.log('Masal zaten kaydedilmiş:', currentStoryId)
         return
       }
       
@@ -352,16 +362,28 @@ function App() {
       
       // Favorileri refresh et
       refreshFavorites()
+      
+      // Success feedback
+      setError('') // Clear any previous errors
+      
     } catch (dbError) {
       console.error('Manuel kaydetme hatası:', dbError)
       
+      // Show user-friendly error
+      setError('Masal kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.')
+      
       // Fallback olarak localStorage kullan
-      const id = addToHistory({
-        story,
-        storyType: selectedStoryType,
-        customTopic
-      })
-      setCurrentStoryId(id)
+      try {
+        const id = addToHistory({
+          story,
+          storyType: selectedStoryType,
+          customTopic
+        })
+        setCurrentStoryId(id)
+        console.log('Masal localStorage\'a kaydedildi:', id)
+      } catch (fallbackError) {
+        console.error('localStorage fallback hatası:', fallbackError)
+      }
     }
   }
 

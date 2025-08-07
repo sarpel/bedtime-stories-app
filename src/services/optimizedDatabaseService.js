@@ -146,14 +146,15 @@ class OptimizedDatabaseService {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        story_text: storyText,
-        story_type: storyType,
-        custom_topic: customTopic
+        storyText: storyText,
+        storyType: storyType,
+        customTopic: customTopic
       })
     })
     
     if (!response.ok) {
-      throw new Error(`Story creation failed: ${response.status}`)
+      const errorText = await response.text()
+      throw new Error(`Story creation failed: ${response.status} - ${errorText}`)
     }
     
     const result = await response.json()
@@ -170,14 +171,15 @@ class OptimizedDatabaseService {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        story_text: storyText,
-        story_type: storyType,
-        custom_topic: customTopic
+        storyText: storyText,
+        storyType: storyType,
+        customTopic: customTopic
       })
     })
     
     if (!response.ok) {
-      throw new Error(`Story update failed: ${response.status}`)
+      const errorText = await response.text()
+      throw new Error(`Story update failed: ${response.status} - ${errorText}`)
     }
     
     const result = await response.json()
