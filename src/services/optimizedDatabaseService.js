@@ -1,0 +1,392 @@
+import { apiResponseCache } from '@/utils/cache.js'
+
+/**
+ * Optimize edilmiş Database Service
+ * - Query caching
+ * - Batch operations
+ * - Connection pooling
+ * - Performance monitoring
+ */
+
+const API_BASE_URL = 'http://localhost:3001/api'
+
+class OptimizedDatabaseService {
+  constructor() {
+    this.queryCache = apiResponseCache
+    this.pendingRequests = new Map() // Duplicate request prevention
+    this.performanceMetrics = {
+      queryCount: 0,
+      cacheHits: 0,
+      cacheMisses: 0,
+      averageQueryTime: 0
+    }
+  }
+
+  // Cached fetch with duplicate request prevention
+  async cachedFetch(url, options = {}, cacheKey = null, cacheTTL = 300000) {
+    const startTime = Date.now()
+    const key = cacheKey || `${url}:${JSON.stringify(options)}`
+    
+    // Check cache first
+    const cached = this.queryCache.get(key)
+    if (cached) {
+      this.performanceMetrics.cacheHits++
+      return cached
+    }
+    
+    // Check if same request is already pending
+    if (this.pendingRequests.has(key)) {
+      return this.pendingRequests.get(key)
+    }
+    
+    // Make the request
+    const requestPromise = fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+      },
+      ...options
+    }).then(async response => {
+      this.performanceMetrics.queryCount++
+      this.performanceMetrics.cacheMisses++
+      
+      const queryTime = Date.now() - startTime
+      this.performanceMetrics.averageQueryTime = 
+        (this.performanceMetrics.averageQueryTime + queryTime) / 2
+      
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      // Cache the result
+      this.queryCache.set(key, data, cacheTTL)
+      this.pendingRequests.delete(key)
+      
+      return data
+    }).catch(error => {
+      this.pendingRequests.delete(key)
+      throw error
+    })
+    
+    this.pendingRequests.set(key, requestPromise)
+    return requestPromise
+  }
+
+  // Get all stories with optimizations
+  async getAllStories(useCache = true) {
+    const cacheKey = 'all-stories'
+    
+    if (!useCache) {
+      this.queryCache.delete(cacheKey)
+    }
+    
+    return this.cachedFetch(
+      `${API_BASE_URL}/stories`,
+      {},
+      cacheKey,
+      180000 // 3 minutes cache for story list
+    )
+  }
+
+  // Get stories by type with caching
+  async getStoriesByType(storyType, useCache = true) {
+    const cacheKey = `stories-by-type:${storyType}`
+    
+    if (!useCache) {
+      this.queryCache.delete(cacheKey)
+    }
+    
+    return this.cachedFetch(
+      `${API_BASE_URL}/stories?type=${encodeURIComponent(storyType)}`,
+      {},
+      cacheKey,
+      300000 // 5 minutes cache
+    )
+  }
+
+  // Get single story with caching
+  async getStory(id, useCache = true) {
+    const cacheKey = `story:${id}`
+    
+    if (!useCache) {
+      this.queryCache.delete(cacheKey)
+    }
+    
+    return this.cachedFetch(
+      `${API_BASE_URL}/stories/${id}`,
+      {},
+      cacheKey,
+      600000 // 10 minutes cache for individual stories
+    )
+  }
+
+  // Batch create stories
+  async createStories(storiesData) {
+    const response = await fetch(`${API_BASE_URL}/stories/batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stories: storiesData })
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Batch create failed: ${response.status}`)
+    }
+    
+    // Invalidate relevant caches
+    this.invalidateStoryCaches()
+    
+    return response.json()
+  }
+
+  // Create story with cache invalidation
+  async createStory(storyText, storyType, customTopic = null) {
+    const response = await fetch(`${API_BASE_URL}/stories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        story_text: storyText,
+        story_type: storyType,
+        custom_topic: customTopic
+      })
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Story creation failed: ${response.status}`)
+    }
+    
+    const result = await response.json()
+    
+    // Invalidate relevant caches
+    this.invalidateStoryCaches()
+    
+    return result
+  }
+
+  // Update story with cache invalidation
+  async updateStory(id, storyText, storyType, customTopic = null) {
+    const response = await fetch(`${API_BASE_URL}/stories/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        story_text: storyText,
+        story_type: storyType,
+        custom_topic: customTopic
+      })
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Story update failed: ${response.status}`)
+    }
+    
+    const result = await response.json()
+    
+    // Invalidate specific caches
+    this.queryCache.delete(`story:${id}`)
+    this.invalidateStoryCaches()
+    
+    return result
+  }
+
+  // Delete story with cache invalidation
+  async deleteStory(id) {
+    const response = await fetch(`${API_BASE_URL}/stories/${id}`, {
+      method: 'DELETE'
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Story deletion failed: ${response.status}`)
+    }
+    
+    // Invalidate specific caches
+    this.queryCache.delete(`story:${id}`)
+    this.invalidateStoryCaches()
+    
+    return response.json()
+  }
+
+  // Batch delete stories
+  async deleteStories(ids) {
+    const response = await fetch(`${API_BASE_URL}/stories/batch`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids })
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Batch delete failed: ${response.status}`)
+    }
+    
+    // Invalidate specific caches
+    ids.forEach(id => this.queryCache.delete(`story:${id}`))
+    this.invalidateStoryCaches()
+    
+    return response.json()
+  }
+
+  // Update story favorite status
+  async updateStoryFavorite(id, isFavorite) {
+    const response = await fetch(`${API_BASE_URL}/stories/${id}/favorite`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_favorite: isFavorite })
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Favorite update failed: ${response.status}`)
+    }
+    
+    // Invalidate specific caches
+    this.queryCache.delete(`story:${id}`)
+    this.invalidateStoryCaches()
+    
+    return response.json()
+  }
+
+  // Get recent stories with caching
+  async getRecentStories(limit = 10) {
+    const cacheKey = `recent-stories:${limit}`
+    
+    return this.cachedFetch(
+      `${API_BASE_URL}/stories?limit=${limit}&sort=recent`,
+      {},
+      cacheKey,
+      120000 // 2 minutes cache for recent stories
+    )
+  }
+
+  // Get favorite stories with caching
+  async getFavoriteStories() {
+    const cacheKey = 'favorite-stories'
+    
+    return this.cachedFetch(
+      `${API_BASE_URL}/stories?favorites=true`,
+      {},
+      cacheKey,
+      300000 // 5 minutes cache
+    )
+  }
+
+  // Search stories with caching
+  async searchStories(query, options = {}) {
+    const cacheKey = `search:${query}:${JSON.stringify(options)}`
+    
+    const searchParams = new URLSearchParams({
+      q: query,
+      ...options
+    })
+    
+    return this.cachedFetch(
+      `${API_BASE_URL}/stories/search?${searchParams}`,
+      {},
+      cacheKey,
+      600000 // 10 minutes cache for search results
+    )
+  }
+
+  // Audio operations
+  getAudioUrl(fileName) {
+    if (!fileName) return null
+    return `${API_BASE_URL}/audio/${fileName}`
+  }
+
+  // Cache management
+  invalidateStoryCaches() {
+    // Remove all story-related caches
+    const keysToDelete = []
+    
+    // Collect cache keys to delete
+    this.queryCache.cache.forEach((_, key) => {
+      if (key.startsWith('all-stories') || 
+          key.startsWith('stories-by-type') || 
+          key.startsWith('recent-stories') || 
+          key.startsWith('favorite-stories')) {
+        keysToDelete.push(key)
+      }
+    })
+    
+    // Delete the keys
+    keysToDelete.forEach(key => this.queryCache.delete(key))
+  }
+
+  clearAllCaches() {
+    this.queryCache.clear()
+    this.pendingRequests.clear()
+  }
+
+  // Performance monitoring
+  getPerformanceMetrics() {
+    return {
+      ...this.performanceMetrics,
+      cacheStats: this.queryCache.getStats()
+    }
+  }
+
+  // Preload commonly accessed data
+  async preloadCommonData() {
+    try {
+      // Preload recent stories
+      await this.getRecentStories(20)
+      
+      // Preload favorite stories
+      await this.getFavoriteStories()
+      
+      console.log('Common data preloaded successfully')
+    } catch (error) {
+      console.error('Failed to preload common data:', error)
+    }
+  }
+
+  // Migration helper - localStorage'daki verileri veritabanına taşı
+  async migrateFromLocalStorage() {
+    try {
+      const localStorageData = localStorage.getItem('bedtime-stories-history')
+      if (!localStorageData) {
+        console.log('Taşınacak localStorage verisi bulunamadı.')
+        return { migrated: 0, skipped: 0, errors: 0 }
+      }
+
+      const stories = JSON.parse(localStorageData)
+      let migrated = 0
+      let skipped = 0
+      let errors = 0
+
+      console.log(`${stories.length} masal localStorage'dan veritabanına taşınacak...`)
+
+      for (const story of stories) {
+        try {
+          // Masalın zaten var olup olmadığını kontrol et
+          const existingStories = await this.getAllStories(false) // No cache for migration
+          const exists = existingStories.some(existing => 
+            existing.story_text === story.story && 
+            existing.story_type === story.storyType
+          )
+
+          if (exists) {
+            skipped++
+            continue
+          }
+
+          // Yeni masal oluştur
+          await this.createStory(story.story, story.storyType, story.customTopic)
+          migrated++
+          
+          console.log(`Masal taşındı: ${story.storyType}`)
+        } catch (error) {
+          console.error('Masal taşıma hatası:', error)
+          errors++
+        }
+      }
+
+      return { migrated, skipped, errors }
+    } catch (error) {
+      console.error('Migration hatası:', error)
+      throw error
+    }
+  }
+}
+
+// Singleton instance
+export const optimizedDatabaseService = new OptimizedDatabaseService()
+export default optimizedDatabaseService
