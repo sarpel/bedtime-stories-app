@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
@@ -5,9 +6,25 @@ import { Separator } from '@/components/ui/separator.jsx'
 import { AlertCircle, ExternalLink, Key, HelpCircle, X } from 'lucide-react'
 
 export default function ApiKeyHelp({ onClose }) {
+  const panelRef = useRef(null)
+
+  // Click outside handler
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (panelRef.current && !panelRef.current.contains(event.target)) {
+        onClose()
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [onClose])
+
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <Card ref={panelRef} className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b">
           <div className="flex items-center justify-between">
             <div>

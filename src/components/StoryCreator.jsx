@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Textarea } from '@/components/ui/textarea.jsx'
@@ -19,8 +19,7 @@ import {
   MoreHorizontal,
   X
 } from 'lucide-react'
-import { storyTypes } from '@/utils/storyTypes.js'
-import { getStoryTypeName } from '@/utils/storyTypes.js'
+import { storyTypes, getStoryTypeName, extractStoryTitle } from '@/utils/storyTypes.js'
 import { shareStory, shareToSocialMedia, downloadStory } from '@/utils/share.js'
 import sharingService from '@/services/sharingService.js'
 
@@ -55,6 +54,23 @@ export default function StoryCreator({
   const [showShareMenu, setShowShareMenu] = useState(false)
   const [_shareUrl, setShareUrl] = useState('')
   const [isSharing, setIsSharing] = useState(false)
+  const shareMenuRef = useRef(null)
+
+  // Click outside handler için
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (shareMenuRef.current && !shareMenuRef.current.contains(event.target)) {
+        setShowShareMenu(false)
+      }
+    }
+
+    if (showShareMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside)
+      }
+    }
+  }, [showShareMenu])
 
   const handleTypeChange = (typeId) => {
     onTypeChange(typeId)
@@ -166,7 +182,7 @@ export default function StoryCreator({
           <div className="flex-1">
             <CardTitle className="flex items-center gap-2 mb-2">
               <BookOpen className="h-5 w-5 text-primary" />
-              {story ? 'Senin Masalın' : 'Hangi Masalı Duymak İstersin?'}
+              {story ? extractStoryTitle(story) : 'Hangi Masalı Duymak İstersin?'}
               {isGenerating && (
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
               )}
@@ -268,12 +284,7 @@ export default function StoryCreator({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => onToggleFavorite({ 
-                    story, 
-                    storyType: selectedType, 
-                    customTopic,
-                    audioUrl 
-                  })}
+                  onClick={onToggleFavorite}
                   className={isFavorite ? 'text-red-500 hover:text-red-600' : ''}
                 >
                   <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
@@ -288,7 +299,10 @@ export default function StoryCreator({
                   </Button>
                   
                   {showShareMenu && (
-                    <div className="absolute right-0 top-full mt-1 bg-background border rounded-lg shadow-lg p-2 z-10 min-w-[200px]">
+                    <div 
+                      ref={shareMenuRef}
+                      className="absolute right-0 top-full mt-1 bg-background border rounded-lg shadow-lg p-2 z-10 min-w-[200px]"
+                    >
                       <Button 
                         variant="ghost" 
                         size="sm" 

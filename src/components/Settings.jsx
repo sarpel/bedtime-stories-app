@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Input } from '@/components/ui/input.jsx'
 import { Label } from '@/components/ui/label.jsx'
@@ -16,6 +16,21 @@ import VoiceSelector from './VoiceSelector.jsx'
 
 export default function Settings({ settings, onSettingsChange, onClose }) {
   const [localSettings, setLocalSettings] = useState(settings)
+  const panelRef = useRef(null)
+
+  // Click outside handler
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (panelRef.current && !panelRef.current.contains(event.target)) {
+        onClose()
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [onClose])
 
   const updateSetting = (path, value) => {
     const newSettings = { ...localSettings }
@@ -43,7 +58,7 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <Card ref={panelRef} className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b">
           <div className="flex items-center justify-between">
             <div>

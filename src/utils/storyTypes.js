@@ -100,6 +100,26 @@ export const getStoryTypePrompt = (id, customTopic = '') => {
   return type ? type.prompt : 'Genel bir masal'
 }
 
+// Masaldan başlık çıkarma fonksiyonu
+export const extractStoryTitle = (storyText) => {
+  if (!storyText) {
+    return 'Senin Masalın'
+  }
+
+  // Önce masal metninin ilk cümlesini bul
+  const firstSentence = storyText.split(/[.!?]/)[0].trim()
+  
+  // Eğer çok kısa ise (20 karakterden az), ikinci cümleyi de ekle
+  if (firstSentence.length < 20) {
+    const sentences = storyText.split(/[.!?]/)
+    const title = sentences.slice(0, 2).join('. ').trim()
+    return title.length > 50 ? title.substring(0, 50) + '...' : title
+  }
+  
+  // İlk cümleyi başlık olarak kullan, çok uzunsa kısalt
+  return firstSentence.length > 50 ? firstSentence.substring(0, 50) + '...' : firstSentence
+}
+
 // Popüler masal türleri (hızlı seçim için)
 export const popularStoryTypes = storyTypes.filter(type => 
   ['princess', 'unicorn', 'fairy', 'magic'].includes(type.id)

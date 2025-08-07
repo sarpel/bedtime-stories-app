@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -40,6 +40,23 @@ const StoryManagementPanel = ({
   const [filteredStories, setFilteredStories] = useState(history || []);
   const [editingStory, setEditingStory] = useState(null);
   const [editedText, setEditedText] = useState('');
+  const panelRef = useRef(null);
+
+  // Click outside handler
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (panelRef.current && !panelRef.current.contains(event.target)) {
+        onClose()
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside)
+      }
+    }
+  }, [isOpen, onClose])
 
   useEffect(() => {
     const stories = history || [];
@@ -77,7 +94,7 @@ const StoryManagementPanel = ({
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <Card ref={panelRef} className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b">
           <div className="flex items-center justify-between">
             <div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
@@ -29,6 +29,21 @@ export default function AnalyticsDashboard({ onClose }) {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedTimeRange, setSelectedTimeRange] = useState('7d')
   const [lastUpdated, setLastUpdated] = useState(new Date())
+  const panelRef = useRef(null)
+
+  // Click outside handler
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (panelRef.current && !panelRef.current.contains(event.target)) {
+        onClose()
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [onClose])
 
   const timeRangeOptions = [
     { value: '1d', label: 'Son 24 Saat' },
@@ -89,7 +104,7 @@ export default function AnalyticsDashboard({ onClose }) {
   if (isLoading) {
     return (
       <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <Card ref={panelRef} className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b">
             <div className="flex items-center justify-between">
               <div>
@@ -121,7 +136,7 @@ export default function AnalyticsDashboard({ onClose }) {
   if (!overview) {
     return (
       <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <Card ref={panelRef} className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b">
             <div className="flex items-center justify-between">
               <div>
@@ -155,7 +170,7 @@ export default function AnalyticsDashboard({ onClose }) {
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <Card ref={panelRef} className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b">
           <div className="flex items-center justify-between">
             <div>

@@ -106,7 +106,7 @@ function SortableStoryItem({
       </div>
 
       {/* Action Buttons */}
-      <div className="flex gap-0.5 ml-2 shrink-0">
+      <div className="flex items-center gap-0.5 ml-2 shrink-0">
         {/* Favorite Button */}
         <Button
           variant="ghost"
@@ -148,38 +148,29 @@ function SortableStoryItem({
           }`} />
         </Button>
         
-        {/* Delete Button */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onDeleteStory(story.id)}
-          className="h-5 w-5 p-0 hover:bg-destructive/10 hover:text-destructive"
-          title="Masalı sil"
-        >
-          <X className="h-2 w-2" />
-        </Button>
-
         {/* Audio Controls */}
         {(story.audio || story.audioUrl) && (
-          <AudioControls
-            storyId={story.id}
-            audioUrl={story.audio ? getDbAudioUrl(story.audio.file_name) : story.audioUrl}
-            isPlaying={audioIsPlaying}
-            isPaused={audioIsPaused}
-            progress={audioProgress}
-            duration={audioDuration}
-            volume={audioVolume}
-            isMuted={audioIsMuted}
-            playbackRate={audioPlaybackRate}
-            currentStoryId={audioCurrentStoryId}
-            onPlay={playAudio}
-            onStop={stopAudio}
-            onToggleMute={audioToggleMute}
-            onVolumeChange={setVolumeLevel}
-            onPlaybackSpeedChange={setPlaybackSpeed}
-            onSeek={seekTo}
-            size="xs"
-          />
+          <div className="flex items-center">
+            <AudioControls
+              storyId={story.id}
+              audioUrl={story.audio ? getDbAudioUrl(story.audio.file_name) : story.audioUrl}
+              isPlaying={audioIsPlaying}
+              isPaused={audioIsPaused}
+              progress={audioProgress}
+              duration={audioDuration}
+              volume={audioVolume}
+              isMuted={audioIsMuted}
+              playbackRate={audioPlaybackRate}
+              currentStoryId={audioCurrentStoryId}
+              onPlay={playAudio}
+              onStop={stopAudio}
+              onToggleMute={audioToggleMute}
+              onVolumeChange={setVolumeLevel}
+              onPlaybackSpeedChange={setPlaybackSpeed}
+              onSeek={seekTo}
+              size="xs"
+            />
+          </div>
         )}
 
         {/* View Button */}
@@ -191,6 +182,17 @@ function SortableStoryItem({
           title="Masalı görüntüle"
         >
           <BookOpen className="h-2 w-2" />
+        </Button>
+        
+        {/* Delete Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onDeleteStory(story.id)}
+          className="h-5 w-5 p-0 hover:bg-destructive/10 hover:text-destructive"
+          title="Masalı sil"
+        >
+          <X className="h-2 w-2" />
         </Button>
       </div>
     </div>
