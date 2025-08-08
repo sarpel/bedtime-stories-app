@@ -5,23 +5,38 @@ import { audioCache } from '@/utils/cache.js'
 // TTS Service for audio generation
 export class TTSService {
   constructor(settings) {
-    // Sabit ElevenLabs ayarları
-    this.endpoint = config.elevenlabs.endpoint
-    this.modelId = config.elevenlabs.model
-    this.voiceId = settings.voiceId || config.elevenlabs.voiceId
-    this.apiKey = config.elevenlabs.apiKey
+    this.provider = settings.ttsProvider || 'elevenlabs'
+    
+    if (this.provider === 'elevenlabs') {
+      // ElevenLabs ayarları
+      this.endpoint = settings.elevenlabs?.endpoint || config.elevenlabs.endpoint
+      this.modelId = settings.elevenlabs?.modelId || config.elevenlabs.model
+      this.voiceId = settings.elevenlabs?.voiceId || settings.voiceId || config.elevenlabs.voiceId
+      this.apiKey = settings.elevenlabs?.apiKey || config.elevenlabs.apiKey
+    } else if (this.provider === 'gemini') {
+      // Gemini TTS ayarları
+      this.endpoint = settings.geminiTTS?.endpoint || config.geminiTTS.endpoint
+      this.modelId = settings.geminiTTS?.modelId || config.geminiTTS.model
+      this.voiceId = settings.geminiTTS?.voiceId || config.geminiTTS.voiceId
+      this.apiKey = settings.geminiTTS?.apiKey || config.geminiTTS.apiKey
+    }
     
     // Kullanıcı ses ayarları
-    this.voiceSettings = settings.voiceSettings
-    // Audio quality kaldırıldı - sabit format kullanılacak
+    this.voiceSettings = settings.voiceSettings || {
+      speed: 0.9,
+      pitch: 1.0,
+      volume: 0.75,
+      stability: 0.5,
+      similarityBoost: 0.5
+    }
   }
 
   // Generate audio from text using custom TTS endpoint
   async generateAudio(text, onProgress, storyId = null) {
     try {
-      // Sabit model kontrolü
+      // Model kontrolü
       if (!this.endpoint || !this.modelId || !this.voiceId) {
-        throw new Error('ElevenLabs ayarları eksik. Lütfen .env dosyasını kontrol edin.')
+        throw new Error(`${this.provider} ayarları eksik. Lütfen endpoint, model ve ses bilgilerini kontrol edin.`)
       }
 
       if (!text || text.trim().length === 0) {
@@ -29,8 +44,8 @@ export class TTSService {
       }
 
       // API anahtarı kontrolü
-      if (!this.apiKey || this.apiKey === 'your-elevenlabs-api-key-here') {
-        throw new Error('ElevenLabs API anahtarı eksik veya geçersiz. Lütfen .env dosyasında ELEVENLABS_API_KEY değerini ayarlayın.')
+      if (!this.apiKey || this.apiKey === 'your-api-key-here') {
+        throw new Error(`${this.provider} API anahtarı eksik veya geçersiz. Lütfen API anahtarını ayarlayın.`)
       }
 
       // Eğer storyId varsa, önce veritabanından ses dosyasını kontrol et
@@ -49,7 +64,8 @@ export class TTSService {
       }
 
       // Önbellekten kontrol et
-      const cachedAudioUrl = audioCache.getAudio(text, this.voiceId, this.voiceSettings)
+      const cacheKey = `${this.provider}-${this.voiceId}-${this.modelId}`
+      const cachedAudioUrl = audioCache.getAudio(text, cacheKey, this.voiceSettings)
       
       if (cachedAudioUrl) {
         onProgress?.(100)
@@ -58,12 +74,14 @@ export class TTSService {
 
       onProgress?.(10)
 
-      // --- Sabit audio format kullanımı ---
-      // Karmaşık audio quality seçenekleri kaldırıldı
-      // Sabit ve güvenilir format: mp3_44100_128 (standart kalite)
-      const audioFormat = 'mp3_44100_128'
-      const fullUrl = `${this.endpoint}/${this.voiceId}?output_format=${audioFormat}`;
-      // --- Sabit format kullanımı sonu ---
+      // Provider'a göre URL oluştur
+      let fullUrl
+      if (this.provider === 'elevenlabs') {
+        const audioFormat = 'mp3_44100_128'
+        fullUrl = `${this.endpoint}/${this.voiceId}?output_format=${audioFormat}`;
+      } else if (this.provider === 'gemini') {
+        fullUrl = `${this.endpoint}/${this.modelId}:generateContent`;
+      }
 
       const requestBody = this.prepareRequestBody(text)
       onProgress?.(30)
@@ -74,12 +92,12 @@ export class TTSService {
         headers: {
           'Content-Type': 'application/json',
         },
-        // Backend'e endpoint'i ve hazır requestBody'yi gönderiyoruz
-        // DİKKAT: Backend'e artık birleştirilmiş ve tam olan URL'yi gönderiyoruz.
         body: JSON.stringify({
-          endpoint: fullUrl, // Değişiklik burada!
+          provider: this.provider,
+          endpoint: fullUrl,
           requestBody: requestBody,
-          storyId: storyId // Story ID'si eklendi
+          apiKey: this.apiKey, // Backend'e API key gönderiyoruz
+          storyId: storyId
         })
       })
 
@@ -97,7 +115,7 @@ export class TTSService {
       onProgress?.(100)
       
       // Önbellekle
-      audioCache.setAudio(text, this.voiceId, this.voiceSettings, audioUrl)
+      audioCache.setAudio(text, cacheKey, this.voiceSettings, audioUrl)
       
       return audioUrl
 
@@ -109,72 +127,44 @@ export class TTSService {
 
   // Prepare request body for different TTS providers
   prepareRequestBody(text) {
-    // OpenAI TTS format
-    if (this.endpoint.includes('audio/speech') || this.endpoint.includes('v1/audio')) {
-      return {
-        model: this.modelId,
-        input: text,
-        voice: this.voiceId || 'alloy',
-        response_format: 'mp3',
-        speed: this.voiceSettings.speed || 1.0
-      }
-    }
-    
-		// ElevenLabs format - check both original endpoint and constructed URL
-		if (this.endpoint.includes('elevenlabs') || this.endpoint.includes('v1/text-to-speech') || 
-		    (this.endpoint && this.voiceId && this.endpoint.includes('api.elevenlabs.io'))) {
-			return {
-				text: text,
-				model_id: this.modelId || 'eleven_turbo_v2_5',
-				language_code: 'tr',
-				voice_settings: {
-					similarity_boost: 0.75,   // Yüksek benzerlik
-					use_speaker_boost: false,   // Ses netliğini artırmak için bu ayar genellikle 'true' kalmalı
-					stability: 0.75,          // Yüksek istikrar
-					style: 0.0,               // Sıfır stil/vurgu
-					speed: this.voiceSettings?.speed || 0.9  // Kullanıcının ayarladığı hız
-				}
-			}
-		}
-
-    // Azure Cognitive Services format
-    if (this.endpoint.includes('cognitiveservices') || this.endpoint.includes('tts/cognitiveservices')) {
+    if (this.provider === 'elevenlabs') {
       return {
         text: text,
-        voice: this.voiceId,
-        outputFormat: 'audio-16khz-128kbitrate-mono-mp3',
-        rate: this.voiceSettings.speed ? `${(this.voiceSettings.speed - 1) * 50}%` : '0%',
-        pitch: this.voiceSettings.pitch ? `${(this.voiceSettings.pitch - 1) * 50}%` : '0%'
+        model_id: this.modelId || 'eleven_turbo_v2_5',
+        language_code: 'tr',
+        voice_settings: {
+          similarity_boost: this.voiceSettings?.similarityBoost || 0.75,
+          use_speaker_boost: false,
+          stability: this.voiceSettings?.stability || 0.75,
+          style: 0.0,
+          speed: this.voiceSettings?.speed || 0.9
+        }
       }
-    }
-
-    // Google Cloud TTS format
-    if (this.endpoint.includes('texttospeech') || this.endpoint.includes('googleapis')) {
+    } else if (this.provider === 'gemini') {
       return {
-        input: { text: text },
-        voice: {
-          languageCode: 'tr-TR',
-          name: this.voiceId || 'tr-TR-Wavenet-E',
-          ssmlGender: 'FEMALE'
-        },
-        audioConfig: {
-          audioEncoding: 'MP3',
-          speakingRate: this.voiceSettings.speed || 1.0,
-          pitch: this.voiceSettings.pitch ? (this.voiceSettings.pitch - 1) * 20 : 0,
-          volumeGainDb: this.voiceSettings.volume ? (this.voiceSettings.volume - 0.5) * 20 : 0
+        contents: [{
+          parts: [{
+            text: text
+          }]
+        }],
+        generationConfig: {
+          speechConfig: {
+            voiceConfig: {
+              name: this.voiceId || 'Puck',
+              languageCode: 'tr-TR'
+            }
+          }
         }
       }
     }
-
-    // Generic/Custom format
+    
+    // OpenAI format fallback
     return {
-      text: text,
       model: this.modelId,
-      voice: this.voiceId,
-      format: 'mp3',
-      speed: this.voiceSettings.speed || 1.0,
-      pitch: this.voiceSettings.pitch || 1.0,
-      volume: this.voiceSettings.volume || 0.8
+      input: text,
+      voice: this.voiceId || 'alloy',
+      response_format: 'mp3',
+      speed: this.voiceSettings?.speed || 1.0
     }
   }
 

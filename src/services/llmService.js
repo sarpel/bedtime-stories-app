@@ -5,10 +5,19 @@ import { storyCache } from '@/utils/cache.js'
 // LLM Service for story generation
 export class LLMService {
   constructor(settings) {
-    // Sabit OpenAI ayarları
-    this.endpoint = config.openai.endpoint
-    this.modelId = config.openai.model
-    this.apiKey = config.openai.apiKey
+    this.provider = settings.llmProvider || 'openai'
+    
+    if (this.provider === 'openai') {
+      // OpenAI ayarları
+      this.endpoint = settings.openaiLLM?.endpoint || settings.llmEndpoint || config.openai.endpoint
+      this.modelId = settings.openaiLLM?.modelId || settings.llmModelId || config.openai.model
+      this.apiKey = settings.openaiLLM?.apiKey || settings.llmApiKey || config.openai.apiKey
+    } else if (this.provider === 'gemini') {
+      // Gemini ayarları
+      this.endpoint = settings.geminiLLM?.endpoint || config.geminiLLM.endpoint
+      this.modelId = settings.geminiLLM?.modelId || config.geminiLLM.model
+      this.apiKey = settings.geminiLLM?.apiKey || config.geminiLLM.apiKey
+    }
     
     // Kullanıcı ayarları
     this.customPrompt = settings.customPrompt
@@ -47,9 +56,9 @@ export class LLMService {
   // Generate story using custom LLM endpoint
   async generateStory(onProgress, storyType = null, customTopic = '') {
     try {
-      // Sabit model kontrolü
+      // Model kontrolü
       if (!this.endpoint || !this.modelId) {
-        throw new Error('OpenAI ayarları eksik. Lütfen .env dosyasını kontrol edin.')
+        throw new Error('LLM ayarları eksik. Lütfen endpoint ve model bilgilerini kontrol edin.')
       }
 
       // Önbellekten kontrol et
@@ -79,7 +88,8 @@ export class LLMService {
           endpoint: this.endpoint,
           modelId: this.modelId,
           prompt: prompt,
-          max_tokens: this.getMaxTokens()
+          max_tokens: this.getMaxTokens(),
+          apiKey: this.apiKey
         })
       })
 
@@ -164,6 +174,23 @@ export class LLMService {
 
   // Extract story from different response formats
   extractStoryFromResponse(data) {
+    // Gemini format (candidates[].content.parts[].text)
+    if (data && Array.isArray(data.candidates) && data.candidates.length > 0) {
+      const first = data.candidates[0]
+      // Some SDKs expose output_text directly
+      if (typeof first.output_text === 'string' && first.output_text.trim()) {
+        return first.output_text.trim()
+      }
+      const parts = first.content && Array.isArray(first.content.parts) ? first.content.parts : []
+      if (parts.length) {
+        const joined = parts
+          .map(p => (typeof p === 'string' ? p : (p?.text || '')))
+          .join('')
+          .trim()
+        if (joined) return joined
+      }
+    }
+
     // OpenAI format
     if (data.choices && data.choices[0] && data.choices[0].message) {
       return data.choices[0].message.content.trim()

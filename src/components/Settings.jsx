@@ -128,17 +128,143 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
 
             {/* LLM Settings - Kompakt */}
             <TabsContent value="llm" className="space-y-2">
+              {/* LLM Provider Selection */}
               <Card className="p-2">
                 <div className="flex items-center gap-1 mb-2">
                   <Brain className="h-3 w-3 text-primary" />
-                  <span className="text-xs font-medium">LLM Ayarları</span>
+                  <span className="text-xs font-medium">LLM Sağlayıcı</span>
                 </div>
                 
-                <div className="p-2 bg-muted/50 rounded text-xs mb-2">
-                  <div className="flex items-center gap-1">
-                    <SettingsIcon className="h-3 w-3 text-primary" />
-                    <span className="font-medium">Model: OpenAI GPT-4.1-Mini</span>
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="llm-provider" className="text-xs">Sağlayıcı Seçin</Label>
+                    <Select
+                      value={localSettings.llmProvider || 'openai'}
+                      onValueChange={(value) => updateSetting('llmProvider', value)}
+                    >
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue placeholder="Seçin" />
+                      </SelectTrigger>
+                      <SelectContent className="z-[100]">
+                        <SelectItem value="openai" className="text-xs">OpenAI Compatible</SelectItem>
+                        <SelectItem value="gemini" className="text-xs">Gemini LLM</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
+                </div>
+              </Card>
+
+              {/* OpenAI LLM Settings */}
+              {(localSettings.llmProvider === 'openai' || !localSettings.llmProvider) && (
+                <Card className="p-2">
+                  <div className="flex items-center gap-1 mb-2">
+                    <SettingsIcon className="h-3 w-3 text-primary" />
+                    <span className="text-xs font-medium">OpenAI Compatible Ayarları</span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {/* API Endpoint */}
+                    <div className="space-y-1">
+                      <Label htmlFor="openai-llm-endpoint" className="text-xs">API Endpoint</Label>
+                      <Input
+                        id="openai-llm-endpoint"
+                        placeholder="https://api.openai.com/v1/chat/completions"
+                        value={localSettings.openaiLLM?.endpoint || localSettings.llmEndpoint || ''}
+                        onChange={(e) => {
+                          updateSetting('openaiLLM.endpoint', e.target.value)
+                          updateSetting('llmEndpoint', e.target.value) // Legacy compatibility
+                        }}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+
+                    {/* Model ID */}
+                    <div className="space-y-1">
+                      <Label htmlFor="openai-llm-model" className="text-xs">Model ID</Label>
+                      <Input
+                        id="openai-llm-model"
+                        placeholder="gpt-4o-mini"
+                        value={localSettings.openaiLLM?.modelId || localSettings.llmModelId || ''}
+                        onChange={(e) => {
+                          updateSetting('openaiLLM.modelId', e.target.value)
+                          updateSetting('llmModelId', e.target.value) // Legacy compatibility
+                        }}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+
+                    {/* API Key */}
+                    <div className="space-y-1">
+                      <Label htmlFor="openai-llm-api-key" className="text-xs">API Key</Label>
+                      <Input
+                        id="openai-llm-api-key"
+                        type="password"
+                        placeholder="sk-..."
+                        value={localSettings.openaiLLM?.apiKey || localSettings.llmApiKey || ''}
+                        onChange={(e) => {
+                          updateSetting('openaiLLM.apiKey', e.target.value)
+                          updateSetting('llmApiKey', e.target.value) // Legacy compatibility
+                        }}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Gemini LLM Settings */}
+              {localSettings.llmProvider === 'gemini' && (
+                <Card className="p-2">
+                  <div className="flex items-center gap-1 mb-2">
+                    <SettingsIcon className="h-3 w-3 text-primary" />
+                    <span className="text-xs font-medium">Gemini LLM Ayarları</span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {/* API Endpoint */}
+                    <div className="space-y-1">
+                      <Label htmlFor="gemini-llm-endpoint" className="text-xs">API Endpoint</Label>
+                      <Input
+                        id="gemini-llm-endpoint"
+                        placeholder="https://generativelanguage.googleapis.com/v1beta/models"
+                        value={localSettings.geminiLLM?.endpoint || ''}
+                        onChange={(e) => updateSetting('geminiLLM.endpoint', e.target.value)}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+
+                    {/* Model ID */}
+                    <div className="space-y-1">
+                      <Label htmlFor="gemini-llm-model" className="text-xs">Model ID</Label>
+                      <Input
+                        id="gemini-llm-model"
+                        placeholder="gemini-2.0-flash-thinking-exp-1219"
+                        value={localSettings.geminiLLM?.modelId || ''}
+                        onChange={(e) => updateSetting('geminiLLM.modelId', e.target.value)}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+
+                    {/* API Key */}
+                    <div className="space-y-1">
+                      <Label htmlFor="gemini-llm-api-key" className="text-xs">API Key</Label>
+                      <Input
+                        id="gemini-llm-api-key"
+                        type="password"
+                        placeholder="AIza..."
+                        value={localSettings.geminiLLM?.apiKey || ''}
+                        onChange={(e) => updateSetting('geminiLLM.apiKey', e.target.value)}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              <Card className="p-2">
+                <div className="flex items-center gap-1 mb-2">
+                  <Brain className="h-3 w-3 text-primary" />
+                  <span className="text-xs font-medium">Model Ayarları</span>
                 </div>
 
                 <div className="space-y-2">
@@ -187,11 +313,164 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
 
             {/* Voice Settings - Kompakt */}
             <TabsContent value="voice" className="space-y-2">
-              {/* Voice Selector - Kompakt */}
-              <VoiceSelector
-                selectedVoiceId={localSettings.voiceId || 'xsGHrtxT5AdDzYXTQT0d'}
-                onVoiceChange={(voiceId) => updateSetting('voiceId', voiceId)}
-              />
+              {/* TTS Provider Selection */}
+              <Card className="p-2">
+                <div className="flex items-center gap-1 mb-2">
+                  <Volume2 className="h-3 w-3 text-primary" />
+                  <span className="text-xs font-medium">TTS Sağlayıcı</span>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="tts-provider" className="text-xs">Sağlayıcı Seçin</Label>
+                    <Select
+                      value={localSettings.ttsProvider || 'elevenlabs'}
+                      onValueChange={(value) => updateSetting('ttsProvider', value)}
+                    >
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue placeholder="Seçin" />
+                      </SelectTrigger>
+                      <SelectContent className="z-[100]">
+                        <SelectItem value="elevenlabs" className="text-xs">ElevenLabs</SelectItem>
+                        <SelectItem value="gemini" className="text-xs">Gemini TTS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </Card>
+
+              {/* ElevenLabs Settings */}
+              {(localSettings.ttsProvider === 'elevenlabs' || !localSettings.ttsProvider) && (
+                <Card className="p-2">
+                  <div className="flex items-center gap-1 mb-2">
+                    <SettingsIcon className="h-3 w-3 text-primary" />
+                    <span className="text-xs font-medium">ElevenLabs Ayarları</span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {/* API Endpoint */}
+                    <div className="space-y-1">
+                      <Label htmlFor="elevenlabs-endpoint" className="text-xs">API Endpoint</Label>
+                      <Input
+                        id="elevenlabs-endpoint"
+                        placeholder="https://api.elevenlabs.io/v1/text-to-speech"
+                        value={localSettings.elevenlabs?.endpoint || ''}
+                        onChange={(e) => updateSetting('elevenlabs.endpoint', e.target.value)}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+
+                    {/* Model ID */}
+                    <div className="space-y-1">
+                      <Label htmlFor="elevenlabs-model" className="text-xs">Model ID</Label>
+                      <Input
+                        id="elevenlabs-model"
+                        placeholder="eleven_turbo_v2_5"
+                        value={localSettings.elevenlabs?.modelId || ''}
+                        onChange={(e) => updateSetting('elevenlabs.modelId', e.target.value)}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+
+                    {/* Voice ID */}
+                    <div className="space-y-1">
+                      <Label htmlFor="elevenlabs-voice" className="text-xs">Voice ID</Label>
+                      <Input
+                        id="elevenlabs-voice"
+                        placeholder="xsGHrtxT5AdDzYXTQT0d"
+                        value={localSettings.elevenlabs?.voiceId || localSettings.voiceId || ''}
+                        onChange={(e) => {
+                          updateSetting('elevenlabs.voiceId', e.target.value)
+                          updateSetting('voiceId', e.target.value) // Legacy compatibility
+                        }}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+
+                    {/* API Key */}
+                    <div className="space-y-1">
+                      <Label htmlFor="elevenlabs-api-key" className="text-xs">API Key</Label>
+                      <Input
+                        id="elevenlabs-api-key"
+                        type="password"
+                        placeholder="sk_..."
+                        value={localSettings.elevenlabs?.apiKey || ''}
+                        onChange={(e) => updateSetting('elevenlabs.apiKey', e.target.value)}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Gemini Settings */}
+              {localSettings.ttsProvider === 'gemini' && (
+                <Card className="p-2">
+                  <div className="flex items-center gap-1 mb-2">
+                    <SettingsIcon className="h-3 w-3 text-primary" />
+                    <span className="text-xs font-medium">Gemini TTS Ayarları</span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {/* API Endpoint */}
+                    <div className="space-y-1">
+                      <Label htmlFor="gemini-tts-endpoint" className="text-xs">API Endpoint</Label>
+                      <Input
+                        id="gemini-tts-endpoint"
+                        placeholder="https://generativelanguage.googleapis.com/v1beta/models"
+                        value={localSettings.geminiTTS?.endpoint || ''}
+                        onChange={(e) => updateSetting('geminiTTS.endpoint', e.target.value)}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+
+                    {/* Model ID - Textbox olarak değiştirildi */}
+                    <div className="space-y-1">
+                      <Label htmlFor="gemini-tts-model" className="text-xs">Model ID</Label>
+                      <Input
+                        id="gemini-tts-model"
+                        placeholder="gemini-2.0-flash-thinking-exp-1219"
+                        value={localSettings.geminiTTS?.modelId || ''}
+                        onChange={(e) => updateSetting('geminiTTS.modelId', e.target.value)}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+
+                    {/* Voice ID */}
+                    <div className="space-y-1">
+                      <Label htmlFor="gemini-tts-voice" className="text-xs">Voice ID</Label>
+                      <Input
+                        id="gemini-tts-voice"
+                        placeholder="Puck"
+                        value={localSettings.geminiTTS?.voiceId || ''}
+                        onChange={(e) => updateSetting('geminiTTS.voiceId', e.target.value)}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+
+                    {/* API Key */}
+                    <div className="space-y-1">
+                      <Label htmlFor="gemini-tts-api-key" className="text-xs">API Key</Label>
+                      <Input
+                        id="gemini-tts-api-key"
+                        type="password"
+                        placeholder="AIza..."
+                        value={localSettings.geminiTTS?.apiKey || ''}
+                        onChange={(e) => updateSetting('geminiTTS.apiKey', e.target.value)}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Voice Selector - Sadece ElevenLabs için */}
+              {(localSettings.ttsProvider === 'elevenlabs' || !localSettings.ttsProvider) && (
+                <VoiceSelector
+                  selectedVoiceId={localSettings.voiceId || 'xsGHrtxT5AdDzYXTQT0d'}
+                  onVoiceChange={(voiceId) => updateSetting('voiceId', voiceId)}
+                />
+              )}
 
               {/* Voice Settings - Kompakt */}
               <Card className="p-2">
@@ -199,22 +478,15 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                   <Volume2 className="h-3 w-3 text-primary" />
                   <span className="text-xs font-medium">Ses Ayarları</span>
                 </div>
-                
-                <div className="p-2 bg-muted/50 rounded text-xs mb-2">
-                  <div className="flex items-center gap-1">
-                    <SettingsIcon className="h-3 w-3 text-primary" />
-                    <span className="font-medium">Model: ElevenLabs Turbo</span>
-                  </div>
-                </div>
 
                 <div className="space-y-2">
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs">Hız</Label>
-                      <Badge variant="outline" className="text-xs h-4 px-1">{localSettings.voiceSettings.speed}x</Badge>
+                      <Badge variant="outline" className="text-xs h-4 px-1">{localSettings.voiceSettings?.speed || 0.9}x</Badge>
                     </div>
                     <Slider
-                      value={[localSettings.voiceSettings.speed]}
+                      value={[localSettings.voiceSettings?.speed || 0.9]}
                       onValueChange={(value) => updateSetting('voiceSettings.speed', value[0])}
                       min={0.5}
                       max={2.0}
@@ -230,10 +502,10 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs">Ton</Label>
-                      <Badge variant="outline" className="text-xs h-4 px-1">{localSettings.voiceSettings.pitch}x</Badge>
+                      <Badge variant="outline" className="text-xs h-4 px-1">{localSettings.voiceSettings?.pitch || 1.0}x</Badge>
                     </div>
                     <Slider
-                      value={[localSettings.voiceSettings.pitch]}
+                      value={[localSettings.voiceSettings?.pitch || 1.0]}
                       onValueChange={(value) => updateSetting('voiceSettings.pitch', value[0])}
                       min={0.5}
                       max={2.0}
@@ -249,10 +521,10 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs">Seviye</Label>
-                      <Badge variant="outline" className="text-xs h-4 px-1">{Math.round(localSettings.voiceSettings.volume * 100)}%</Badge>
+                      <Badge variant="outline" className="text-xs h-4 px-1">{Math.round((localSettings.voiceSettings?.volume || 0.75) * 100)}%</Badge>
                     </div>
                     <Slider
-                      value={[localSettings.voiceSettings.volume]}
+                      value={[localSettings.voiceSettings?.volume || 0.75]}
                       onValueChange={(value) => updateSetting('voiceSettings.volume', value[0])}
                       min={0.1}
                       max={1.0}
@@ -264,6 +536,49 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                       <span>Yüksek</span>
                     </div>
                   </div>
+
+                  {/* ElevenLabs specific settings */}
+                  {(localSettings.ttsProvider === 'elevenlabs' || !localSettings.ttsProvider) && (
+                    <>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">Stabilite</Label>
+                          <Badge variant="outline" className="text-xs h-4 px-1">{localSettings.voiceSettings?.stability || 0.5}</Badge>
+                        </div>
+                        <Slider
+                          value={[localSettings.voiceSettings?.stability || 0.5]}
+                          onValueChange={(value) => updateSetting('voiceSettings.stability', value[0])}
+                          min={0.0}
+                          max={1.0}
+                          step={0.1}
+                          className="w-full h-1"
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Değişken</span>
+                          <span>Sabit</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">Benzerlik</Label>
+                          <Badge variant="outline" className="text-xs h-4 px-1">{localSettings.voiceSettings?.similarityBoost || 0.5}</Badge>
+                        </div>
+                        <Slider
+                          value={[localSettings.voiceSettings?.similarityBoost || 0.5]}
+                          onValueChange={(value) => updateSetting('voiceSettings.similarityBoost', value[0])}
+                          min={0.0}
+                          max={1.0}
+                          step={0.1}
+                          className="w-full h-1"
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Düşük</span>
+                          <span>Yüksek</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </Card>
             </TabsContent>

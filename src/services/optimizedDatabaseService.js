@@ -9,6 +9,7 @@ import { apiResponseCache } from '@/utils/cache.js'
  */
 
 const API_BASE_URL = 'http://localhost:3001/api'
+const BASE_URL = 'http://localhost:3001'
 
 class OptimizedDatabaseService {
   constructor() {
@@ -148,14 +149,23 @@ class OptimizedDatabaseService {
 
   // Create story with cache invalidation
   async createStory(storyText, storyType, customTopic = null) {
+    console.log('OptimizedDatabaseService.createStory called with:');
+    console.log('storyText:', typeof storyText, storyText ? storyText.substring(0, 100) + '...' : 'null/undefined');
+    console.log('storyType:', typeof storyType, storyType);
+    console.log('customTopic:', typeof customTopic, customTopic);
+    
+    const requestBody = {
+      storyText: storyText,
+      storyType: storyType,
+      customTopic: customTopic
+    };
+    
+    console.log('Request body to send:', JSON.stringify(requestBody, null, 2));
+    
     const response = await fetch(`${API_BASE_URL}/stories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        storyText: storyText,
-        storyType: storyType,
-        customTopic: customTopic
-      })
+      body: JSON.stringify(requestBody)
     })
     
     if (!response.ok) {
@@ -296,7 +306,8 @@ class OptimizedDatabaseService {
   // Audio operations
   getAudioUrl(fileName) {
     if (!fileName) return null
-    return `${API_BASE_URL}/audio/${fileName}`
+  // Static audio files are served at /audio (not under /api)
+  return `${BASE_URL}/audio/${fileName}`
   }
 
   // Cache management

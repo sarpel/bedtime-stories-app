@@ -141,6 +141,7 @@ function App() {
     playbackRate: audioPlaybackRate,
     currentStoryId: audioCurrentStoryId,
     playAudio,
+  pauseAudio,
     stopAudio,
     toggleMute: audioToggleMute,
     setVolumeLevel,
@@ -221,10 +222,21 @@ function App() {
       const storyTypeToUse = customTopic.trim() ? 'custom' : selectedStoryType
       const topicToUse = customTopic.trim() || ''
       
-      const story = await llmService.generateStory((progressValue) => {
+      let story = await llmService.generateStory((progressValue) => {
         setProgress(progressValue)
       }, storyTypeToUse, topicToUse)
       
+      // LLM bazen boş/kısa yanıt döndürebilir; kullanıcı deneyimini korumak için fallback üret
+      if (!story || (typeof story === 'string' && story.trim().length < 50)) {
+        console.warn('LLM kısa/boş yanıt döndürdü, fallback masal üretilecek.')
+        try {
+          story = llmService.generateFallbackStory()
+  } catch {
+          // generateFallbackStory başarısız olursa minimum metin kullan
+          story = 'Bir zamanlar, çok uzak diyarlarda, iyi kalpli bir çocuk yaşarmış. Her gece yıldızlara bakar ve güzel rüyalar görürmüş. İyi geceler, tatlı rüyalar.'
+        }
+      }
+
       setStory(story)
       
       // Analytics: Track successful story generation
@@ -233,7 +245,7 @@ function App() {
       
       // Veritabanına kaydet
       try {
-        const dbStory = await createDbStory(story, storyTypeToUse, topicToUse)
+  const dbStory = await createDbStory(story, storyTypeToUse, topicToUse)
         setCurrentStoryId(dbStory.id)
         console.log('Masal veritabanına kaydedildi:', dbStory.id)
         
@@ -545,8 +557,8 @@ function App() {
           isPlaying={audioIsPlaying}
           audioProgress={audioProgress}
           audioDuration={audioDuration}
-          onPlayAudio={() => playAudio(currentStoryId, audioUrl)}
-          onPauseAudio={stopAudio}
+          onPlayAudio={() => playAudio(audioUrl, currentStoryId)}
+          onPauseAudio={pauseAudio}
           onStopAudio={stopAudio}
           onToggleMute={audioToggleMute}
           isMuted={audioIsMuted}

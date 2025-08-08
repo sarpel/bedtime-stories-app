@@ -125,7 +125,7 @@ app.get('/api/shared/:shareId/audio', (req, res) => {
 // --- LLM İSTEKLERİ İÇİN ENDPOINT ---
 app.post('/api/llm', llmLimiter, async (req, res) => {
   // Frontend'den gelen ayarları ve prompt'u al
-  const { endpoint, modelId, prompt, max_tokens } = req.body;
+  const { endpoint, modelId, prompt, max_tokens, apiKey } = req.body;
   
   // Input validation
   if (!endpoint || !modelId || !prompt) {
@@ -139,11 +139,14 @@ app.post('/api/llm', llmLimiter, async (req, res) => {
   if (max_tokens && (typeof max_tokens !== 'number' || max_tokens <= 0 || max_tokens > 4000)) {
     return res.status(400).json({ error: 'max_tokens 1 ile 4000 arasında olmalıdır.' });
   }
-  
-  const apiKey = process.env.OPENAI_API_KEY;
 
-  if (!apiKey) {
-    return res.status(500).json({ error: 'OpenAI API anahtarı sunucuda tanımlanmamış.' });
+  // API key'i önce request'ten al, sonra environment'ten fallback yap
+  const finalApiKey = apiKey || 
+    process.env.OPENAI_API_KEY || 
+    process.env.GEMINI_LLM_API_KEY;
+
+  if (!finalApiKey) {
+    return res.status(500).json({ error: 'API anahtarı gereklidir. Lütfen ayarlardan API anahtarını girin.' });
   }
 
   // llmService.js'deki prepareRequestBody fonksiyonuna benzer bir yapı
@@ -159,15 +162,23 @@ app.post('/api/llm', llmLimiter, async (req, res) => {
         content: prompt
       }
     ],
-    max_tokens: max_tokens,
     temperature: 1.0
   };
+
+  // Yeni OpenAI modelleri için max_completion_tokens kullan, eski modeller için max_tokens
+  if (max_tokens) {
+    if (modelId.includes('gpt-5') || modelId.includes('o1') || modelId.includes('o3')) {
+      requestBody.max_completion_tokens = max_tokens;
+    } else {
+      requestBody.max_tokens = max_tokens;
+    }
+  }
 
   try {
     // Axios ile LLM API'sine isteği gönder
     const response = await axios.post(endpoint, requestBody, {
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${finalApiKey}`,
         'Content-Type': 'application/json'
       }
     });
@@ -185,13 +196,13 @@ app.post('/api/llm', llmLimiter, async (req, res) => {
     let errorMessage = 'LLM API\'sine istek gönderilirken hata oluştu.';
     
     if (error.response?.status === 401) {
-      errorMessage = 'OpenAI API anahtarı geçersiz. Lütfen .env dosyasındaki OPENAI_API_KEY değerini kontrol edin.';
+      errorMessage = 'API anahtarı geçersiz. Lütfen API anahtarını kontrol edin.';
     } else if (error.response?.status === 400) {
-      errorMessage = 'OpenAI API isteği hatalı. Lütfen metin ve ayarları kontrol edin.';
+      errorMessage = 'API isteği hatalı. Lütfen metin ve ayarları kontrol edin.';
     } else if (error.response?.status === 429) {
-      errorMessage = 'OpenAI API rate limit aşıldı. Lütfen daha sonra tekrar deneyin.';
+      errorMessage = 'API rate limit aşıldı. Lütfen daha sonra tekrar deneyin.';
     } else if (error.response?.data?.error) {
-      errorMessage = `OpenAI API Hatası: ${error.response.data.error.message || error.response.data.error}`;
+      errorMessage = `API Hatası: ${error.response.data.error.message || error.response.data.error}`;
     }
     
     res.status(error.response?.status || 500).json({ error: errorMessage });
@@ -238,10 +249,13 @@ app.get('/api/stories/:id', dbLimiter, (req, res) => {
 // Yeni masal oluştur
 app.post('/api/stories', dbLimiter, (req, res) => {
   try {
+    console.log('POST /api/stories - Gelen veri:', JSON.stringify(req.body, null, 2));
     const { storyText, storyType, customTopic } = req.body;
     
     // Input validation
     if (!storyText || !storyType) {
+      console.log('Validation error - storyText:', typeof storyText, storyText ? 'exists' : 'missing');
+      console.log('Validation error - storyType:', typeof storyType, storyType ? 'exists' : 'missing');
       return res.status(400).json({ error: 'Masal metni ve türü gereklidir.' });
     }
     
@@ -429,47 +443,82 @@ app.get('/api/stories/type/:storyType', dbLimiter, (req, res) => {
 // --- TTS İSTEKLERİ İÇİN ENDPOINT (GÜNCELLEN VERSİYON) ---
 app.post('/api/tts', ttsLimiter, async (req, res) => {
   // Frontend'den gelen ayarları ve metni al
-  const { endpoint, requestBody, storyId } = req.body;
+  const { provider, endpoint, requestBody, apiKey, storyId } = req.body;
   
   // Input validation
-  if (!endpoint || !requestBody) {
-    return res.status(400).json({ error: 'Endpoint ve request body gereklidir.' });
+  if (!provider || !endpoint || !requestBody || !apiKey) {
+    return res.status(400).json({ error: 'Provider, endpoint, request body ve API key gereklidir.' });
   }
   
-  if (typeof endpoint !== 'string' || !endpoint.includes('elevenlabs.io')) {
-    return res.status(400).json({ error: 'Geçerli bir ElevenLabs endpoint URL\'si gereklidir.' });
+  if (!['elevenlabs', 'gemini'].includes(provider)) {
+    return res.status(400).json({ error: 'Desteklenen provider: elevenlabs, gemini' });
   }
   
-  if (!requestBody.text || typeof requestBody.text !== 'string' || requestBody.text.trim().length === 0) {
+  if (typeof endpoint !== 'string') {
+    return res.status(400).json({ error: 'Geçerli bir endpoint URL\'si gereklidir.' });
+  }
+  
+  // Provider'a göre text alanını kontrol et
+  let textToSpeak;
+  if (provider === 'elevenlabs') {
+    textToSpeak = requestBody.text;
+  } else if (provider === 'gemini') {
+    textToSpeak = requestBody.contents?.[0]?.parts?.[0]?.text;
+  }
+  
+  if (!textToSpeak || typeof textToSpeak !== 'string' || textToSpeak.trim().length === 0) {
     return res.status(400).json({ error: 'TTS için geçerli bir metin gereklidir.' });
   }
-  
-  const apiKey = process.env.ELEVENLABS_API_KEY;
 
   console.log('TTS Request received:', { 
+    provider,
     endpoint, 
     hasApiKey: !!apiKey,
     storyId: storyId
   });
 
-  if (!apiKey) {
-    console.error('ElevenLabs API key missing from environment variables');
-    return res.status(500).json({ error: 'ElevenLabs API anahtarı sunucuda tanımlanmamış.' });
-  }
-
   try {
-    console.log('Sending request to ElevenLabs:', { endpoint, requestBody });
+    console.log('Sending request to TTS provider:', { provider, endpoint });
     
-    // Axios ile TTS API'sine isteği gönder.
-    const response = await axios.post(endpoint, requestBody, {
-      headers: {
-        'xi-api-key': apiKey,
-        'Content-Type': 'application/json'
-      },
-      responseType: 'stream'
-    });
+    let response;
+    
+    if (provider === 'elevenlabs') {
+      // ElevenLabs API isteği
+      response = await axios.post(endpoint, requestBody, {
+        headers: {
+          'xi-api-key': apiKey,
+          'Content-Type': 'application/json'
+        },
+        responseType: 'stream'
+      });
+    } else if (provider === 'gemini') {
+      // Gemini API isteği
+      response = await axios.post(`${endpoint}?key=${apiKey}`, requestBody, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      // Gemini response'dan audio data'yı çıkar
+      if (response.data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
+        const audioData = response.data.candidates[0].content.parts[0].inlineData.data;
+        const audioBuffer = Buffer.from(audioData, 'base64');
+        
+        // Buffer'ı stream'e dönüştür
+        const { Readable } = require('stream');
+        const audioStream = new Readable();
+        audioStream.push(audioBuffer);
+        audioStream.push(null);
+        
+        response.data = audioStream;
+        response.headers = { 'content-type': 'audio/mpeg' };
+      } else {
+        throw new Error('Gemini API\'den ses verisi alınamadı');
+      }
+    }
 
-    console.log('ElevenLabs response received:', { 
+    console.log('TTS response received:', { 
+      provider,
       status: response.status, 
       headers: response.headers
     });
@@ -499,14 +548,18 @@ app.post('/api/tts', ttsLimiter, async (req, res) => {
           console.log('Audio file saved:', filePath);
           // Veritabanına ses dosyası bilgisini kaydet
           try {
-            // Voice ID'yi endpoint URL'sinden çıkar (query parameters öncesi)
+            // Voice ID'yi provider'a göre çıkar
             let voiceId = 'unknown';
-            try {
-              const url = new URL(endpoint);
-              const pathParts = url.pathname.split('/');
-              voiceId = pathParts[pathParts.length - 1] || 'unknown';
-            } catch (urlError) {
-              console.warn('Voice ID extraction failed, using unknown:', urlError.message);
+            if (provider === 'elevenlabs') {
+              try {
+                const url = new URL(endpoint);
+                const pathParts = url.pathname.split('/');
+                voiceId = pathParts[pathParts.length - 1] || 'unknown';
+              } catch (urlError) {
+                console.warn('Voice ID extraction failed, using unknown:', urlError.message);
+              }
+            } else if (provider === 'gemini') {
+              voiceId = requestBody.generationConfig?.speechConfig?.voiceConfig?.name || 'unknown';
             }
             
             storyDb.saveAudio(sanitizedStoryId, fileName, filePath, voiceId, requestBody);
@@ -538,6 +591,7 @@ app.post('/api/tts', ttsLimiter, async (req, res) => {
 
   } catch (error) {
     console.error('TTS API Hatası:', {
+      provider,
       status: error.response?.status,
       statusText: error.response?.statusText,
       data: error.response?.data,
@@ -546,14 +600,16 @@ app.post('/api/tts', ttsLimiter, async (req, res) => {
       hasApiKey: !!apiKey
     });
     
-    let errorMessage = "TTS API'sine istek gönderilirken hata oluştu.";
+    let errorMessage = `${provider} TTS API'sine istek gönderilirken hata oluştu.`;
     
     if (error.response?.status === 401) {
-      errorMessage = "ElevenLabs API anahtarı geçersiz. Lütfen .env dosyasındaki ELEVENLABS_API_KEY değerini kontrol edin.";
+      errorMessage = `${provider} API anahtarı geçersiz. Lütfen API anahtarını kontrol edin.`;
     } else if (error.response?.status === 400) {
-      errorMessage = "ElevenLabs API isteği hatalı. Lütfen metin ve ses ayarlarını kontrol edin.";
+      errorMessage = `${provider} API isteği hatalı. Lütfen metin ve ayarları kontrol edin.`;
     } else if (error.response?.data?.detail) {
-      errorMessage = `ElevenLabs API Hatası: ${error.response.data.detail}`;
+      errorMessage = `${provider} API Hatası: ${error.response.data.detail}`;
+    } else if (error.response?.data?.error?.message) {
+      errorMessage = `${provider} API Hatası: ${error.response.data.error.message}`;
     }
     
     res.status(error.response?.status || 500).json({ error: errorMessage });
