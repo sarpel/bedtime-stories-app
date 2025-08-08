@@ -286,6 +286,56 @@ function App() {
       setProgress(0)
     }
   }
+  
+  // Generate audio for any story by ID (for Story Management Panel)
+  const generateAudioForStory = async (storyId, storyText) => {
+    if (!storyText) return
+    
+    setIsGeneratingAudio(true)
+    setProgress(0)
+    setError('')
+    
+    const startTime = Date.now()
+    
+    try {
+      const ttsService = new TTSService(settings)
+      
+      // Story ID'si ile ses oluştur (veritabanına kaydedilir)
+      const audioUrl = await ttsService.generateAudio(storyText, (progressValue) => {
+        setProgress(progressValue)
+      }, storyId)
+      
+      // Analytics: Track successful audio generation
+      const duration = Date.now() - startTime
+      analyticsService.trackAudioGeneration(storyId, settings.voiceId || 'default', true, duration)
+      
+      console.log('Audio generated for story:', storyId, audioUrl)
+      
+    } catch (error) {
+      console.error('Audio generation failed for story:', storyId, error)
+      
+      // Analytics: Track failed audio generation
+      const duration = Date.now() - startTime
+      analyticsService.trackAudioGeneration(storyId, settings.voiceId || 'default', false, duration, error.message)
+      analyticsService.trackError('audio_generation', error.message, { storyId })
+      
+      // Show user-friendly error message
+      let errorMessage = 'Ses oluşturulurken bir hata oluştu.'
+      
+      if (error.message.includes('ElevenLabs ayarları eksik') || error.message.includes('API anahtarı eksik')) {
+        errorMessage = 'ElevenLabs API anahtarı eksik. Lütfen .env dosyasında ELEVENLABS_API_KEY değerini ayarlayın.'
+      } else if (error.message.includes('API hatası') || error.message.includes('401')) {
+        errorMessage = 'ElevenLabs API anahtarı geçersiz. Lütfen ElevenLabs hesabınızdan doğru API anahtarını alın.'
+      } else if (error.message.includes('ses dosyası çıkarılamadı')) {
+        errorMessage = 'ElevenLabs yanıtı işlenirken hata oluştu. Lütfen tekrar deneyin.'
+      }
+      
+      setError(errorMessage)
+    } finally {
+      setIsGeneratingAudio(false)
+      setProgress(0)
+    }
+  }
 
   const generateAudio = async () => {
     if (!story) return
@@ -362,6 +412,8 @@ function App() {
       if (currentStoryId) {
         // Zaten kaydedilmiş
         console.log('Masal zaten kaydedilmiş:', currentStoryId)
+        // Kaydetme işlemi tamamlandı, ana menüye dön
+        clearStory()
         return
       }
       
@@ -373,11 +425,14 @@ function App() {
       setCurrentStoryId(dbStory.id)
       console.log('Masal manuel olarak kaydedildi:', dbStory.id)
       
-      // Favorileri refresh et
-      refreshFavorites()
+      // Favorileri refresh etme - restart prevention
+      // refreshFavorites() // Bu satırı kaldırdık - manuel refresh'e gerek yok
       
       // Success feedback
       setError('') // Clear any previous errors
+      
+      // Kaydetme işlemi tamamlandı, ana menüye dön
+      clearStory()
       
     } catch (dbError) {
       console.error('Manuel kaydetme hatası:', dbError)
@@ -394,6 +449,10 @@ function App() {
         })
         setCurrentStoryId(id)
         console.log('Masal localStorage\'a kaydedildi:', id)
+        
+        // Kaydetme başarılı, ana menüye dön
+        clearStory()
+        
       } catch (fallbackError) {
         console.error('localStorage fallback hatası:', fallbackError)
       }
@@ -549,6 +608,24 @@ function App() {
             settings={settings}
             onToggleFavorite={handleToggleFavorite}
             isFavorite={isFavorite}
+            onGenerateAudio={generateAudioForStory}
+            isGeneratingAudio={isGeneratingAudio}
+            // Audio control props
+            audioIsPlaying={audioIsPlaying}
+            audioIsPaused={audioIsPaused}
+            audioProgress={audioProgress}
+            audioDuration={audioDuration}
+            audioVolume={audioVolume}
+            audioIsMuted={audioIsMuted}
+            audioPlaybackRate={audioPlaybackRate}
+            audioCurrentStoryId={audioCurrentStoryId}
+            playAudio={playAudio}
+            stopAudio={stopAudio}
+            audioToggleMute={audioToggleMute}
+            setVolumeLevel={setVolumeLevel}
+            setPlaybackSpeed={setPlaybackSpeed}
+            seekTo={seekTo}
+            getDbAudioUrl={getDbAudioUrl}
           />
         )}
 
@@ -637,6 +714,8 @@ function App() {
             onShowStoryManagement={() => setShowStoryManagement(true)}
             onToggleFavorite={handleToggleFavorite}
             isFavorite={isFavorite}
+            onGenerateAudio={generateAudioForStory}
+            isGeneratingAudio={isGeneratingAudio}
             // Audio control props
             audioIsPlaying={audioIsPlaying}
             audioIsPaused={audioIsPaused}

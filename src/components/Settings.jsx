@@ -89,10 +89,10 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-2 sm:p-4">
       <Card ref={panelRef} className="w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto relative z-[60] mt-2 sm:mt-0">
-        <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-3 sm:p-6">
+        <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-2 sm:p-4">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-lg sm:text-2xl">Ayarlar</CardTitle>
+              <CardTitle className="text-base sm:text-xl">Ayarlar</CardTitle>
               <CardDescription className="text-sm">
                 LLM ve TTS modellerini yapılandırın
               </CardDescription>

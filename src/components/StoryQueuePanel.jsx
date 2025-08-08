@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Separator } from '@/components/ui/separator.jsx'
 import { ScrollArea } from '@/components/ui/scroll-area.jsx'
-import { BookOpen, Heart, X, GripVertical, Settings, Calendar, Clock } from 'lucide-react'
+import { BookOpen, Heart, X, GripVertical, Settings, Calendar, Clock, Volume2 } from 'lucide-react'
 import AudioControls from './AudioControls.jsx'
 import { getStoryTypeLabel } from '@/utils/storyTypes.js'
 import {
@@ -33,6 +33,8 @@ function SortableStoryItem({
   onDeleteStory, 
   onSelectStory, 
   isFavorite,
+  onGenerateAudio,
+  isGeneratingAudio,
   audioIsPlaying,
   audioIsPaused,
   audioProgress,
@@ -181,6 +183,21 @@ function SortableStoryItem({
             />
           </div>
         )}
+        
+        {/* Generate Audio Button for stories without audio */}
+        {!(story.audio || story.audioUrl) && onGenerateAudio && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onGenerateAudio(story)}
+            disabled={isGeneratingAudio}
+            className="h-7 px-2 text-xs"
+            title="Hikayeyi seslendir"
+          >
+            <Volume2 className="h-3 w-3 mr-1" />
+            {isGeneratingAudio ? 'Ses...' : 'Seslendir'}
+          </Button>
+        )}
 
         {/* View Button */}
         <Button 
@@ -239,6 +256,8 @@ export default function StoryQueuePanel({
   onShowStoryManagement,
   onToggleFavorite,
   isFavorite,
+  onGenerateAudio,
+  isGeneratingAudio,
   // Audio props
   audioIsPlaying,
   audioIsPaused,
@@ -332,6 +351,8 @@ export default function StoryQueuePanel({
                       onDeleteStory={onDeleteStory}
                       onSelectStory={onSelectStory}
                       isFavorite={isFavorite}
+                      onGenerateAudio={onGenerateAudio}
+                      isGeneratingAudio={isGeneratingAudio}
                       audioIsPlaying={audioIsPlaying}
                       audioIsPaused={audioIsPaused}
                       audioProgress={audioProgress}

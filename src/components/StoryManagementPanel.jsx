@@ -19,6 +19,8 @@ const StoryManagementPanel = ({
   onUpdateStory,
   onToggleFavorite,
   isFavorite,
+  onGenerateAudio,
+  isGeneratingAudio,
   // Audio control props
   audioIsPlaying,
   audioIsPaused,
@@ -95,11 +97,11 @@ const StoryManagementPanel = ({
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <Card ref={panelRef} className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b">
+        <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-2 sm:p-4">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <BookOpen className="h-4 w-4 sm:h-5 sm:w-5" />
                 Masal Yönetimi
               </CardTitle>
               <CardDescription>
@@ -179,6 +181,21 @@ const StoryManagementPanel = ({
                               size="xs"
                               showAdvanced={false}
                             />
+                          )}
+                          
+                          {/* Generate Audio Button for stories without audio */}
+                          {!(story.audio || story.audioUrl) && onGenerateAudio && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onGenerateAudio(story)}
+                              disabled={isGeneratingAudio}
+                              className="h-6 px-2 text-xs"
+                              title="Hikayeyi seslendir"
+                            >
+                              <Volume2 className="h-3 w-3 mr-1" />
+                              {isGeneratingAudio ? 'Seslendiriliyor...' : 'Seslendir'}
+                            </Button>
                           )}
                           
                           <Button

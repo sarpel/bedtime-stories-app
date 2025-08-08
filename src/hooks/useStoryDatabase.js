@@ -35,8 +35,8 @@ export function useStoryDatabase() {
         databaseService.migrateFromLocalStorage().then((result) => {
           if (result.migrated > 0) {
             console.log(`${result.migrated} masal localStorage'dan veritabanına taşındı.`)
-            // Sadece migration başarılıysa yeniden yükle
-            setStories(prevStories => [...prevStories]) // Trigger re-render without API call
+            // Migration başarılı ama state trigger'ını kaldırdık - restart prevention
+            loadStories() // Sadece bir kere yeniden yükle
           }
           localStorage.setItem(migrationKey, 'true')
         }).catch((err) => {

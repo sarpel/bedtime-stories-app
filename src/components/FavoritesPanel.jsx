@@ -73,11 +73,11 @@ export default function FavoritesPanel({
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-2 sm:p-4">
       <Card ref={panelRef} className="w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto mt-2 sm:mt-0">
-        <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-3 sm:p-6">
+        <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-2 sm:p-4">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-lg sm:text-2xl flex items-center gap-2">
-                <Heart className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+              <CardTitle className="text-base sm:text-xl flex items-center gap-2">
+                <Heart className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 Favori Masallarım
               </CardTitle>
               <CardDescription className="text-sm">
@@ -91,12 +91,12 @@ export default function FavoritesPanel({
           </div>
         </CardHeader>
 
-        <CardContent className="p-3 sm:p-6">
+        <CardContent className="p-2 sm:p-4">
           {favorites.length === 0 ? (
-            <div className="text-center py-8 sm:py-12">
-              <Heart className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg sm:text-xl font-medium mb-2">Henüz favori masalın yok</h3>
-              <p className="text-muted-foreground text-sm sm:text-base">
+            <div className="text-center py-6 sm:py-8">
+              <Heart className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3" />
+              <h3 className="text-base sm:text-lg font-medium mb-2">Henüz favori masalın yok</h3>
+              <p className="text-muted-foreground text-xs sm:text-sm">
                 Masalları beğendiğinde kalp ikonuna tıklayarak favorilere ekleyebilirsin
               </p>
             </div>

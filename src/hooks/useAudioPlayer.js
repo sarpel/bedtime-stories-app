@@ -14,6 +14,14 @@ export function useAudioPlayer() {
   
   const audioRef = useRef(null)
 
+  // Initialize audio element on first mount
+  useEffect(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio()
+      audioRef.current.preload = 'metadata'
+    }
+  }, [])
+
   // Audio event handlers
   useEffect(() => {
     const audio = audioRef.current

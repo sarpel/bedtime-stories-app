@@ -66,7 +66,7 @@ export default function useFavorites() {
 
   // localStorage sync sadece localStorage masallar için (backward compatibility)
   useEffect(() => {
-    // Debounce localStorage yazma işlemi
+    // Debounce localStorage yazma işlemi ve infinite loop prevention
     const timeoutId = setTimeout(() => {
       if (favorites.length >= 0) {
         const localStorageOnlyData = favorites
@@ -79,14 +79,22 @@ export default function useFavorites() {
             createdAt: fav.createdAt,
             audioUrl: fav.audioUrl
           }))
-        const saved = safeLocalStorage.set('bedtime-stories-favorites', localStorageOnlyData)
-        if (saved) {
-          console.log('localStorage favorileri kaydedildi:', localStorageOnlyData.length)
-        } else {
-          console.warn('localStorage favorileri kaydedilemedi')
+        
+        // Infinite loop prevention: Compare with current localStorage data
+        const currentLocalData = safeLocalStorage.get('bedtime-stories-favorites', [])
+        const currentDataString = JSON.stringify(currentLocalData)
+        const newDataString = JSON.stringify(localStorageOnlyData)
+        
+        if (currentDataString !== newDataString) {
+          const saved = safeLocalStorage.set('bedtime-stories-favorites', localStorageOnlyData)
+          if (saved) {
+            console.log('localStorage favorileri kaydedildi:', localStorageOnlyData.length)
+          } else {
+            console.warn('localStorage favorileri kaydedilemedi')
+          }
         }
       }
-    }, 500) // 500ms debounce
+    }, 1000) // 1000ms debounce - increased to prevent rapid updates
 
     return () => clearTimeout(timeoutId)
   }, [favorites])

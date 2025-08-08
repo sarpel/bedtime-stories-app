@@ -105,7 +105,7 @@ export default function AnalyticsDashboard({ onClose }) {
     return (
       <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-2 sm:p-4">
         <Card ref={panelRef} className="w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto mt-2 sm:mt-0">
-          <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-3 sm:p-6">
+          <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-2 sm:p-4 z-10">
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-lg sm:text-2xl flex items-center gap-2">
@@ -137,7 +137,7 @@ export default function AnalyticsDashboard({ onClose }) {
     return (
       <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-2 sm:p-4">
         <Card ref={panelRef} className="w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto mt-2 sm:mt-0">
-          <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-3 sm:p-6">
+          <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-2 sm:p-4 z-10">
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-lg sm:text-2xl flex items-center gap-2">
@@ -171,8 +171,8 @@ export default function AnalyticsDashboard({ onClose }) {
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-2 sm:p-4">
       <Card ref={panelRef} className="w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto mt-2 sm:mt-0">
-        <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-3 sm:p-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-2 sm:p-4 z-10">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <div>
               <CardTitle className="text-lg sm:text-2xl flex items-center gap-2">
                 <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
@@ -199,9 +199,9 @@ export default function AnalyticsDashboard({ onClose }) {
           </div>
         </CardHeader>
         
-        <CardContent className="p-3 sm:p-6">
+        <CardContent className="p-2 sm:p-4">
           {/* Time Range Selector */}
-          <div className="flex flex-wrap gap-1 sm:gap-2 mb-4 sm:mb-6">
+          <div className="flex flex-wrap gap-1 sm:gap-2 mb-3 sm:mb-4">
           {timeRangeOptions.map((option) => (
             <Button
               key={option.value}
