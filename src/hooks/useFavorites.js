@@ -265,13 +265,12 @@ export default function useFavorites() {
       const savedFavorites = safeLocalStorage.get('bedtime-stories-favorites', [])
       let localFavorites = []
       
-      if (savedFavorites) {
-        try {
-          localFavorites = JSON.parse(savedFavorites)
-        } catch (error) {
-          console.error('localStorage favori parse hatası:', error)
-          localFavorites = []
-        }
+      if (Array.isArray(savedFavorites)) {
+        localFavorites = savedFavorites.map(fav => ({
+          ...fav,
+          id: fav.id || `fav_${Date.now()}_${Math.random()}`,
+          createdAt: fav.createdAt || new Date().toISOString()
+        }))
       }
 
       const combinedFavorites = [
