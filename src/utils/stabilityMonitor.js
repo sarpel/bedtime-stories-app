@@ -12,8 +12,11 @@ class StabilityMonitor {
     this.isMonitoring = false
     
     // Sayfa yüklendiğinde başlat
-    if (typeof window !== 'undefined') {
+    // Sayfa yüklendiğinde başlat
+    if (typeof window !== 'undefined' && typeof document !== 'undefined' && document.readyState !== 'loading') {
       this.startMonitoring()
+    } else if (typeof window !== 'undefined') {
+      document.addEventListener('DOMContentLoaded', () => this.startMonitoring())
     }
   }
 
