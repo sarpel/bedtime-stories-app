@@ -58,15 +58,15 @@ function App() {
     }
     return getDefaultSettings()
   })
-  
+
   // Ayarları localStorage'a kaydet
   const updateSettings = (newSettings) => {
     try {
       console.log('🔧 App updateSettings:', newSettings)
-      
+
       // State güncellemesi önce yap
       setSettings(newSettings)
-      
+
       // localStorage'a kaydetme işlemini setTimeout ile ertele
       setTimeout(() => {
         const saved = safeLocalStorage.set('bedtime-stories-settings', newSettings)
@@ -77,29 +77,29 @@ function App() {
           setError('Ayarlar kaydedilirken bir sorun oluştu, ancak değişiklikler geçerli.')
         }
       }, 0)
-      
+
     } catch (error) {
       console.error('❌ App updateSettings error:', error)
       // Kritik hata durumunda da uygulamayı crash etme
       setError('Ayarlar güncellenirken hata oluştu')
     }
   }
-  
+
   // Favori masallar hook'u
-  const { 
-    favorites, 
-    toggleFavorite, 
-    removeFavorite, 
-    isFavorite, 
+  const {
+    favorites,
+    toggleFavorite,
+    removeFavorite,
+    isFavorite,
     refreshFavorites
   } = useFavorites()
-  
+
   // Masal geçmişi hook'u (localStorage için backward compatibility)
   const { history, addToHistory, updateStoryAudio, updateStory, removeFromHistory, clearHistory } = useStoryHistory()
 
   // Veritabanı hook'u (yeni sistem)
-  const { 
-    stories: dbStories, 
+  const {
+    stories: dbStories,
     createStory: createDbStory,
     updateStory: updateDbStory,
     deleteStory: deleteDbStory,
@@ -111,18 +111,18 @@ function App() {
     try {
       console.log('🎯 App.jsx - Favori toggle başlatılıyor:', storyData)
       const result = await toggleFavorite(storyData)
-      
+
       // Analytics: Track favorite action
       if (result && result.action && storyData.story) {
         const storyId = storyData.id || currentStoryId
         analyticsService.trackFavoriteAction(storyId, result.action)
       }
-      
+
       console.log('🎯 App.jsx - Favori toggle tamamlandı:', result ? result.action : 'undefined')
-      
+
       // toggleFavorite zaten state'i güncelliyor, gereksiz refresh yok
       console.log('🎯 App.jsx - Yeni favori sayısı:', favorites.length)
-      
+
       return result
     } catch (error) {
       console.error('🎯 App.jsx - Favori toggle hatası:', error)
@@ -141,12 +141,13 @@ function App() {
     playbackRate: audioPlaybackRate,
     currentStoryId: audioCurrentStoryId,
     playAudio,
-  pauseAudio,
+    pauseAudio,
     stopAudio,
     toggleMute: audioToggleMute,
     setVolumeLevel,
     setPlaybackSpeed,
     seekTo,
+    setOnEnded,
     audioRef: globalAudioRef
   } = useAudioPlayer()
 
@@ -173,12 +174,12 @@ function App() {
   // Story text değişikliği için fonksiyon
   const handleStoryChange = (newStory) => {
     setStory(newStory)
-    
+
     // Eğer mevcut bir story ID'si varsa, veritabanını güncelle
     if (currentStoryId) {
-      hybridUpdateStory(currentStoryId, { 
-        story: newStory, 
-        customTopic 
+      hybridUpdateStory(currentStoryId, {
+        story: newStory,
+        customTopic
       })
     }
   }
@@ -212,47 +213,47 @@ function App() {
     setStory('')
     setProgress(0)
     setError('')
-    
+
     const startTime = Date.now()
-    
+
     try {
       const llmService = new LLMService(settings)
-      
+
       // Eğer customTopic varsa onu kullan, yoksa selectedStoryType kullan
       const storyTypeToUse = customTopic.trim() ? 'custom' : selectedStoryType
       const topicToUse = customTopic.trim() || ''
-      
+
       let story = await llmService.generateStory((progressValue) => {
         setProgress(progressValue)
       }, storyTypeToUse, topicToUse)
-      
+
       // LLM bazen boş/kısa yanıt döndürebilir; kullanıcı deneyimini korumak için fallback üret
-      if (!story || (typeof story === 'string' && story.trim().length < 50)) {
+      if (!story || (typeof story === 'string' && story.trim().length < 300)) {
         console.warn('LLM kısa/boş yanıt döndürdü, fallback masal üretilecek.')
         try {
           story = llmService.generateFallbackStory()
-  } catch {
+        } catch {
           // generateFallbackStory başarısız olursa minimum metin kullan
           story = 'Bir zamanlar, çok uzak diyarlarda, iyi kalpli bir çocuk yaşarmış. Her gece yıldızlara bakar ve güzel rüyalar görürmüş. İyi geceler, tatlı rüyalar.'
         }
       }
 
       setStory(story)
-      
+
       // Analytics: Track successful story generation
       const duration = Date.now() - startTime
       analyticsService.trackStoryGeneration(storyTypeToUse, topicToUse, true, duration)
-      
+
       // Veritabanına kaydet
       try {
-  const dbStory = await createDbStory(story, storyTypeToUse, topicToUse)
+        const dbStory = await createDbStory(story, storyTypeToUse, topicToUse)
         setCurrentStoryId(dbStory.id)
         console.log('Masal veritabanına kaydedildi:', dbStory.id)
-        
+
         // Yeni story eklenmesi favorileri etkilemez, gereksiz refresh yok
       } catch (dbError) {
         console.error('Veritabanına kaydetme hatası:', dbError)
-        
+
         // Fallback olarak localStorage kullan
         const id = addToHistory({
           story,
@@ -261,20 +262,20 @@ function App() {
         })
         setCurrentStoryId(id)
       }
-      
+
     } catch (error) {
       console.error('Story generation failed:', error)
-      
+
       // Analytics: Track failed story generation
       const duration = Date.now() - startTime
       const storyTypeToUse = customTopic.trim() ? 'custom' : selectedStoryType
       const topicToUse = customTopic.trim() || ''
       analyticsService.trackStoryGeneration(storyTypeToUse, topicToUse, false, duration, error.message)
       analyticsService.trackError('story_generation', error.message, { storyType: storyTypeToUse, customTopic: topicToUse })
-      
+
       // Show user-friendly error message
       let errorMessage = 'Masal oluşturulurken bir hata oluştu.'
-      
+
       if (error.message.includes('OpenAI ayarları eksik')) {
         errorMessage = 'OpenAI API anahtarı eksik. Lütfen .env dosyasını kontrol edin.'
       } else if (error.message.includes('API hatası')) {
@@ -282,9 +283,9 @@ function App() {
       } else if (error.message.includes('yanıtından masal metni çıkarılamadı')) {
         errorMessage = 'OpenAI yanıtı işlenirken hata oluştu. Lütfen tekrar deneyin.'
       }
-      
+
       setError(errorMessage)
-      
+
       // Try to generate a fallback story
       try {
         const llmService = new LLMService(settings)
@@ -298,42 +299,42 @@ function App() {
       setProgress(0)
     }
   }
-  
+
   // Generate audio for any story by ID (for Story Management Panel)
   const generateAudioForStory = async (storyId, storyText) => {
     if (!storyText) return
-    
+
     setIsGeneratingAudio(true)
     setProgress(0)
     setError('')
-    
+
     const startTime = Date.now()
-    
+
     try {
       const ttsService = new TTSService(settings)
-      
+
       // Story ID'si ile ses oluştur (veritabanına kaydedilir)
       const audioUrl = await ttsService.generateAudio(storyText, (progressValue) => {
         setProgress(progressValue)
       }, storyId)
-      
+
       // Analytics: Track successful audio generation
       const duration = Date.now() - startTime
       analyticsService.trackAudioGeneration(storyId, settings.voiceId || 'default', true, duration)
-      
+
       console.log('Audio generated for story:', storyId, audioUrl)
-      
+
     } catch (error) {
       console.error('Audio generation failed for story:', storyId, error)
-      
+
       // Analytics: Track failed audio generation
       const duration = Date.now() - startTime
       analyticsService.trackAudioGeneration(storyId, settings.voiceId || 'default', false, duration, error.message)
       analyticsService.trackError('audio_generation', error.message, { storyId })
-      
+
       // Show user-friendly error message
       let errorMessage = 'Ses oluşturulurken bir hata oluştu.'
-      
+
       if (error.message.includes('ElevenLabs ayarları eksik') || error.message.includes('API anahtarı eksik')) {
         errorMessage = 'ElevenLabs API anahtarı eksik. Lütfen .env dosyasında ELEVENLABS_API_KEY değerini ayarlayın.'
       } else if (error.message.includes('API hatası') || error.message.includes('401')) {
@@ -341,7 +342,7 @@ function App() {
       } else if (error.message.includes('ses dosyası çıkarılamadı')) {
         errorMessage = 'ElevenLabs yanıtı işlenirken hata oluştu. Lütfen tekrar deneyin.'
       }
-      
+
       setError(errorMessage)
     } finally {
       setIsGeneratingAudio(false)
@@ -351,45 +352,45 @@ function App() {
 
   const generateAudio = async () => {
     if (!story) return
-    
+
     setIsGeneratingAudio(true)
     setProgress(0)
     setError('')
-    
+
     const startTime = Date.now()
-    
+
     try {
       const ttsService = new TTSService(settings)
-      
+
       // Story ID'si ile ses oluştur (veritabanına kaydedilir)
       const audioUrl = await ttsService.generateAudio(story, (progressValue) => {
         setProgress(progressValue)
       }, currentStoryId)
-      
+
       setAudioUrl(audioUrl)
-      
+
       // Analytics: Track successful audio generation
       const duration = Date.now() - startTime
       analyticsService.trackAudioGeneration(currentStoryId, settings.voiceId || 'default', true, duration)
-      
+
       // Backward compatibility için localStorage'a da kaydet
       if (currentStoryId) {
         updateStoryAudio(currentStoryId, audioUrl)
       }
-      
+
       // Ses dosyası eklenmesi favorileri etkilemez, gereksiz refresh yok
-      
+
     } catch (error) {
       console.error('Audio generation failed:', error)
-      
+
       // Analytics: Track failed audio generation
       const duration = Date.now() - startTime
       analyticsService.trackAudioGeneration(currentStoryId, settings.voiceId || 'default', false, duration, error.message)
       analyticsService.trackError('audio_generation', error.message, { storyId: currentStoryId })
-      
+
       // Show user-friendly error message
       let errorMessage = 'Ses oluşturulurken bir hata oluştu.'
-      
+
       if (error.message.includes('ElevenLabs ayarları eksik') || error.message.includes('API anahtarı eksik')) {
         errorMessage = 'ElevenLabs API anahtarı eksik. Lütfen .env dosyasında ELEVENLABS_API_KEY değerini ayarlayın.'
       } else if (error.message.includes('API hatası') || error.message.includes('401')) {
@@ -397,7 +398,7 @@ function App() {
       } else if (error.message.includes('ses dosyası çıkarılamadı')) {
         errorMessage = 'ElevenLabs yanıtı işlenirken hata oluştu. Lütfen tekrar deneyin.'
       }
-      
+
       setError(errorMessage)
     } finally {
       setIsGeneratingAudio(false)
@@ -418,7 +419,7 @@ function App() {
       setError('Kaydedilecek masal bulunamadı.')
       return
     }
-    
+
     try {
       // Eğer zaten bir ID varsa güncelle, yoksa yeni oluştur
       if (currentStoryId) {
@@ -428,30 +429,30 @@ function App() {
         clearStory()
         return
       }
-      
+
       // Yeni bir masal olarak kaydet
       const storyTypeToUse = customTopic.trim() ? 'custom' : selectedStoryType
       const topicToUse = customTopic.trim() || ''
-      
+
       const dbStory = await createDbStory(story, storyTypeToUse, topicToUse)
       setCurrentStoryId(dbStory.id)
       console.log('Masal manuel olarak kaydedildi:', dbStory.id)
-      
+
       // Favorileri refresh etme - restart prevention
       // refreshFavorites() // Bu satırı kaldırdık - manuel refresh'e gerek yok
-      
+
       // Success feedback
       setError('') // Clear any previous errors
-      
+
       // Kaydetme işlemi tamamlandı, ana menüye dön
       clearStory()
-      
+
     } catch (dbError) {
       console.error('Manuel kaydetme hatası:', dbError)
-      
+
       // Show user-friendly error
       setError('Masal kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.')
-      
+
       // Fallback olarak localStorage kullan
       try {
         const id = addToHistory({
@@ -461,10 +462,10 @@ function App() {
         })
         setCurrentStoryId(id)
         console.log('Masal localStorage\'a kaydedildi:', id)
-        
+
         // Kaydetme başarılı, ana menüye dön
         clearStory()
-        
+
       } catch (fallbackError) {
         console.error('localStorage fallback hatası:', fallbackError)
       }
@@ -565,11 +566,11 @@ function App() {
           isFavorite={story ? isFavorite({ story, storyType: selectedStoryType }) : false}
           onToggleFavorite={async () => {
             if (story) {
-              await handleToggleFavorite({ 
-                story, 
-                storyType: selectedStoryType, 
+              await handleToggleFavorite({
+                story,
+                storyType: selectedStoryType,
                 customTopic,
-                audioUrl 
+                audioUrl
               })
             }
           }}
@@ -587,8 +588,8 @@ function App() {
                   <span className="text-sm font-medium">{error}</span>
                 </div>
                 {(error.includes('API anahtarı') || error.includes('ElevenLabs') || error.includes('OpenAI')) && (
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => setShowApiKeyHelp(true)}
                   >
@@ -674,7 +675,7 @@ function App() {
             setVolumeLevel={setVolumeLevel}
             setPlaybackSpeed={setPlaybackSpeed}
             seekTo={seekTo}
-            // onDownload, onBookmark kaldırıldı - çalışmayan özellikler
+          // onDownload, onBookmark kaldırıldı - çalışmayan özellikler
           />
         )}
 
@@ -690,9 +691,9 @@ function App() {
 
         {/* Performance Monitor */}
         {showPerformanceMonitor && (
-          <PerformanceMonitor 
+          <PerformanceMonitor
             isOpen={showPerformanceMonitor}
-            onClose={() => setShowPerformanceMonitor(false)} 
+            onClose={() => setShowPerformanceMonitor(false)}
           />
         )}
 
@@ -714,6 +715,7 @@ function App() {
               audioGenerated: !!dbStory.audio
             })) : history}
             onDeleteStory={hybridDeleteStory}
+            onUpdateStory={hybridUpdateStory}
             onSelectStory={(story) => {
               setStory(story.story_text || story.story)
               setSelectedStoryType(story.story_type || story.storyType)
@@ -744,6 +746,7 @@ function App() {
             setPlaybackSpeed={setPlaybackSpeed}
             seekTo={seekTo}
             getDbAudioUrl={getDbAudioUrl}
+            setOnEnded={setOnEnded}
           />
         )}
       </main>

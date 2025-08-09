@@ -13,6 +13,7 @@ export function useAudioPlayer() {
   const [currentStoryId, setCurrentStoryId] = useState(null)
   
   const audioRef = useRef(null)
+  const onEndedRef = useRef(null)
 
   // Initialize audio element on first mount
   useEffect(() => {
@@ -47,6 +48,15 @@ export function useAudioPlayer() {
       setIsPaused(false)
       setProgress(0)
       setCurrentStoryId(null)
+
+      // Kuyruk/playlist için harici sonlanma callback'i
+      try {
+        if (typeof onEndedRef.current === 'function') {
+          onEndedRef.current()
+        }
+      } catch (err) {
+        console.error('onEnded callback error:', err)
+      }
     }
 
     const handlePlay = () => {
@@ -189,6 +199,10 @@ export function useAudioPlayer() {
     }
   }
 
+  const setOnEnded = (callback) => {
+    onEndedRef.current = typeof callback === 'function' ? callback : null
+  }
+
   return {
     // State
     isPlaying,
@@ -208,6 +222,7 @@ export function useAudioPlayer() {
     setVolumeLevel,
     setPlaybackSpeed,
     seekTo,
+  setOnEnded,
     
     // Ref
     audioRef

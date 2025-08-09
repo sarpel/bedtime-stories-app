@@ -7,13 +7,13 @@ import SharedStoryViewer from './components/SharedStoryViewer.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import stabilityMonitor from './utils/stabilityMonitor.js'
 
-// Initialize stability monitoring only once
-if (!window._stabilityMonitorInitialized) {
+// Initialize stability monitoring only once (guard for SSR/undefined window)
+if (typeof window !== 'undefined' && !window._stabilityMonitorInitialized) {
   stabilityMonitor.startMonitoring()
   window._stabilityMonitorInitialized = true
 }
 
-createRoot(document.getElementById('root')).render(
+const appTree = (
   <ErrorBoundary>
     <BrowserRouter>
       <Routes>
@@ -22,4 +22,8 @@ createRoot(document.getElementById('root')).render(
       </Routes>
     </BrowserRouter>
   </ErrorBoundary>
+)
+
+createRoot(document.getElementById('root')).render(
+  import.meta.env?.DEV ? <StrictMode>{appTree}</StrictMode> : appTree
 )

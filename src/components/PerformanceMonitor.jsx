@@ -120,7 +120,7 @@ const PerformanceMonitor = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-1">
-      <Card ref={panelRef} className="w-full max-w-5xl max-h-[95vh] overflow-y-auto">
+      <Card ref={panelRef} className="w-full max-w-5xl max-h-[95vh] overflow-y-auto scrollbar-thin">
         <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-2">
           <div className="flex items-center justify-between">
             <div>

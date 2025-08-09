@@ -118,22 +118,20 @@
   }
 }
 
-/* Custom scrollbar styles */
+/* Themed scrollbar (dark friendly) */
 .scrollbar-thin {
   scrollbar-width: thin;
 }
 
-.scrollbar-thumb-muted {
-  scrollbar-color: var(--muted) transparent;
+.scrollbar-thin,
+.scrollbar-thin * {
+  scrollbar-color: color-mix(in oklch, var(--muted) 85%, transparent) transparent;
 }
 
-.scrollbar-track-transparent {
-  scrollbar-color: var(--muted) transparent;
-}
-
-/* Webkit scrollbar for better theme support */
+/* Webkit themed scrollbar */
 .scrollbar-thin::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-track {
@@ -141,12 +139,12 @@
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: var(--muted);
-  border-radius: 3px;
+  background: color-mix(in oklch, var(--muted) 75%, transparent);
+  border-radius: 8px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: var(--muted-foreground);
+  background: color-mix(in oklch, var(--muted-foreground) 80%, transparent);
 }
 
 /* Mobile optimizations */
@@ -261,20 +259,7 @@
   letter-spacing: 0.01em;
 }
 
-/* Better spacing for mobile cards */
-@media (max-width: 640px) {
-  .card {
-    margin-bottom: 0.75rem;
-  }
-  
-  .card-header {
-    padding: 0.75rem;
-  }
-  
-  .card-content {
-    padding: 0.75rem;
-  }
-}
+/* Duplicate mobile card spacing block removed to avoid redundancy */
 
 /* Touch-friendly interactions */
 @media (hover: none) and (pointer: coarse) {

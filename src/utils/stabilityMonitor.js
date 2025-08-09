@@ -11,10 +11,7 @@ class StabilityMonitor {
     this.performanceIssues = []
     this.isMonitoring = false
     
-    // Sayfa yüklendiğinde başlat
-    if (typeof window !== 'undefined') {
-      this.startMonitoring()
-    }
+  // Otomatik başlatmayı kaldır: main.jsx kontrol edecek
   }
 
   startMonitoring() {
@@ -22,20 +19,22 @@ class StabilityMonitor {
     this.isMonitoring = true
 
     // Global error handler
-    window.addEventListener('error', (event) => {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('error', (event) => {
       this.handleError('javascript_error', event.error?.message || event.message, {
         filename: event.filename,
         lineno: event.lineno,
         colno: event.colno
       })
-    })
-
-    // Unhandled promise rejection handler  
-    window.addEventListener('unhandledrejection', (event) => {
-      this.handleError('unhandled_promise_rejection', event.reason?.message || 'Promise rejected', {
-        reason: event.reason
       })
-    })
+
+      // Unhandled promise rejection handler  
+      window.addEventListener('unhandledrejection', (event) => {
+        this.handleError('unhandled_promise_rejection', event.reason?.message || 'Promise rejected', {
+          reason: event.reason
+        })
+      })
+    }
 
     // Performance monitoring
     this.monitorPerformance()
@@ -57,8 +56,8 @@ class StabilityMonitor {
       message,
       details,
       timestamp: Date.now(),
-      url: window.location.href,
-      userAgent: navigator.userAgent
+  url: (typeof window !== 'undefined' && window.location?.href) ? window.location.href : undefined,
+  userAgent: (typeof navigator !== 'undefined' ? navigator.userAgent : undefined)
     }
 
     // Store recent errors
@@ -115,10 +114,7 @@ class StabilityMonitor {
         }
       })
 
-      // Force garbage collection if available
-      if (window.gc) {
-        window.gc()
-      }
+  // Not: window.gc kullanımı kaldırıldı
 
       console.log('✅ Emergency cleanup completed')
     } catch (error) {
@@ -139,13 +135,13 @@ class StabilityMonitor {
   }
 
   checkNetworkConnectivity() {
-    if (navigator.onLine === false) {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       console.warn('🌐 Network is offline')
       // Show offline notification if needed
       this.showNotification('⚠️ İnternet bağlantısı kesildi', 'warning')
     } else {
-      // Test with a simple fetch
-      fetch('/favicon.ico', { method: 'HEAD' })
+  // Backend health endpoint ile test (düşük maliyetli)
+  fetch('http://localhost:3001/healthz', { method: 'GET' })
         .then(() => {
           console.log('🌐 Network connectivity confirmed')
         })

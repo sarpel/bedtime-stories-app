@@ -262,17 +262,8 @@ export default function useFavorites() {
       const allStories = await databaseService.getAllStories()
       const dbFavorites = allStories.filter(story => story.is_favorite === 1 || story.is_favorite === true)
       
-      const savedFavorites = safeLocalStorage.get('bedtime-stories-favorites', [])
-      let localFavorites = []
-      
-      if (savedFavorites) {
-        try {
-          localFavorites = JSON.parse(savedFavorites)
-        } catch (error) {
-          console.error('localStorage favori parse hatası:', error)
-          localFavorites = []
-        }
-      }
+  const savedFavorites = safeLocalStorage.get('bedtime-stories-favorites', [])
+  const localFavorites = Array.isArray(savedFavorites) ? savedFavorites : []
 
       const combinedFavorites = [
         ...dbFavorites.map(story => ({

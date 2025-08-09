@@ -35,18 +35,15 @@ export class TTSService {
   async generateAudio(text, onProgress, storyId = null) {
     try {
       // Model kontrolü
-      if (!this.endpoint || !this.modelId || !this.voiceId) {
-        throw new Error(`${this.provider} ayarları eksik. Lütfen endpoint, model ve ses bilgilerini kontrol edin.`)
+      if (!this.modelId || !this.voiceId) {
+        throw new Error(`${this.provider} ayarları eksik. Lütfen model ve ses bilgilerini kontrol edin.`)
       }
 
       if (!text || text.trim().length === 0) {
         throw new Error('Seslendirilecek metin bulunamadı.')
       }
 
-      // API anahtarı kontrolü
-      if (!this.apiKey || this.apiKey === 'your-api-key-here') {
-        throw new Error(`${this.provider} API anahtarı eksik veya geçersiz. Lütfen API anahtarını ayarlayın.`)
-      }
+  // API anahtarını istemciden istemiyoruz; anahtarlar sunucu tarafında tutulur
 
       // Eğer storyId varsa, önce veritabanından ses dosyasını kontrol et
       if (storyId) {
@@ -74,14 +71,7 @@ export class TTSService {
 
       onProgress?.(10)
 
-      // Provider'a göre URL oluştur
-      let fullUrl
-      if (this.provider === 'elevenlabs') {
-        const audioFormat = 'mp3_44100_128'
-        fullUrl = `${this.endpoint}/${this.voiceId}?output_format=${audioFormat}`;
-      } else if (this.provider === 'gemini') {
-        fullUrl = `${this.endpoint}/${this.modelId}:generateContent`;
-      }
+  // URL artık istemcide oluşturulmayacak; backend allow-list ile belirler
 
       const requestBody = this.prepareRequestBody(text)
       onProgress?.(30)
@@ -94,9 +84,9 @@ export class TTSService {
         },
         body: JSON.stringify({
           provider: this.provider,
-          endpoint: fullUrl,
+          modelId: this.modelId,
+          voiceId: this.voiceId,
           requestBody: requestBody,
-          apiKey: this.apiKey, // Backend'e API key gönderiyoruz
           storyId: storyId
         })
       })

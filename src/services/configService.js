@@ -106,6 +106,7 @@ export const getDefaultSettings = () => ({
   
   // User Configurable Settings
   customPrompt: '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.',
+  customInstructions: '',
   storyLength: 'medium',
   audioQuality: 'high', // Default to high quality
   backgroundMusic: 'none', // Default to no background music
@@ -119,7 +120,7 @@ export const getDefaultSettings = () => ({
   },
   llmSettings: {
     temperature: 0.7,
-    maxTokens: 600
+  maxTokens: 800
   }
 })
 

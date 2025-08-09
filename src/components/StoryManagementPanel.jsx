@@ -9,13 +9,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { X, Search, Edit, Trash2, BookOpen, Heart, Calendar, Volume2 } from 'lucide-react';
 import { getStoryTypeLabel } from '../utils/storyTypes';
+import { getStoryTitle } from '@/utils/titleGenerator.js';
 import AudioControls from './AudioControls.jsx';
 
-const StoryManagementPanel = ({ 
-  isOpen, 
-  onClose, 
-  history, 
-  onDeleteStory, 
+const StoryManagementPanel = ({
+  isOpen,
+  onClose,
+  history,
+  onDeleteStory,
   onUpdateStory,
   onToggleFavorite,
   isFavorite,
@@ -68,9 +69,9 @@ const StoryManagementPanel = ({
       const dateB = new Date(b.created_at || b.createdAt || 0);
       return dateB - dateA; // Descending order (newest first)
     });
-    
+
     if (searchTerm) {
-      const filtered = sortedStories.filter(story => 
+      const filtered = sortedStories.filter(story =>
         (story.story_text || story.story || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (story.story_type || story.storyType || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (story.custom_topic || story.customTopic || '').toLowerCase().includes(searchTerm.toLowerCase())
@@ -103,7 +104,7 @@ const StoryManagementPanel = ({
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-1">
-      <Card ref={panelRef} className="w-full max-w-5xl max-h-[95vh] overflow-y-auto">
+      <Card ref={panelRef} className="w-full max-w-5xl max-h-[95vh] overflow-y-auto scrollbar-thin">
         <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-2">
           <div className="flex items-center justify-between">
             <div>
@@ -116,7 +117,7 @@ const StoryManagementPanel = ({
               <X className="h-3 w-3" />
             </Button>
           </div>
-          
+
           {/* Search - Header içinde kompakt */}
           <div className="flex items-center gap-1 mt-2">
             <Search className="h-3 w-3 text-muted-foreground" />
@@ -139,6 +140,7 @@ const StoryManagementPanel = ({
                     {/* Başlık satırı - kompakt */}
                     <div className="flex items-center justify-between gap-1">
                       <div className="flex items-center gap-1 flex-1 min-w-0">
+                        <span className="font-medium text-xs truncate max-w-[24ch]">{getStoryTitle(story)}</span>
                         <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
                           {getStoryTypeLabel(story.story_type || story.storyType)}
                         </Badge>
@@ -152,7 +154,7 @@ const StoryManagementPanel = ({
                           {new Date(story.created_at || story.createdAt).toLocaleDateString('tr-TR')}
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center gap-1 shrink-0">
                         {/* Audio Controls - Ses dosyası varsa göster */}
                         {(story.audio?.file_name || story.audioUrl) && (
@@ -177,7 +179,7 @@ const StoryManagementPanel = ({
                             showAdvanced={false}
                           />
                         )}
-                        
+
                         {/* Generate Audio Button for stories without audio */}
                         {!story.audio?.file_name && !story.audioUrl && onGenerateAudio && (
                           <Button
@@ -191,7 +193,7 @@ const StoryManagementPanel = ({
                             <Volume2 className="h-2 w-2 mr-1" />
                           </Button>
                         )}
-                        
+
                         <Button
                           variant="ghost"
                           size="sm"
@@ -200,18 +202,17 @@ const StoryManagementPanel = ({
                             storyType: story.story_type || story.storyType,
                             customTopic: story.custom_topic || story.customTopic
                           })}
-                          className={`h-5 w-5 p-0 ${isFavorite?.({ 
-                            story: story.story_text || story.story, 
-                            storyType: story.story_type || story.storyType 
+                          className={`h-5 w-5 p-0 ${isFavorite?.({
+                            story: story.story_text || story.story,
+                            storyType: story.story_type || story.storyType
                           }) ? 'text-red-500' : ''}`}
                           title="Favorilere ekle/çıkar"
                         >
-                          <Heart className={`h-2 w-2 ${
-                            isFavorite?.({ 
-                              story: story.story_text || story.story, 
-                              storyType: story.story_type || story.storyType 
-                            }) ? 'fill-current' : ''
-                          }`} />
+                          <Heart className={`h-2 w-2 ${isFavorite?.({
+                            story: story.story_text || story.story,
+                            storyType: story.story_type || story.storyType
+                          }) ? 'fill-current' : ''
+                            }`} />
                         </Button>
 
                         <Dialog>
@@ -251,9 +252,9 @@ const StoryManagementPanel = ({
 
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               className="text-destructive hover:text-destructive h-5 w-5 p-0"
                               title="Sil"
                             >
@@ -280,7 +281,7 @@ const StoryManagementPanel = ({
                         </AlertDialog>
                       </div>
                     </div>
-                    
+
                     {/* Masal içeriği - Kompakt 1 satır */}
                     <p className="text-xs text-muted-foreground line-clamp-1 leading-tight">
                       {(story.story_text || story.story || '').substring(0, 100)}...
