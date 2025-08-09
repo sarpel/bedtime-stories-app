@@ -17,7 +17,7 @@ const storyDb = require('./database/db');
 
 // Express uygulamasını oluştur
 const app = express();
-const PORT = 3001; // Backend'in çalışacağı port (frontend ile karışmaması için 3001 seçildi)
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001; // Ortam değişkeni ile özelleştirilebilir port
 
 // Rate limiting konfigürasyonu
 // Genel API istekleri için rate limit
@@ -80,6 +80,27 @@ app.use('/audio', express.static(path.join(__dirname, 'audio')));
 // Rate limiting uygula
 app.use('/api', generalLimiter); // Tüm API endpoint'lerine genel rate limit
 app.use('/api/stories', dbLimiter); // Veritabanı işlemleri için özel rate limit
+
+// Üretimde frontend'i backend'den servis etmek için (../dist klasörü varsa)
+try {
+  const distPath = path.join(__dirname, '..', 'dist');
+  if (fs.existsSync(distPath)) {
+    app.use(express.static(distPath));
+    app.get('/', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
+  }
+} catch {
+  // statik servis başarısız olsa bile backend API çalışmaya devam eder
+}
+
+// Basit sağlık kontrolü endpoint'i (deploy scriptleri için)
+app.get('/healthz', (req, res) => {
+  try {
+    // Minimum kontrol: process çalışıyor ve temel bağımlılıklar yüklenmiş
+    res.status(200).json({ status: 'ok' });
+  } catch {
+    res.status(500).json({ status: 'error' });
+  }
+});
 
 // Paylaşılan masalların ses dosyalarına erişim (public endpoint)
 app.get('/api/shared/:shareId/audio', (req, res) => {
