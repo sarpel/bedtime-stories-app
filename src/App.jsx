@@ -68,15 +68,17 @@ function App() {
       setSettings(newSettings)
       
       // localStorage'a kaydetme işlemini setTimeout ile ertele
-      setTimeout(() => {
-        const saved = safeLocalStorage.set('bedtime-stories-settings', newSettings)
-        if (saved) {
-          console.log('✅ Ayarlar localStorage\'a kaydedildi')
-        } else {
-          console.error('❌ localStorage kaydetme hatası')
-          setError('Ayarlar kaydedilirken bir sorun oluştu, ancak değişiklikler geçerli.')
-        }
-      }, 0)
+      // State güncellemesi önce yap
+      setSettings(newSettings)
+
+      // localStorage'a kaydet
+      const saved = safeLocalStorage.set('bedtime-stories-settings', newSettings)
+      if (saved) {
+        console.log('✅ Ayarlar localStorage\'a kaydedildi')
+      } else {
+        console.error('❌ localStorage kaydetme hatası')
+        setError('Ayarlar kaydedilirken bir sorun oluştu, ancak değişiklikler geçerli.')
+      }
       
     } catch (error) {
       console.error('❌ App updateSettings error:', error)
