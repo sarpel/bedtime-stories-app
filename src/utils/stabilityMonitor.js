@@ -145,12 +145,14 @@ class StabilityMonitor {
       this.showNotification('⚠️ İnternet bağlantısı kesildi', 'warning')
     } else {
       // Test with a simple fetch
-      fetch('/favicon.ico', { method: 'HEAD' })
+    } else {
+      // Use a more reliable endpoint or the current origin
+      fetch(window.location.origin, { method: 'HEAD', mode: 'no-cors' })
         .then(() => {
           console.log('🌐 Network connectivity confirmed')
         })
-        .catch(() => {
-          console.warn('🌐 Network connectivity issues detected')
+        .catch((error) => {
+          console.warn('🌐 Network connectivity issues detected:', error.message)
           this.showNotification('⚠️ İnternet bağlantısında sorun var', 'warning')
         })
     }
