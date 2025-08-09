@@ -52,33 +52,19 @@ export default function StoryTypeSelector({
       </CardHeader>
       <CardContent className="space-y-4">
         
-        {/* Masal Türü Butonları - 2 satırda */}
+        {/* Masal Türü Butonları - Mobilde 2x5, desktopta 2x5 (toplam 10) */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">En Sevilen Masal Türleri</Label>
-          <div className="grid grid-cols-5 gap-2">
-            {storyTypes.slice(0, 5).map((type) => (
+      <div className="grid grid-flow-row grid-cols-2 sm:grid-cols-5 auto-rows-[3.5rem] gap-1.5 sm:gap-2 items-stretch">
+            {storyTypes.slice(0, 10).map((type) => (
               <Button
                 key={type.id}
                 variant={selectedType === type.id ? "default" : "outline"}
                 onClick={() => handleTypeChange(type.id)}
-                className="flex flex-col items-center gap-1 h-16 p-2 text-xs"
+        className="w-full min-w-0 justify-center flex flex-col items-center gap-1 h-14 p-2 text-xs"
                 size="sm"
               >
-                <span className="text-lg">{type.icon}</span>
-                <span className="leading-none text-center">{type.name}</span>
-              </Button>
-            ))}
-          </div>
-          <div className="grid grid-cols-5 gap-2">
-            {storyTypes.slice(5, 10).map((type) => (
-              <Button
-                key={type.id}
-                variant={selectedType === type.id ? "default" : "outline"}
-                onClick={() => handleTypeChange(type.id)}
-                className="flex flex-col items-center gap-1 h-16 p-2 text-xs"
-                size="sm"
-              >
-                <span className="text-lg">{type.icon}</span>
+        <span className="text-base sm:text-lg">{type.icon}</span>
                 <span className="leading-none text-center">{type.name}</span>
               </Button>
             ))}

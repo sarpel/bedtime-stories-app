@@ -5,13 +5,23 @@ import { storyCache } from '@/utils/cache.js'
 // LLM Service for story generation
 export class LLMService {
   constructor(settings) {
-    // Sabit OpenAI ayarları
-    this.endpoint = config.openai.endpoint
-    this.modelId = config.openai.model
-    this.apiKey = config.openai.apiKey
+    this.provider = settings.llmProvider || 'openai'
+    
+    if (this.provider === 'openai') {
+      // OpenAI ayarları
+      this.endpoint = settings.openaiLLM?.endpoint || settings.llmEndpoint || config.openai.endpoint
+      this.modelId = settings.openaiLLM?.modelId || settings.llmModelId || config.openai.model
+      this.apiKey = settings.openaiLLM?.apiKey || settings.llmApiKey || config.openai.apiKey
+    } else if (this.provider === 'gemini') {
+      // Gemini ayarları
+      this.endpoint = settings.geminiLLM?.endpoint || config.geminiLLM.endpoint
+      this.modelId = settings.geminiLLM?.modelId || config.geminiLLM.model
+      this.apiKey = settings.geminiLLM?.apiKey || config.geminiLLM.apiKey
+    }
     
     // Kullanıcı ayarları
     this.customPrompt = settings.customPrompt
+  this.customInstructions = settings.customInstructions || ''
     this.storyLength = settings.storyLength
     this.temperature = settings.llmSettings?.temperature || 0.9
     this.maxTokens = settings.llmSettings?.maxTokens || 500
@@ -41,15 +51,19 @@ export class LLMService {
       }
     }
     
-    return `${this.customPrompt}${storyTypeText}\n\n${lengthInstruction}\n\nMasal Türkçe olmalı ve şu özellikleri içermeli:\n- 5 yaşındaki bir kız çocuğu için uygun\n- Eğitici ve pozitif değerler içeren\n- Uyku vakti için rahatlatıcı\n- Hayal gücünü geliştiren\n\nMasalı şimdi yaz:`
+    const extraInstructions = (this.customInstructions && this.customInstructions.trim())
+      ? `\n\nEk talimatlar:\n${this.customInstructions.trim()}`
+      : ''
+
+    return `${this.customPrompt}${storyTypeText}\n\n${lengthInstruction}\n\nMasal Türkçe olmalı ve şu özellikleri içermeli:\n- 5 yaşındaki bir kız çocuğu için uygun\n- Eğitici ve pozitif değerler içeren\n- Uyku vakti için rahatlatıcı\n- Hayal gücünü geliştiren${extraInstructions}\n\nMasalı şimdi yaz:`
   }
 
   // Generate story using custom LLM endpoint
   async generateStory(onProgress, storyType = null, customTopic = '') {
     try {
-      // Sabit model kontrolü
-      if (!this.endpoint || !this.modelId) {
-        throw new Error('OpenAI ayarları eksik. Lütfen .env dosyasını kontrol edin.')
+      // Model kontrolü
+      if (!this.modelId) {
+        throw new Error('LLM ayarları eksik. Lütfen model bilgisini kontrol edin.')
       }
 
       // Önbellekten kontrol et
@@ -68,18 +82,19 @@ export class LLMService {
       const prompt = this.buildPrompt(storyType, customTopic)
       onProgress?.(30)
 
-      // İstek artık kendi backend sunucumuza (localhost:3001) yapılıyor
-      const response = await fetch('http://localhost:3001/api/llm', {
+    // İstek artık kendi backend sunucumuza (localhost:3001) yapılıyor
+  const response = await fetch('http://localhost:3001/api/llm', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         // Backend'e gerekli tüm bilgileri gönderiyoruz
         body: JSON.stringify({
-          endpoint: this.endpoint,
+      provider: this.provider,
           modelId: this.modelId,
           prompt: prompt,
-          max_tokens: this.getMaxTokens()
+  max_tokens: this.getMaxTokens(),
+  temperature: this.temperature
         })
       })
 
@@ -93,7 +108,10 @@ export class LLMService {
       const data = await response.json()
       onProgress?.(90)
 
-      const story = this.extractStoryFromResponse(data)
+      // Backend normalize edilmiş text döndürüyorsa onu kullan
+      const story = (typeof data?.text === 'string' && data.text.trim())
+        ? data.text.trim()
+        : this.extractStoryFromResponse(data)
       onProgress?.(100)
       
       // Önbellekle
@@ -164,6 +182,23 @@ export class LLMService {
 
   // Extract story from different response formats
   extractStoryFromResponse(data) {
+    // Gemini format (candidates[].content.parts[].text)
+    if (data && Array.isArray(data.candidates) && data.candidates.length > 0) {
+      const first = data.candidates[0]
+      // Some SDKs expose output_text directly
+      if (typeof first.output_text === 'string' && first.output_text.trim()) {
+        return first.output_text.trim()
+      }
+      const parts = first.content && Array.isArray(first.content.parts) ? first.content.parts : []
+      if (parts.length) {
+        const joined = parts
+          .map(p => (typeof p === 'string' ? p : (p?.text || '')))
+          .join('')
+          .trim()
+        if (joined) return joined
+      }
+    }
+
     // OpenAI format
     if (data.choices && data.choices[0] && data.choices[0].message) {
       return data.choices[0].message.content.trim()
@@ -201,7 +236,7 @@ export class LLMService {
   }
 
   // Generate a fallback story if API fails
-  generateFallbackStory() {
+  generateFallbackStory(seed = '') {
     const fallbackStories = [
       `Bir zamanlar, çok uzak bir ülkede, Ayşe adında çok akıllı ve cesur bir kız yaşarmış. Ayşe, her gece yıldızlara bakarak büyük hayaller kurarmış.
 
@@ -213,7 +248,7 @@ Ayşe o geceden sonra her gece bu sihirli kutuyu açar, tüm dünyaya sevgi ve m
 
 İyi geceler, tatlı rüyalar...`,
 
-      `Bir zamanlar, büyülü bir ormanda, Elif adında küçük bir kız yaşarmış. Elif, hayvanlarla konuşabilen özel bir yeteneği olan çok nazik bir çocukmuş.
+  `Bir zamanlar, büyülü bir ormanda, Elif adında küçük bir kız yaşarmış. Elif, hayvanlarla konuşabilen özel bir yeteneği olan çok nazik bir çocukmuş.
 
 Bir gün, ormandaki tüm hayvanlar üzgün görünüyormuş. Elif onlara ne olduğunu sormuş. Tavşan şöyle demiş: "Ormanımızın sihirli çiçeği kayboldu. Bu çiçek olmadan ormanda huzur olmaz."
 
@@ -223,10 +258,16 @@ Elif, çiçeğe sevgiyle bakmış ve ona güzel şarkılar söylemiş. Sevgisi s
 
 O günden sonra Elif, sevginin her şeyi iyileştirebileceğini öğrenmiş. Sen de sevginle dünyayı daha güzel yapabilirsin.
 
-İyi geceler, tatlı rüyalar...`
-    ]
+İyi geceler, tatlı rüyalar...`,
+      `Bir zamanlar, deniz kıyısında yaşayan Zeynep, dalgaların fısıltılarını dinlemeyi çok severmiş. Bir gece, deniz kabuğunun içinden minik bir peri çıkmış ve "Cesaretle paylaştığın her iyilik, büyüyüp sana döner" demiş. Zeynep o günden sonra herkesle sevgi dolu hikayeler paylaşmış. İyi geceler, tatlı rüyalar...`,
+      `Bir zamanlar, yıldızların altında kamp yapan küçük Defne, gökyüzündeki takımyıldızları sayarken uykuya dalmış. Rüyasında bir kuyruklu yıldız ona “Merak ettiğin her şeyin cevabı, sabırlı kalbinde saklı” demiş. Defne sabırla çalışmayı öğrenmiş. İyi geceler, tatlı rüyalar...`,
+      `Bir zamanlar, yeşil bir tepenin ardında yaşayan Nazlı, her gün minik bir ağacı sulayıp onunla konuşurmuş. Ağaç büyüdükçe gölgesi herkesi serinletmiş. Nazlı, emek verince güzelliklerin çoğaldığını anlamış. İyi geceler, tatlı rüyalar...`
+    ];
 
-    return fallbackStories[Math.floor(Math.random() * fallbackStories.length)]
+    // Basit tohumlama: storyType/customTopic metnini kullanarak deterministik/dağıtık seçim
+    const hash = Array.from(String(seed)).reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) % 9973, 7);
+  const idx = (hash + Math.floor(Math.random() * 1000)) % fallbackStories.length;
+    return fallbackStories[idx]
   }
 }
 

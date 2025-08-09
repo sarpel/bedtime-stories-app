@@ -1,0 +1,19 @@
+[Unit]
+Description=Story Audio Queue Worker
+After=sound.target
+Wants=sound.target
+
+[Service]
+Type=simple
+User=storyapp
+Group=storyapp
+ExecStart=/usr/local/bin/play_story --daemon --fifo /var/lib/storyapp/play-queue.fifo
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/storyapp /var/log/storyapp
+
+[Install]
+WantedBy=multi-user.target
