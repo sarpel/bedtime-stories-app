@@ -10,7 +10,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export default defineConfig(({ mode }) => {
   const isDev = mode === 'development'
   const isProd = mode === 'production'
-  
+
   return {
     plugins: [
       react(),
@@ -27,6 +27,20 @@ export default defineConfig(({ mode }) => {
       allowedHosts: ['all'],
       hmr: {
         overlay: false
+      },
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+          ws: false,
+          secure: false
+        },
+        '/audio': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+          ws: false,
+          secure: false
+        }
       }
     },
     preview: {
@@ -46,7 +60,7 @@ export default defineConfig(({ mode }) => {
             'vendor-ui': ['lucide-react', 'clsx', 'tailwind-merge', 'class-variance-authority'],
             'vendor-radix': [
               '@radix-ui/react-alert-dialog',
-              '@radix-ui/react-dialog', 
+              '@radix-ui/react-dialog',
               '@radix-ui/react-label',
               '@radix-ui/react-progress',
               '@radix-ui/react-radio-group',
@@ -56,7 +70,7 @@ export default defineConfig(({ mode }) => {
               '@radix-ui/react-slot',
               '@radix-ui/react-tabs'
             ],
-            
+
             // Application chunks
             'app-services': [
               './src/services/analyticsService',
@@ -93,9 +107,10 @@ export default defineConfig(({ mode }) => {
           entryFileNames: isProd ? 'assets/[name].[hash].js' : '[name].js',
           assetFileNames: isProd ? 'assets/[name].[hash].[ext]' : '[name].[ext]'
         },
-        // External dependencies (if using CDN)
-        external: isProd ? [] : [],
-        
+  // External dependencies (if using CDN)
+  // Keep empty to bundle everything by default
+  external: [],
+
         // Tree shaking configuration
         treeshake: {
           moduleSideEffects: false,
@@ -103,16 +118,16 @@ export default defineConfig(({ mode }) => {
           tryCatchDeoptimization: false
         }
       },
-      
+
       // Optimize chunk sizes for better loading
       chunkSizeWarningLimit: isProd ? 500 : 600,
-      
+
       // Source maps only in development
       sourcemap: isDev,
-      
+
       // Production minification
       minify: isProd ? 'terser' : false,
-      
+
       // Terser options optimized for production
       terserOptions: isProd ? {
         compress: {
@@ -140,27 +155,27 @@ export default defineConfig(({ mode }) => {
           ecma: 2020
         }
       } : undefined,
-      
+
       // CSS optimization
       cssCodeSplit: true,
       cssMinify: isProd,
-      
+
       // Asset optimization
       assetsInlineLimit: isProd ? 1024 : 4096, // Smaller inline limit for production
-      
+
       // Report options
       reportCompressedSize: !isProd, // Skip in production for faster builds
-      
+
       // Manifest for cache busting
       manifest: isProd,
-      
+
       // Write bundle info
       write: true,
-      
+
       // Empty output directory before build
       emptyOutDir: true
     },
-    
+
     // Dependency optimization
     optimizeDeps: {
       include: [
@@ -178,14 +193,14 @@ export default defineConfig(({ mode }) => {
         target: 'es2020'
       }
     },
-    
+
     // Environment variables and defines
     define: {
       __DEV__: JSON.stringify(isDev),
       __PROD__: JSON.stringify(isProd),
       'process.env.NODE_ENV': JSON.stringify(mode)
     },
-    
+
     // Experimental features
     experimental: {
       renderBuiltUrl(filename) {
@@ -193,7 +208,7 @@ export default defineConfig(({ mode }) => {
         return filename
       }
     },
-    
+
     // CSS configuration
     css: {
       devSourcemap: isDev,
@@ -201,17 +216,17 @@ export default defineConfig(({ mode }) => {
         // Add any CSS preprocessor options here
       }
     },
-    
+
     // Worker configuration
     worker: {
       format: 'es',
       plugins: () => []
     },
-    
+
     // Performance configuration
     logLevel: isProd ? 'warn' : 'info',
     clearScreen: false,
-    
+
     // Environment-specific configurations
     ...(isProd && {
       // Production-only settings

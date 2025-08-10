@@ -8,10 +8,9 @@ require('dotenv').config({
 // Gerekli paketleri import et
 const express = require('express');
 const axios = require('axios');
-const cors = require('cors');
 const Joi = require('joi');
 const pino = require('pino');
-const expressPino = require('express-pino-logger');
+const pinoHttp = require('pino-http');
 const fs = require('fs');
 const path = require('path');
 
@@ -36,49 +35,28 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
 // Güvenlik başlıkları ve karmaşık kalkanlar kaldırıldı (kişisel/lokal kullanım)
 
 // Request logging
-app.use(expressPino({ logger }));
+app.use(pinoHttp({ logger }));
 
 // Veritabanı modülü
 const storyDb = require('./database/db');
 
-// Gzip/sıkıştırma kaldırıldı: paketler doğrudan iletilir
-
-// Rate limiting kaldırıldı: istekler doğrudan aktarılır
-
-// Local network CORS konfigürasyonu (RPi Zero 2W için)
-// Local network'te çalıştığı için basit ve permissive CORS
-app.use(cors({
-  origin: true, // Tüm origin'lere izin ver (local network)
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Range']
-}));
+// Sıkıştırma ve ek güvenlik katmanları kullanılmıyor (kişisel/lokal kullanım)
+// CORS yok; geliştirmede Vite proxy ile aynı-origin akış sağlanır
 
 // Frontend'den gelen JSON verilerini okuyabilmek için middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Static dosyalar için middleware (ses dosyalarını serve etmek için)
-// Local network'te CORS sorunu olmayacağı için basit static serving
-// /audio için CORP başlığını her istekte garanti et
-app.use('/audio', (req, res, next) => {
-  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  next();
-});
-
+// Local network'te basit static serving
 app.use('/audio', express.static(path.join(__dirname, 'audio'), {
   maxAge: process.env.CACHE_MAX_AGE || 86400000, // 24 hours
   etag: true,
   lastModified: true,
-  acceptRanges: true,
-  setHeaders: (res) => {
-    // Tarayıcının cross-origin medya akışını engellememesi için
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  }
+  acceptRanges: true
 }));
 
-// Rate limiting'i sadece gerekli endpoint'lerde uygula (local network için minimal)
-// Genel API rate limiting'i kaldır - sadece kritik endpoint'lerde kullan
+// Rate limiting uygulanmıyor (kişisel kurulum)
 
 // Health check endpoint (comprehensive)
 app.get('/health', async (req, res) => {
@@ -214,12 +192,13 @@ app.get('/api/shared/:shareId/audio', (req, res) => {
 app.post('/api/llm', async (req, res) => {
   const tStart = Date.now();
   try {
-    console.log('[API /api/llm] request:start', {
+    logger.info({
+      msg: '[API /api/llm] request:start',
       ip: req.ip,
       headers: { 'content-type': req.headers['content-type'] },
       bodyKeys: Object.keys(req.body || {})
     });
-  } catch {}
+  } catch { }
   // Frontend'den gelen ayarları ve prompt'u al
   const { provider = 'openai', modelId, prompt, max_tokens, temperature, endpoint: clientEndpoint } = req.body;
 
@@ -257,7 +236,7 @@ app.post('/api/llm', async (req, res) => {
       endpoint = 'https://api.openai.com/v1/chat/completions';
     }
     headers.Authorization = `Bearer ${OPENAI_API_KEY}`;
-  // OpenAI Chat Completions formatı
+    // OpenAI Chat Completions formatı
     body = {
       model: modelId,
       messages: [
@@ -276,7 +255,8 @@ app.post('/api/llm', async (req, res) => {
         body.max_tokens = max_tokens;
       }
     }
-    console.log('[API /api/llm] provider:openai payload', {
+    logger.info({
+      msg: '[API /api/llm] provider:openai payload',
       endpoint,
       hasAuth: !!headers.Authorization,
       temperature: body.temperature,
@@ -300,7 +280,8 @@ app.post('/api/llm', async (req, res) => {
         maxOutputTokens: max_tokens && Number.isFinite(max_tokens) ? max_tokens : undefined
       }
     };
-    console.log('[API /api/llm] provider:gemini payload', {
+    logger.info({
+      msg: '[API /api/llm] provider:gemini payload',
       endpoint,
       temperature: body.generationConfig.temperature,
       maxOutputTokens: body.generationConfig.maxOutputTokens,
@@ -317,7 +298,8 @@ app.post('/api/llm', async (req, res) => {
       temperature: Number.isFinite(temperature) ? temperature : 1.0,
       max_tokens: max_tokens && Number.isFinite(max_tokens) ? max_tokens : undefined
     };
-    console.log('[API /api/llm] provider:generic payload', {
+    logger.info({
+      msg: '[API /api/llm] provider:generic payload',
       endpoint,
       temperature: body.temperature,
       max_tokens: body.max_tokens,
@@ -328,12 +310,13 @@ app.post('/api/llm', async (req, res) => {
   // Herhangi bir metin manipülasyonu veya yeniden biçimleme yapılmaz
 
   try {
-    console.log('[API /api/llm] forwarding:start', { endpoint });
+    logger.info({ msg: '[API /api/llm] forwarding:start', endpoint });
     const t0 = Date.now();
     const response = await axios.post(endpoint, body, { headers });
     const duration = Date.now() - t0;
     const data = response.data;
-    console.log('[API /api/llm] forwarding:success', {
+    logger.info({
+      msg: '[API /api/llm] forwarding:success',
       status: response.status,
       durationMs: duration,
       keys: Object.keys(data || {}),
@@ -341,7 +324,8 @@ app.post('/api/llm', async (req, res) => {
     });
     res.json(data);
   } catch (error) {
-    console.error('LLM API Hatası:', {
+    logger.error({
+      msg: 'LLM API Hatası',
       provider,
       status: error.response?.status,
       message: error.message
@@ -351,12 +335,10 @@ app.post('/api/llm', async (req, res) => {
       errorMessage = `${provider} API anahtarı geçersiz.`;
     } else if (error.response?.status === 400) {
       errorMessage = `${provider} API isteği hatalı.`;
-    } else if (error.response?.status === 429) {
-      errorMessage = `${provider} API rate limit aşıldı.`;
     }
     res.status(error.response?.status || 500).json({ error: errorMessage });
   }
-  try { console.log('[API /api/llm] request:end', { totalMs: Date.now() - tStart }); } catch {}
+  try { logger.info({ msg: '[API /api/llm] request:end', totalMs: Date.now() - tStart }); } catch { }
 });
 
 // --- QUEUE API ---
@@ -366,7 +348,7 @@ app.get('/api/queue', (req, res) => {
     const ids = storyDb.getQueue();
     res.json({ ids });
   } catch (error) {
-    console.error('Kuyruk getirme hatası:', error);
+    logger.error({ msg: 'Kuyruk getirme hatası', error: error?.message });
     res.status(500).json({ error: 'Kuyruk getirilirken hata oluştu.' });
   }
 });
@@ -381,7 +363,7 @@ app.put('/api/queue', (req, res) => {
     storyDb.setQueue(ids);
     res.json({ success: true });
   } catch (error) {
-    console.error('Kuyruk güncelleme hatası:', error);
+    logger.error({ msg: 'Kuyruk güncelleme hatası', error: error?.message });
     res.status(500).json({ error: 'Kuyruk güncellenirken hata oluştu.' });
   }
 });
@@ -397,7 +379,7 @@ app.post('/api/queue/add', (req, res) => {
     storyDb.addToQueue(sid);
     res.json({ success: true });
   } catch (error) {
-    console.error('Kuyruğa ekleme hatası:', error);
+    logger.error({ msg: 'Kuyruğa ekleme hatası', error: error?.message });
     res.status(500).json({ error: 'Kuyruğa eklenirken hata oluştu.' });
   }
 });
@@ -412,7 +394,7 @@ app.delete('/api/queue/:id', (req, res) => {
     storyDb.removeFromQueue(sid);
     res.json({ success: true });
   } catch (error) {
-    console.error('Kuyruktan çıkarma hatası:', error);
+    logger.error({ msg: 'Kuyruktan çıkarma hatası', error: error?.message });
     res.status(500).json({ error: 'Kuyruktan çıkarılırken hata oluştu.' });
   }
 });
@@ -426,7 +408,7 @@ app.get('/api/stories', (req, res) => {
     const stories = storyDb.getAllStories();
     res.json(stories);
   } catch (error) {
-    console.error('Masalları getirme hatası:', error);
+    logger.error({ msg: 'Masalları getirme hatası', error: error?.message });
     res.status(500).json({ error: 'Masallar getirilirken hata oluştu.' });
   }
 });
@@ -449,7 +431,7 @@ app.get('/api/stories/:id', (req, res) => {
 
     res.json(story);
   } catch (error) {
-    console.error('Masal getirme hatası:', error);
+    logger.error({ msg: 'Masal getirme hatası', error: error?.message });
     res.status(500).json({ error: 'Masal getirilirken hata oluştu.' });
   }
 });
@@ -457,13 +439,12 @@ app.get('/api/stories/:id', (req, res) => {
 // Yeni masal oluştur
 app.post('/api/stories', (req, res) => {
   try {
-    console.log('POST /api/stories - Gelen veri:', JSON.stringify(req.body, null, 2));
+    logger.info({ msg: 'POST /api/stories - request', bodyKeys: Object.keys(req.body || {}) })
     const { storyText, storyType, customTopic } = req.body;
 
     // Input validation
     if (!storyText || !storyType) {
-      console.log('Validation error - storyText:', typeof storyText, storyText ? 'exists' : 'missing');
-      console.log('Validation error - storyType:', typeof storyType, storyType ? 'exists' : 'missing');
+      logger.warn({ msg: 'POST /api/stories - validation error', storyText: typeof storyText, storyType: typeof storyType })
       return res.status(400).json({ error: 'Masal metni ve türü gereklidir.' });
     }
 
@@ -488,7 +469,7 @@ app.post('/api/stories', (req, res) => {
 
     res.status(201).json(story);
   } catch (error) {
-    console.error('Masal oluşturma hatası:', error);
+    logger.error({ msg: 'Masal oluşturma hatası', error: error.message });
     res.status(500).json({ error: 'Masal oluşturulurken hata oluştu.' });
   }
 });
@@ -535,7 +516,7 @@ app.put('/api/stories/:id', (req, res) => {
     const story = storyDb.getStory(id);
     res.json(story);
   } catch (error) {
-    console.error('Masal güncelleme hatası:', error);
+    logger.error({ msg: 'Masal güncelleme hatası', error: error?.message });
     res.status(500).json({ error: 'Masal güncellenirken hata oluştu.' });
   }
 });
@@ -558,7 +539,7 @@ app.delete('/api/stories/:id', (req, res) => {
 
     res.json({ message: 'Masal başarıyla silindi.' });
   } catch (error) {
-    console.error('Masal silme hatası:', error);
+    logger.error({ msg: 'Masal silme hatası', error: error?.message });
     res.status(500).json({ error: 'Masal silinirken hata oluştu.' });
   }
 });
@@ -591,7 +572,7 @@ app.patch('/api/stories/:id/favorite', (req, res) => {
       story: updated
     });
   } catch (error) {
-    console.error('Favori güncelleme hatası:', error);
+    logger.error({ msg: 'Favori güncelleme hatası', error: error?.message });
     res.status(500).json({ error: 'Favori durumu güncellenirken hata oluştu.' });
   }
 });
@@ -624,7 +605,7 @@ app.put('/api/stories/:id/favorite', (req, res) => {
       story: updated
     });
   } catch (error) {
-    console.error('Favori durumu güncelleme hatası:', error);
+    logger.error({ msg: 'Favori durumu güncelleme hatası', error: error?.message });
     res.status(500).json({ error: 'Favori durumu güncellenirken hata oluştu.' });
   }
 });
@@ -642,7 +623,7 @@ app.get('/api/stories/type/:storyType', (req, res) => {
     const stories = storyDb.getStoriesByType(storyType);
     res.json(stories);
   } catch (error) {
-    console.error('Tip bazlı masal getirme hatası:', error);
+    logger.error({ msg: 'Tip bazlı masal getirme hatası', error: error?.message });
     res.status(500).json({ error: 'Masallar getirilirken hata oluştu.' });
   }
 });
@@ -744,24 +725,21 @@ app.post('/api/tts', async (req, res) => {
     }
 
     // Minimal logging, hassas veri yok
-    console.log('TTS response received:', {
-      provider,
-      status: response.status
-    });
+    logger.info({ msg: 'TTS response received', provider, status: response.status });
 
     // Eğer storyId varsa, ses dosyasını kaydet
     if (storyId) {
       // Security: Validate storyId to prevent path traversal attacks
       const sanitizedStoryId = parseInt(storyId);
       if (isNaN(sanitizedStoryId) || sanitizedStoryId <= 0) {
-        console.warn('Invalid storyId format:', storyId);
+        logger.warn({ msg: 'Invalid storyId format', storyId });
         // Continue without saving file but still stream to client
         res.setHeader('Content-Type', 'audio/mpeg');
         response.data.pipe(res);
         return;
       }
 
-  try {
+      try {
         // Security: Use sanitized storyId for filename
         const fileName = `story-${sanitizedStoryId}-${Date.now()}.mp3`;
         const filePath = path.join(storyDb.getAudioDir(), fileName);
@@ -771,7 +749,7 @@ app.post('/api/tts', async (req, res) => {
         response.data.pipe(writeStream);
 
         writeStream.on('finish', () => {
-          console.log('Audio file saved:', filePath);
+          logger.info({ msg: 'Audio file saved', filePath });
           // Veritabanına ses dosyası bilgisini kaydet
           try {
             // Voice ID'yi provider'a göre çıkar
@@ -783,14 +761,14 @@ app.post('/api/tts', async (req, res) => {
             }
 
             storyDb.saveAudio(sanitizedStoryId, fileName, filePath, usedVoiceId, requestBody);
-            console.log('Audio info saved to database for story:', sanitizedStoryId);
+            logger.info({ msg: 'Audio info saved to database', storyId: sanitizedStoryId });
           } catch (dbError) {
-            console.error('Database save error:', dbError);
+            logger.error({ msg: 'Database save error', error: dbError?.message });
           }
         });
 
         writeStream.on('error', (error) => {
-          console.error('File write error:', error);
+          logger.error({ msg: 'File write error', error: error?.message });
         });
 
         // Aynı zamanda client'a da stream gönder
@@ -798,7 +776,7 @@ app.post('/api/tts', async (req, res) => {
         response.data.pipe(res);
 
       } catch (fileError) {
-        console.error('File handling error:', fileError);
+        logger.error({ msg: 'File handling error', error: fileError?.message });
         // Dosya hatası olsa bile client'a stream gönder
         res.setHeader('Content-Type', 'audio/mpeg');
         response.data.pipe(res);
@@ -810,12 +788,12 @@ app.post('/api/tts', async (req, res) => {
     }
 
   } catch (error) {
-    console.error('TTS API Hatası:', {
+    logger.error({
+      msg: 'TTS API Hatası',
       provider,
       status: error.response?.status,
       statusText: error.response?.statusText,
-  data: error.response?.data,
-  message: error.message
+      error: error.message
     });
 
     let errorMessage = `${provider} TTS API'sine istek gönderilirken hata oluştu.`;
@@ -862,7 +840,7 @@ app.post('/api/stories/:id/share', (req, res) => {
       res.status(500).json({ error: 'Masal paylaşıma açılırken hata oluştu.' });
     }
   } catch (error) {
-    console.error('Masal paylaşma hatası:', error);
+    logger.error({ msg: 'Masal paylaşma hatası', error: error?.message });
     res.status(500).json({ error: 'Masal paylaşılırken hata oluştu.' });
   }
 });
@@ -883,7 +861,7 @@ app.delete('/api/stories/:id/share', (req, res) => {
       res.status(404).json({ error: 'Paylaşımı kaldırılacak masal bulunamadı.' });
     }
   } catch (error) {
-    console.error('Masal paylaşımı kaldırma hatası:', error);
+    logger.error({ msg: 'Masal paylaşımı kaldırma hatası', error: error?.message });
     res.status(500).json({ error: 'Masal paylaşımı kaldırılırken hata oluştu.' });
   }
 });
@@ -908,7 +886,7 @@ app.get('/api/shared/:shareId', (req, res) => {
       audio: story.audio
     });
   } catch (error) {
-    console.error('Paylaşılan masal getirme hatası:', error);
+    logger.error({ msg: 'Paylaşılan masal getirme hatası', error: error?.message });
     res.status(500).json({ error: 'Paylaşılan masal getirilirken hata oluştu.' });
   }
 });
@@ -931,7 +909,7 @@ app.get('/api/shared', (req, res) => {
 
     res.json(publicStories);
   } catch (error) {
-    console.error('Paylaşılan masalları listeleme hatası:', error);
+    logger.error({ msg: 'Paylaşılan masalları listeleme hatası', error: error?.message });
     res.status(500).json({ error: 'Paylaşılan masallar listelenirken hata oluştu.' });
   }
 });

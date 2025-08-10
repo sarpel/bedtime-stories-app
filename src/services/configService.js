@@ -33,7 +33,7 @@ export const config = {
 
   // Backend Configuration
   backend: {
-    url: import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'
+  url: import.meta.env.VITE_BACKEND_URL || ''
   }
 }
 

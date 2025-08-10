@@ -1,13 +1,14 @@
 import { config } from './configService.js'
 import { audioCache } from '../utils/cache.js'
 import optimizedDatabaseService from './optimizedDatabaseService.js'
+import { logger } from '../utils/logger.js'
 // Audio quality imports kaldırıldı - basit sabit format kullanılacak
 
 // TTS Service for audio generation
 export class TTSService {
   constructor(settings) {
     this.provider = settings.ttsProvider || 'elevenlabs'
-    
+
     if (this.provider === 'elevenlabs') {
       // ElevenLabs ayarları
       this.endpoint = settings.elevenlabs?.endpoint || config.elevenlabs.endpoint
@@ -21,7 +22,7 @@ export class TTSService {
       this.voiceId = settings.geminiTTS?.voiceId || config.geminiTTS.voiceId
       this.apiKey = settings.geminiTTS?.apiKey || config.geminiTTS.apiKey
     }
-    
+
     // Kullanıcı ses ayarları
     this.voiceSettings = settings.voiceSettings || {
       speed: 0.9,
@@ -44,7 +45,7 @@ export class TTSService {
         throw new Error('Seslendirilecek metin bulunamadı.')
       }
 
-  // API anahtarını istemciden istemiyoruz; anahtarlar sunucu tarafında tutulur
+      // API anahtarını istemciden istemiyoruz; anahtarlar sunucu tarafında tutulur
 
       // Eğer storyId varsa, önce veritabanından ses dosyasını kontrol et
       if (storyId) {
@@ -58,7 +59,7 @@ export class TTSService {
         } catch (dbError) {
           // Reduced logging for Pi Zero - only log occasionally
           if (Math.random() < 0.1) {
-            console.warn('Veritabanından ses dosyası alınamadı, yeni ses oluşturuluyor:', dbError);
+            logger.warn('Veritabanından ses dosyası alınamadı, yeni ses oluşturuluyor', 'TTSService', { error: dbError?.message });
           }
         }
       }
@@ -66,7 +67,7 @@ export class TTSService {
       // Önbellekten kontrol et
       const cacheKey = `${this.provider}-${this.voiceId}-${this.modelId}`
       const cachedAudioUrl = audioCache.getAudio(text, cacheKey, this.voiceSettings)
-      
+
       if (cachedAudioUrl) {
         onProgress?.(100)
         return cachedAudioUrl
@@ -74,13 +75,13 @@ export class TTSService {
 
       onProgress?.(10)
 
-  // URL artık istemcide oluşturulmayacak; backend allow-list ile belirler
+      // URL artık istemcide oluşturulmayacak; backend allow-list ile belirler
 
       const requestBody = this.prepareRequestBody(text)
       onProgress?.(30)
 
-      // İstek artık kendi backend sunucumuza (localhost:3001) yapılıyor
-      const response = await fetch('http://localhost:3001/api/tts', {
+      // İstek relative backend yoluna yapılıyor (Vite proxy/prod aynı origin)
+      const response = await fetch(`/api/tts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -103,17 +104,17 @@ export class TTSService {
 
       const audioBlob = await response.blob()
       onProgress?.(90)
-      
+
       const audioUrl = URL.createObjectURL(audioBlob)
       onProgress?.(100)
-      
+
       // Önbellekle
       audioCache.setAudio(text, cacheKey, this.voiceSettings, audioUrl)
-      
+
       return audioUrl
 
     } catch (error) {
-      console.error('TTS audio generation error:', error)
+      logger.error('TTS audio generation failed', 'TTSService', { error: error?.message })
       throw error
     }
   }
@@ -150,7 +151,7 @@ export class TTSService {
         }
       }
     }
-    
+
     // OpenAI format fallback
     return {
       model: this.modelId,
@@ -167,16 +168,16 @@ export class TTSService {
     if (typeof data === 'string' && (data.startsWith('http') || data.startsWith('data:'))) {
       return data
     }
-    
+
     // Object with URL field
     if (data.url) {
       return data.url
     }
-    
+
     if (data.audio_url) {
       return data.audio_url
     }
-    
+
     if (data.audioUrl) {
       return data.audioUrl
     }
@@ -258,4 +259,3 @@ export class TTSService {
     ]
   }
 }
-

@@ -8,8 +8,7 @@ import { apiResponseCache } from '@/utils/cache.js'
  * - Performance monitoring
  */
 
-const API_BASE_URL = 'http://localhost:3001/api'
-const BASE_URL = 'http://localhost:3001'
+const API_BASE_URL = '/api'
 
 class OptimizedDatabaseService {
   constructor() {
@@ -27,7 +26,9 @@ class OptimizedDatabaseService {
   async cachedFetch(url, options = {}, cacheKey = null, cacheTTL = 300000) {
     const startTime = Date.now()
     const key = cacheKey || `${url}:${JSON.stringify(options)}`
-  console.log('[DB] cachedFetch:start', { url, hasBody: !!options.body, cacheKey: key })
+    if (import.meta.env?.DEV) {
+      console.log('[DB] cachedFetch:start', { url, hasBody: !!options.body, cacheKey: key })
+    }
 
     // Check cache first
     const cached = this.queryCache.get(key)
@@ -113,8 +114,9 @@ class OptimizedDatabaseService {
       this.queryCache.delete(cacheKey)
     }
 
+    // Backend route is /api/stories/type/:storyType
     return this.cachedFetch(
-      `${API_BASE_URL}/stories?type=${encodeURIComponent(storyType)}`,
+      `${API_BASE_URL}/stories/type/${encodeURIComponent(storyType)}`,
       {},
       cacheKey,
       300000 // 5 minutes cache
@@ -157,7 +159,7 @@ class OptimizedDatabaseService {
 
   // Create story with cache invalidation
   async createStory(storyText, storyType, customTopic = null) {
-  console.log('OptimizedDatabaseService.createStory called with:');
+    console.log('OptimizedDatabaseService.createStory called with:');
     console.log('storyText:', typeof storyText, storyText ? storyText.substring(0, 100) + '...' : 'null/undefined');
     console.log('storyType:', typeof storyType, storyType);
     console.log('customTopic:', typeof customTopic, customTopic);
@@ -170,8 +172,8 @@ class OptimizedDatabaseService {
 
     console.log('Request body to send:', JSON.stringify(requestBody, null, 2));
 
-  console.log('[DB] createStory:request', { url: `${API_BASE_URL}/stories` })
-  const response = await fetch(`${API_BASE_URL}/stories`, {
+    console.log('[DB] createStory:request', { url: `${API_BASE_URL}/stories` })
+    const response = await fetch(`${API_BASE_URL}/stories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody)
@@ -182,8 +184,8 @@ class OptimizedDatabaseService {
       throw new Error(`Story creation failed: ${response.status} - ${errorText}`)
     }
 
-  const result = await response.json()
-  console.log('[DB] createStory:success', { id: result?.id })
+    const result = await response.json()
+    console.log('[DB] createStory:success', { id: result?.id })
 
     // Invalidate relevant caches
     this.invalidateStoryCaches()
@@ -193,7 +195,7 @@ class OptimizedDatabaseService {
 
   // Update story with cache invalidation
   async updateStory(id, storyText, storyType, customTopic = null) {
-  console.log('[DB] updateStory:request', { id })
+    console.log('[DB] updateStory:request', { id })
     const response = await fetch(`${API_BASE_URL}/stories/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -209,8 +211,8 @@ class OptimizedDatabaseService {
       throw new Error(`Story update failed: ${response.status} - ${errorText}`)
     }
 
-  const result = await response.json()
-  console.log('[DB] updateStory:success', { id })
+    const result = await response.json()
+    console.log('[DB] updateStory:success', { id })
 
     // Invalidate specific caches
     this.queryCache.delete(`story:${id}`)
@@ -221,7 +223,7 @@ class OptimizedDatabaseService {
 
   // Delete story with cache invalidation
   async deleteStory(id) {
-  console.log('[DB] deleteStory:request', { id })
+    console.log('[DB] deleteStory:request', { id })
     const response = await fetch(`${API_BASE_URL}/stories/${id}`, {
       method: 'DELETE'
     })
@@ -234,9 +236,9 @@ class OptimizedDatabaseService {
     this.queryCache.delete(`story:${id}`)
     this.invalidateStoryCaches()
 
-  const result = await response.json()
-  console.log('[DB] deleteStory:success', { id })
-  return result
+    const result = await response.json()
+    console.log('[DB] deleteStory:success', { id })
+    return result
   }
 
   // Batch delete stories
@@ -321,8 +323,8 @@ class OptimizedDatabaseService {
   // Audio operations
   getAudioUrl(fileName) {
     if (!fileName) return null
-  // Static audio files are served at /audio (not under /api)
-  return `${BASE_URL}/audio/${fileName}`
+    // Static audio files are served at /audio (not under /api)
+    return `/audio/${fileName}`
   }
 
   // Cache management
@@ -333,9 +335,9 @@ class OptimizedDatabaseService {
     // Collect cache keys to delete
     this.queryCache.cache.forEach((_, key) => {
       if (key.startsWith('all-stories') ||
-          key.startsWith('stories-by-type') ||
-          key.startsWith('recent-stories') ||
-          key.startsWith('favorite-stories')) {
+        key.startsWith('stories-by-type') ||
+        key.startsWith('recent-stories') ||
+        key.startsWith('favorite-stories')) {
         keysToDelete.push(key)
       }
     })

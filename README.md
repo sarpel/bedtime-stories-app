@@ -1,222 +1,180 @@
 # Uyku Masalları - Bedtime Stories App
 
-A beautiful React + Vite + Tailwind CSS web application that communicates with custom LLM and TTS models to generate and play bedtime stories for a 5-year-old Turkish girl.
+5 yaşındaki bir Türk kız çocuğu için kişiselleştirilmiş masallar üreten ve bunları konuşmaya çeviren React + Vite + Tailwind CSS tabanlı web uygulaması. Tüm LLM/TTS çağrıları backend proxy üzerinden yapılır; API anahtarları yalnızca backend `.env` dosyasında tutulur.
 
-## 🌟 Features
+## 🌟 Özellikler
 
-- **Custom LLM Integration**: Connect to any LLM API (OpenAI, OpenAI Compatible) for story generation
-- **Custom TTS Integration**: Connect to any TTS API (ElevenLabs, ElevenLabs Compatible) for audio conversion
-- **Beautiful UI**: Modern bluish-blackish theme with responsive design
-- **Comprehensive Settings**: Configurable endpoints, models, voices, and story parameters
-- **Turkish Language**: Specifically designed for Turkish bedtime stories
-- **Audio Player**: Full-featured audio player with progress tracking
-- **Error Handling**: Graceful error handling with fallback stories
-- **Mobile Friendly**: Responsive design that works on all devices
+- **LLM Entegrasyonu**: OpenAI ve OpenAI uyumlu LLM'lerle masal üretimi (proxy ile)
+- **TTS Entegrasyonu**: ElevenLabs ve uyumlu TTS servisleriyle seslendirme (proxy ile)
+- **Modern Arayüz**: Koyu mavi temalı responsive tasarım
+- **Ayrıntılı Ayarlar**: Model, ses ve masal parametreleri
+- **Türkçe Odaklı**: Çocuklara uygun Türkçe içerik
+- **Gelişmiş Oynatıcı**: İlerleme, duraklatma, favori vb.
+- **Hata Dayanıklılığı**: Kullanıcı dostu mesajlar ve metin moduna düşme
+- **Mobil Uyum**: Tüm cihazlarda akıcı deneyim
 
-## 🛠️ Configuration
+## 🛠️ Yapılandırma
 
-### LLM Settings
+### LLM Ayarları
 
-1. Click the "Ayarlar" (Settings) button
-2. Go to the "LLM" tab
-3. Configure:
-   - **API Endpoint URL**: Your LLM API endpoint (e.g., `https://api.openai.com/v1/chat/completions`)
-   - **Model ID**: The model to use (e.g., `gpt-4`, `gpt-4.1-mini`, `gpt-4.1-mini`)
-   - **API Key**: Your API authentication key
+1. "Ayarlar" menüsünden LLM sekmesine gidin
+2. Model bilgileri bilgilendirme amaçlıdır; tüm istekler aynı-origin backend proxy üzerinden (/api/llm) yapılır
+3. API anahtarları frontend’de tutulmaz; yalnızca backend `.env` içinde yönetilir
 
-### TTS Settings
+### TTS Ayarları
 
-1. Go to the "TTS" tab in settings
-2. Configure:
-   - **API Endpoint URL**: Your TTS API endpoint (e.g., `https://api.openai.com/v1/audio/speech`)
-   - **TTS Model ID**: The TTS model to use (e.g., `eleven_turbo_v2_5`)
-   - **Voice ID**: The voice to use (e.g., `'xsGHrtxT5AdDzYXTQT0d', name: 'Gönül Filiz (Kadın)'`)
-   - **API Key**: Your TTS API authentication key
+1. "Ses" sekmesinden model ve ses seçimini yapın
+2. Tüm TTS istekleri aynı-origin backend proxy üzerinden (/api/tts) yapılır
+3. API anahtarları sadece backend `.env` dosyasında bulunur
 
-### Backend Environment
+### Backend Ortam Değişkenleri
 
-Create a `backend/.env` file with your API keys so the proxy server can forward requests:
+`backend/.env` dosyasında API anahtarlarını tanımlayın:
 
 ```bash
 OPENAI_API_KEY=sk-your-openai-key
+GEMINI_LLM_API_KEY=your-gemini-llm-key
+GEMINI_TTS_API_KEY=your-gemini-tts-key
 ELEVENLABS_API_KEY=xi-api-key-your-key
+LOG_LEVEL=info
 ```
 
-### Voice Settings
+### Ses Ayarları
 
-1. Go to the "Ses" (Voice) tab
-2. Adjust:
-   - **Konuşma Hızı** (Speech Speed): 0.5x to 2.0x
-   - **Ses Tonu** (Voice Tone): Low to High
-   - **Ses Seviyesi** (Voice Level): 10% to 100%
+1. "Ses" sekmesine gidin
+2. Aşağıdakileri ayarlayın:
+   - **Konuşma Hızı**: 0.5x – 2.0x
+   - **Ses Tonu**: Düşük – Yüksek
+   - **Ses Seviyesi**: %10 – %100
 
-### Content Settings
+### İçerik Ayarları
 
-1. Go to the "İçerik" (Content) tab
-2. Configure:
-   - **Masal Uzunluğu** (Story Length): Short (1-2 min), Medium (3-5 min), Long (5-8 min)
-   - **Özel Prompt** (Custom Prompt): Customize the story generation prompt
+1. "İçerik" sekmesine gidin
+2. Şunları yapılandırın:
+   - **Masal Uzunluğu**: Kısa (1–2 dk), Orta (3–5 dk), Uzun (5–8 dk)
+   - **Özel Prompt**: Masal üretim yönergesi
 
-## 📖 How to Use
+## 📖 Kullanım
 
-1. **Open the Application**: Visit http://localhost:3000
-2. **Configure Settings**: Click "Ayarlar" and set up your LLM and TTS API credentials
-3. **Generate Story**: Click "Yeni Masal Oluştur" to create a new bedtime story
-4. **Convert to Audio**: Click "Seslendir" to convert the story to speech
-5. **Play Audio**: Use the audio player controls to play, pause, or stop the story
+1. **Uygulamayı açın**: <http://localhost:5173> (dev) veya <http://localhost:4173> (preview). Prod'da backend `dist` klasörünü servis eder.
+2. **Ayarlar**: "Ayarlar" bölümünden model/voice/parametreleri seçin. API anahtarlarını UI’ya değil `backend/.env` dosyasına ekleyin.
+3. **Masal Üret**: "Yeni Masal Oluştur" ile masal üretin.
+4. **Seslendir**: "Seslendir" ile TTS çalıştırın.
+5. **Çal**: Oynatıcıdan oynat/duraklat/durdur.
 
-## 🔧 Supported API Providers
+## 🎯 Desteklenen Sağlayıcılar
 
-### LLM Providers
-- **OpenAI**: GPT-4.1-Mini
-- **Custom APIs**: Any OpenAI-compatible API
+### LLM
 
-### TTS Providers
-- **ElevenLabs**: Premium AI voices with emotion
-- **Custom APIs**: Any compatible TTS service
+- **OpenAI** ve OpenAI uyumlu API’ler
 
-## 🎨 Customization
+### TTS
 
-### Story Prompts
-The app includes several example prompts you can use:
+- **ElevenLabs** ve uyumlu TTS servisleri
+
+## 🎨 Özelleştirme
+
+### Örnek Prompts
+
 - "Türk kültürüne uygun, eğitici değerler içeren masallar"
 - "Hayvanlar ve doğa temalı, çevre bilinci kazandıran hikayeler"
 - "Arkadaşlık, paylaşım ve yardımlaşma değerlerini öğreten masallar"
 - "Fantastik öğeler içeren, hayal gücünü geliştiren hikayeler"
 
-### Voice Options
-- **ElevenLabs**: Premium AI voices
+### Ses Seçenekleri
 
-## 🔒 Privacy & Security
+- **ElevenLabs**: Premium AI sesleri
 
-- All API keys are stored locally in your browser
-- No data is sent to our servers
-- Stories and audio are processed through your configured APIs
-- Settings are saved in browser localStorage
+## 🔒 Gizlilik & Güvenlik
 
-## 🛠️ Technical Details
+- API anahtarları yalnızca `backend/.env` içinde saklanır; frontend’de asla tutulmaz
+- Tüm LLM/TTS çağrıları backend proxy üzerinden yapılır
+- Hatalarda metin modu ve kullanıcı dostu mesajlarla zarif düşüş uygulanır
+- Ayarlar tarayıcı localStorage’da saklanır; masallar ve sesler backend veritabanı/dosyalarında tutulur
 
-### Built With
-- **React 18**: Modern React with hooks
-- **Vite**: Fast build tool and dev server
-- **Tailwind CSS**: Utility-first CSS framework
-- **Shadcn/UI**: Beautiful UI components
-- **Lucide Icons**: Modern icon library
+## 🛠️ Teknik Bilgiler
 
-### Architecture
-- **Frontend**: React SPA with responsive design
-- **Services**: Modular LLM and TTS service classes
-- **State Management**: React hooks and local state
-- **Storage**: Browser localStorage for settings
-- **Audio**: HTML5 Audio API with custom controls
+### Kullanılan Teknolojiler
 
-### Browser Compatibility
-- Chrome 90+
-- Firefox 88+
-- Safari 14+
-- Edge 90+
+- **React 19**
+- **React Router 7**
+- **Vite 6**
+- **Tailwind CSS 4**
+- **Radix UI** ve **Lucide Icons**
 
-## 🚀 Development
+### Mimari
 
-### Local Setup
+- **Frontend**: React SPA
+- **Backend**: Express + SQLite (WAL), statik `dist` servisi ve proxy uçları
+- **Hibrit Veri**: Ayarlar localStorage, masallar + sesler veritabanı/dosyada
+- **Servisler**: LLM/TTS istekleri backend proxy üzerinden
+
+### Tarayıcı Uyumluluğu
+
+- Modern tarayıcılar (Vite varsayılanları)
+
+## 🚀 Geliştirme
+
+### Yerel Kurulum
+
 ```bash
-# Clone the repository
+# Depoyu klonla
 git clone <repository-url>
 cd bedtime-stories-app
 
-# Install dependencies
+# Bağımlılıkları yükle
 npm install
 
-# Start development server
+# Geliştirme
 npm run dev
 
-# Build for production
+# Prod derleme
 npm run build
 ```
 
-### Project Structure
-```
+### Proje Yapısı
+
+```text
 src/
 ├── components/
-│   ├── ui/           # Reusable UI components
-│   └── Settings.jsx  # Settings panel component
+│   ├── ui/
+│   └── Settings.jsx
 ├── services/
-│   ├── llmService.js # LLM integration service
-│   └── ttsService.js # TTS integration service
-├── App.jsx          # Main application component
-├── App.css          # Global styles
-└── main.jsx         # Application entry point
+│   ├── llmService.js
+│   └── ttsService.js
+├── App.jsx
+├── App.css
+└── main.jsx
 ```
 
-## 📝 API Integration Examples
+## 📝 API Kullanımı
 
-### OpenAI LLM
-```
-import OpenAI from "openai";
+Tüm LLM ve TTS çağrıları frontend’den doğrudan 3. taraf API’lara yapılmaz. Backend proxy uçları kullanılır:
 
-const openai = new OpenAI();
+- LLM: POST `/api/llm`
+- TTS: POST `/api/tts`
 
-async function main() {
-  const completion = await openai.chat.completions.create({
-    messages: [{ role: "developer", content: "You are a helpful assistant." }],
-    model: "gpt-4.1-mini",
-    store: true,
-  });
+Bu yaklaşım API anahtarlarını korur. Geliştirme ortamında Vite proxy ile `/api` ve `/audio` istekleri backend'e yönlendirilir; üretimde aynı-origin çalışır.
 
-  console.log(completion.choices[0]);
-}
+## 🎯 Gelecek Geliştirmeler
 
-main();
+- Tema ve kategori desteği
+- Karakter özelleştirme
+- Masal geçmişi ve favoriler
+- Önbellekli çevrimdışı mod
+- Çoklu dil desteği
+- Ebeveyn paneli
+- Uyku zamanlayıcısı
+- Arka plan müziği seçenekleri
 
-```
+## 📞 Destek
 
-### ElevenLabs TTS
-```
-// Create speech (POST /v1/text-to-speech/:voice_id)
-const response = await fetch("https://api.elevenlabs.io/v1/text-to-speech/xsGHrtxT5AdDzYXTQT0d?output_format=mp3_44100_128", {
-  method: "POST",
-  headers: {
-    "xi-api-key": "sk-your-api-key",
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({
-    "text": "Sevgi katılarak tatlı rüyalar için yapıldı.",
-    "model_id": "eleven_turbo_v2_5",
-    "language_code": "tr",
-    "voice_settings": {
-      "stability": 0.75,
-      "use_speaker_boost": false,
-      "similarity_boost": 0.75,
-      "style": 0,
-      "speed": 0.9
-    }
-  }),
-});
+Teknik destek veya istekler için uygulama içi ayar ekranındaki yönergeleri izleyin. Uygulama, ayrıntılı hata mesajları ve zarif düşüşlerle sorunsuz deneyim sağlar.
 
-const body = await response.json();
-console.log(body);
-```
+## 📄 Lisans
 
-## 🎯 Future Enhancements
-
-- Story themes and categories
-- Character customization
-- Story history and favorites
-- Offline mode with cached stories
-- Multiple language support
-- Parent dashboard
-- Sleep timer functionality
-- Background music options
-
-## 📞 Support
-
-For technical support or feature requests, please refer to the application settings panel for configuration guidance. The app includes comprehensive error messages and fallback functionality to ensure a smooth user experience.
-
-## 📄 License
-
-This project is created for personal use. Please ensure you comply with the terms of service of any third-party APIs you configure.
+Bu proje kişisel kullanım içindir. Entegre ettiğiniz üçüncü taraf API’lerin kullanım şartlarına uyduğunuzdan emin olun.
 
 ---
 
-**Made with ❤️ for sweet dreams and beautiful stories**
-
+Tatlı rüyalar ve güzel masallar için ❤️ ile yapıldı.

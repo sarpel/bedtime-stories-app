@@ -1,6 +1,7 @@
 import { getStoryTypePrompt } from '@/utils/storyTypes.js'
 import { config } from './configService.js'
 import { storyCache } from '@/utils/cache.js'
+import { logger } from '@/utils/logger.js'
 
 // LLM Service for story generation
 export class LLMService {
@@ -21,15 +22,15 @@ export class LLMService {
 
     // Kullanıcı ayarları
     this.customPrompt = settings.customPrompt
-  this.customInstructions = settings.customInstructions || ''
+    this.customInstructions = settings.customInstructions || ''
     this.storyLength = settings.storyLength
-  this.temperature = settings.llmSettings?.temperature ?? 0.9
-  // Yanıtların kısalmaması için maxTokens sabit 5000
-  this.maxTokens = 5000
+    this.temperature = settings.llmSettings?.temperature ?? 0.9
+    // Yanıtların kısalmaması için maxTokens sabit 5000
+    this.maxTokens = 5000
 
     // Debug: init logs (kimlik bilgisi ve tam prompt loglama yok)
     try {
-      console.log('[LLMService:init]', {
+      logger.debug('LLM Service initialized', 'LLMService', {
         provider: this.provider,
         modelId: this.modelId,
         endpoint: (this.endpoint || '').toString(),
@@ -43,9 +44,7 @@ export class LLMService {
       })
     } catch (initErr) {
       // Init logging failed; safe to ignore in production
-      if (typeof console !== 'undefined') {
-        console.debug?.('[LLMService:initLogError]', initErr?.message)
-      }
+      logger.debug('LLM Service init log error', 'LLMService', { error: initErr?.message })
     }
   }
 
@@ -73,7 +72,7 @@ export class LLMService {
       }
     }
 
-  const extraInstructions = (this.customInstructions?.trim())
+    const extraInstructions = (this.customInstructions?.trim())
       ? `\n\nEk talimatlar:\n${this.customInstructions.trim()}`
       : ''
 
@@ -116,25 +115,25 @@ export class LLMService {
       const prompt = this.buildPrompt(storyType, customTopic)
       onProgress?.(30)
 
-    // İstek backend proxy'imize yönlendirilir (config.backend.url)
-    const url = `${config.backend.url}/api/llm`
-    const payload = {
-      provider: this.provider,
-      modelId: this.modelId,
-      prompt: prompt,
-      max_tokens: this.getMaxTokens(),
-      temperature: this.temperature
-    }
-    console.log('[LLMService:request:start]', {
-      url,
-      provider: this.provider,
-      modelId: this.modelId,
-      promptLen: prompt.length,
-      max_tokens: payload.max_tokens,
-      temperature: payload.temperature
-    })
-    const t0 = Date.now()
-  const response = await fetch(url, {
+      // İstek backend proxy'imize yönlendirilir (aynı origin, dev'de Vite proxy)
+      const url = `/api/llm`
+      const payload = {
+        provider: this.provider,
+        modelId: this.modelId,
+        prompt: prompt,
+        max_tokens: this.getMaxTokens(),
+        temperature: this.temperature
+      }
+      console.log('[LLMService:request:start]', {
+        url,
+        provider: this.provider,
+        modelId: this.modelId,
+        promptLen: prompt.length,
+        max_tokens: payload.max_tokens,
+        temperature: payload.temperature
+      })
+      const t0 = Date.now()
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -146,7 +145,7 @@ export class LLMService {
       onProgress?.(70)
 
       if (!response.ok) {
-  const errorData = await response.json().catch(() => ({ error: 'non-json-response' }))
+        const errorData = await response.json().catch(() => ({ error: 'non-json-response' }))
         console.error('[LLMService:request:error]', {
           status: response.status,
           statusText: response.statusText,
@@ -186,7 +185,7 @@ export class LLMService {
       return story
 
     } catch (error) {
-  console.error('[LLMService:error]', { message: error.message })
+      console.error('[LLMService:error]', { message: error.message })
       throw error
     }
   }
@@ -311,7 +310,7 @@ Ayşe o geceden sonra her gece bu sihirli kutuyu açar, tüm dünyaya sevgi ve m
 
 İyi geceler, tatlı rüyalar...`,
 
-  `Bir zamanlar, büyülü bir ormanda, Elif adında küçük bir kız yaşarmış. Elif, hayvanlarla konuşabilen özel bir yeteneği olan çok nazik bir çocukmuş.
+      `Bir zamanlar, büyülü bir ormanda, Elif adında küçük bir kız yaşarmış. Elif, hayvanlarla konuşabilen özel bir yeteneği olan çok nazik bir çocukmuş.
 
 Bir gün, ormandaki tüm hayvanlar üzgün görünüyormuş. Elif onlara ne olduğunu sormuş. Tavşan şöyle demiş: "Ormanımızın sihirli çiçeği kayboldu. Bu çiçek olmadan ormanda huzur olmaz."
 
@@ -329,7 +328,7 @@ O günden sonra Elif, sevginin her şeyi iyileştirebileceğini öğrenmiş. Sen
 
     // Basit tohumlama: storyType/customTopic metnini kullanarak deterministik/dağıtık seçim
     const hash = Array.from(String(seed)).reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) % 9973, 7);
-  const idx = (hash + Math.floor(Math.random() * 1000)) % fallbackStories.length;
+    const idx = (hash + Math.floor(Math.random() * 1000)) % fallbackStories.length;
     return fallbackStories[idx]
   }
 }
