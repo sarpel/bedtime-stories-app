@@ -272,25 +272,6 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                           <span>Yaratıcı</span>
                         </div>
                       </div>
-
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-xs">Kelime Sayısı</Label>
-                          <Badge variant="outline" className="text-xs h-4 px-1">{localSettings.llmSettings?.maxTokens || 5000}</Badge>
-                        </div>
-                        <Slider
-                          value={[localSettings.llmSettings?.maxTokens || 5000]}
-                          onValueChange={(value) => updateSetting('llmSettings.maxTokens', value[0])}
-                          min={1000}
-                          max={5000}
-                          step={250}
-                          className="w-full h-1"
-                        />
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Kısa</span>
-                          <span>Uzun</span>
-                        </div>
-                      </div>
                     </div>
                   </Card>
                 </div>
