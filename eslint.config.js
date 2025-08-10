@@ -4,9 +4,9 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 
 export default [
-  { ignores: ['dist'] },
+  { ignores: ['dist', 'coverage', 'backend/**', 'backend/coverage', 'backend/coverage/**'] },
   {
-    files: ['**/*.{js,jsx}', '!backend/**'],
+    files: ['src/**/*.{js,jsx}', '*.js', 'scripts/**/*.js'],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
@@ -26,7 +26,17 @@ export default [
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
       'react-refresh/only-export-components': [
         'warn',
-        { allowConstantExport: true },
+        {
+          allowConstantExport: true,
+          // Bu dosyalarda bileşenler yanında paylaşılan sabitler/kancalar
+          // da dışa aktarılıyor. Hızlı yenileme için güvenli istisnalar.
+          allowExportNames: [
+            'badgeVariants',
+            'buttonVariants',
+            'toggleVariants',
+            'useSidebar',
+          ],
+        },
       ],
     },
   },

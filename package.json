@@ -6,22 +6,15 @@
   "scripts": {
     "postinstall": "cd backend && npm install",
     "dev": "concurrently \"vite\" \"cd backend && npm run dev\"",
-    "build": "vite build",
-    "build:production": "vite build --mode production",
+    "build": "vite build --mode production",
     "serve": "vite preview",
-    "start": "npm run build:production && concurrently \"npm run start:backend\" \"npm run serve\"",
+    "start": "npm run build && concurrently \"npm run start:backend\" \"npm run serve\"",
     "start:backend": "cd backend && npm run start",
-    "start:frontend": "npm run serve",
     "lint": "concurrently \"eslint .\" \"cd backend && npm run lint\"",
     "lint:fix": "concurrently \"eslint . --fix\" \"cd backend && npm run lint:fix\"",
-    "preview": "vite preview",
     "test": "npm run test:frontend && npm run test:backend",
     "test:frontend": "vitest run",
-    "test:backend": "cd backend && npm test",
-    "security:audit": "npm audit && cd backend && npm audit",
-    "security:fix": "npm audit fix && cd backend && npm audit fix",
-    "deploy:production": "npm run security:audit && npm run lint && npm run test && npm run build:production",
-    "health:check": "curl -f http://localhost:3001/health || exit 1"
+    "test:backend": "cd backend && npm test"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -41,6 +34,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.510.0",
+    "prop-types": "^15.8.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.7.1",

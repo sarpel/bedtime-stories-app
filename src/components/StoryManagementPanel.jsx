@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
+import PropTypes from 'prop-types';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
-import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { X, Search, Edit, Trash2, BookOpen, Heart, Calendar, Volume2 } from 'lucide-react';
 import { getStoryTypeLabel } from '../utils/storyTypes';
 import { getStoryTitle } from '@/utils/titleGenerator.js';
@@ -250,35 +249,15 @@ const StoryManagementPanel = ({
                           </DialogContent>
                         </Dialog>
 
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive h-5 w-5 p-0"
-                              title="Sil"
-                            >
-                              <Trash2 className="h-2 w-2" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Masalı Sil</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Bu masalı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>İptal</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => onDeleteStory?.(story.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Sil
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive h-5 w-5 p-0"
+                          title="Sil"
+                          onClick={() => onDeleteStory?.(story.id)}
+                        >
+                          <Trash2 className="h-2 w-2" />
+                        </Button>
                       </div>
                     </div>
 
@@ -307,3 +286,43 @@ const StoryManagementPanel = ({
 };
 
 export default StoryManagementPanel;
+
+StoryManagementPanel.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  history: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+      story_text: PropTypes.string,
+      story: PropTypes.string,
+      story_type: PropTypes.string,
+      storyType: PropTypes.string,
+      custom_topic: PropTypes.string,
+      customTopic: PropTypes.string,
+      created_at: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.instanceOf(Date)]),
+      createdAt: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.instanceOf(Date)]),
+      audio: PropTypes.shape({ file_name: PropTypes.string })
+    })
+  ),
+  onDeleteStory: PropTypes.func,
+  onUpdateStory: PropTypes.func,
+  onToggleFavorite: PropTypes.func,
+  isFavorite: PropTypes.func,
+  onGenerateAudio: PropTypes.func,
+  isGeneratingAudio: PropTypes.bool,
+  audioIsPlaying: PropTypes.bool,
+  audioIsPaused: PropTypes.bool,
+  audioProgress: PropTypes.number,
+  audioDuration: PropTypes.number,
+  audioVolume: PropTypes.number,
+  audioIsMuted: PropTypes.bool,
+  audioPlaybackRate: PropTypes.number,
+  audioCurrentStoryId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  playAudio: PropTypes.func,
+  stopAudio: PropTypes.func,
+  audioToggleMute: PropTypes.func,
+  setVolumeLevel: PropTypes.func,
+  setPlaybackSpeed: PropTypes.func,
+  seekTo: PropTypes.func,
+  getDbAudioUrl: PropTypes.func
+};

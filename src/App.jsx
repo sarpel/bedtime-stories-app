@@ -1,15 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button.jsx'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Textarea } from '@/components/ui/textarea.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
-import { Progress } from '@/components/ui/progress.jsx'
-import { Moon, Settings, Sparkles, Heart, AlertCircle, Volume2, BookOpen, X, BarChart3, Zap } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card.jsx'
+import { Moon, Settings, Heart, AlertCircle, BookOpen, BarChart3, Zap } from 'lucide-react'
 import SettingsPanel from './components/Settings.jsx'
 import StoryCreator from './components/StoryCreator.jsx'
 import FavoritesPanel from './components/FavoritesPanel.jsx'
 import StoryManagementPanel from './components/StoryManagementPanel.jsx'
-import AudioControls from './components/AudioControls.jsx'
 import AnalyticsDashboard from './components/AnalyticsDashboard.jsx'
 import PerformanceMonitor from './components/PerformanceMonitor.jsx'
 import StoryQueuePanel from './components/StoryQueuePanel.jsx'
@@ -53,15 +49,26 @@ function App() {
   const [settings, setSettings] = useState(() => {
     // localStorage'dan ayarları güvenli şekilde yükle
     const savedSettings = safeLocalStorage.get('bedtime-stories-settings')
+    const defaults = getDefaultSettings()
     if (savedSettings) {
       try {
-        return { ...getDefaultSettings(), ...savedSettings }
+        // Derin birleştirme: iç içe objelerde varsayılanları koru
+        return {
+          ...defaults,
+          ...savedSettings,
+          openaiLLM: { ...defaults.openaiLLM, ...(savedSettings.openaiLLM || {}) },
+          geminiLLM: { ...defaults.geminiLLM, ...(savedSettings.geminiLLM || {}) },
+          elevenlabs: { ...defaults.elevenlabs, ...(savedSettings.elevenlabs || {}) },
+          geminiTTS: { ...defaults.geminiTTS, ...(savedSettings.geminiTTS || {}) },
+          llmSettings: { ...defaults.llmSettings, ...(savedSettings.llmSettings || {}) },
+          voiceSettings: { ...defaults.voiceSettings, ...(savedSettings.voiceSettings || {}) }
+        }
       } catch (error) {
         console.error('Ayarlar yüklenirken hata:', error)
-        return getDefaultSettings()
+        return defaults
       }
     }
-    return getDefaultSettings()
+    return defaults
   })
 
   // Ayarları localStorage'a kaydet
@@ -118,7 +125,7 @@ function App() {
       const result = await toggleFavorite(storyData)
 
       // Analytics: Track favorite action
-      if (result && result.action && storyData.story) {
+      if (result?.action && storyData.story) {
         const storyId = storyData.id || currentStoryId
         analyticsService.trackFavoriteAction(storyId, result.action)
       }
@@ -152,8 +159,7 @@ function App() {
     setVolumeLevel,
     setPlaybackSpeed,
     seekTo,
-    setOnEnded,
-    audioRef: globalAudioRef
+    setOnEnded
   } = useAudioPlayer()
 
   // Advanced Audio Features kaldırıldı - çalışmayan download/bookmark özellikleri
@@ -232,6 +238,10 @@ function App() {
       return
     }
 
+    console.log('[App] generateStory:start', {
+      selectedStoryType,
+      customTopicLen: customTopic.length
+    })
     setIsGenerating(true)
     setStory('')
     setProgress(0)
@@ -241,41 +251,52 @@ function App() {
 
     try {
       const llmService = new LLMService(settings)
+      console.log('[App] LLMService:created')
 
       // Eğer customTopic varsa onu kullan, yoksa selectedStoryType kullan
       const storyTypeToUse = customTopic.trim() ? 'custom' : selectedStoryType
       const topicToUse = customTopic.trim() || ''
+      console.log('[App] request:prepared', { storyTypeToUse, topicToUseLen: topicToUse.length })
 
       let story = await llmService.generateStory((progressValue) => {
         setProgress(progressValue)
+        console.log('[App] progress:', progressValue)
       }, storyTypeToUse, topicToUse)
+      console.log('[App] response:received', { length: story?.length || 0 })
 
       // LLM bazen boş/kısa yanıt döndürebilir; kullanıcı deneyimini korumak için fallback üret
       if (!story || (typeof story === 'string' && story.trim().length < 300)) {
         console.warn('LLM kısa/boş yanıt döndürdü, fallback masal üretilecek.')
+        console.log('[App] fallback:triggered', { length: story?.length || 0 })
         try {
           story = llmService.generateFallbackStory()
+          console.log('[App] fallback:generated', { length: story?.length || 0 })
         } catch {
           // generateFallbackStory başarısız olursa minimum metin kullan
           story = 'Bir zamanlar, çok uzak diyarlarda, iyi kalpli bir çocuk yaşarmış. Her gece yıldızlara bakar ve güzel rüyalar görürmüş. İyi geceler, tatlı rüyalar.'
+          console.log('[App] fallback:mintext')
         }
       }
 
       setStory(story)
+      console.log('[App] story:set', { length: story?.length || 0 })
 
       // Analytics: Track successful story generation
       const duration = Date.now() - startTime
       analyticsService.trackStoryGeneration(storyTypeToUse, topicToUse, true, duration)
+      console.log('[App] analytics:storyGeneration:success', { duration })
 
       // Veritabanına kaydet
       try {
         const dbStory = await createDbStory(story, storyTypeToUse, topicToUse)
         setCurrentStoryId(dbStory.id)
         console.log('Masal veritabanına kaydedildi:', dbStory.id)
+        console.log('[App] db:createStory:success', { id: dbStory.id })
 
         // Yeni story eklenmesi favorileri etkilemez, gereksiz refresh yok
       } catch (dbError) {
         console.error('Veritabanına kaydetme hatası:', dbError)
+        console.log('[App] db:createStory:error', { message: dbError?.message })
 
         // Fallback olarak localStorage kullan
         const id = addToHistory({
@@ -284,10 +305,12 @@ function App() {
           customTopic: topicToUse
         })
         setCurrentStoryId(id)
+        console.log('[App] history:add', { id })
       }
 
     } catch (error) {
       console.error('Story generation failed:', error)
+      console.log('[App] generateStory:error', { message: error?.message })
 
       // Analytics: Track failed story generation
       const duration = Date.now() - startTime
@@ -314,12 +337,15 @@ function App() {
         const llmService = new LLMService(settings)
         const fallbackStory = llmService.generateFallbackStory()
         setStory(fallbackStory)
+        console.log('[App] error:fallback:generated', { length: fallbackStory?.length || 0 })
       } catch {
         setStory('')
+        console.log('[App] error:fallback:failed')
       }
     } finally {
       setIsGenerating(false)
       setProgress(0)
+      console.log('[App] generateStory:end', { totalMs: Date.now() - startTime })
     }
   }
 
@@ -785,10 +811,9 @@ function App() {
       </footer>
 
       {/* Hidden Audio Element */}
-      <audio ref={globalAudioRef} className="hidden" />
+      {/* useAudioPlayer kendi Audio nesnesini yönettiği için ekstra <audio> elemanı gerekmiyor */}
     </div>
   )
 }
 
 export default App
-

@@ -11,7 +11,7 @@ export function useAudioPlayer() {
   const [isMuted, setIsMuted] = useState(false)
   const [playbackRate, setPlaybackRate] = useState(1.0)
   const [currentStoryId, setCurrentStoryId] = useState(null)
-  
+
   const audioRef = useRef(null)
   const onEndedRef = useRef(null)
 
@@ -43,7 +43,7 @@ export function useAudioPlayer() {
       if (currentStoryId) {
         analyticsService.trackAudioPlayback(currentStoryId, 'complete', audio.currentTime)
       }
-      
+
       setIsPlaying(false)
       setIsPaused(false)
       setProgress(0)
@@ -64,7 +64,7 @@ export function useAudioPlayer() {
       if (currentStoryId) {
         analyticsService.trackAudioPlayback(currentStoryId, 'play', audio.currentTime)
       }
-      
+
       setIsPlaying(true)
       setIsPaused(false)
     }
@@ -74,7 +74,7 @@ export function useAudioPlayer() {
       if (currentStoryId) {
         analyticsService.trackAudioPlayback(currentStoryId, 'pause', audio.currentTime)
       }
-      
+
       setIsPlaying(false)
       setIsPaused(true)
     }
@@ -137,10 +137,9 @@ export function useAudioPlayer() {
         return
       }
 
-      // Farklı bir ses çalacaksa, önce durdur
-      if (isPlaying) {
+      // Farklı bir ses çalacaksa, önce çalanı duraklat (sıfırlama yok)
+      if (isPlaying || isPaused) {
         audio.pause()
-        audio.currentTime = 0
       }
 
       // Yeni ses dosyasını yükle
@@ -148,7 +147,9 @@ export function useAudioPlayer() {
       setCurrentStoryId(storyId)
       audio.src = audioUrl
       audio.volume = isMuted ? 0 : volume
-      
+      // Önceki bir duraklatmadan dönülürken aynı kaynaksa kaldığı yerden devam edecek;
+      // farklı kaynak yüklendiğinde tarayıcı currentTime'ı zaten 0'a alır.
+
       audio.play().catch(error => {
         console.error('Audio play error:', error)
         setIsPlaying(false)
@@ -193,10 +194,14 @@ export function useAudioPlayer() {
   }
 
   const seekTo = (percentage) => {
-    if (audioRef.current && duration) {
-      const newTime = (percentage / 100) * duration
-      audioRef.current.currentTime = newTime
-    }
+    if (!audioRef.current) return
+    const audio = audioRef.current
+    const dur = audio.duration || duration
+    if (!dur || Number.isNaN(dur)) return
+    const newTime = Math.max(0, Math.min(dur, (percentage / 100) * dur))
+    audio.currentTime = newTime
+    // Seeker hareketinde progress anında güncellensin
+    setProgress((newTime / dur) * 100)
   }
 
   const setOnEnded = (callback) => {
@@ -213,7 +218,7 @@ export function useAudioPlayer() {
     isMuted,
     playbackRate,
     currentStoryId,
-    
+
     // Controls
     playAudio,
     pauseAudio,
@@ -223,7 +228,7 @@ export function useAudioPlayer() {
     setPlaybackSpeed,
     seekTo,
   setOnEnded,
-    
+
     // Ref
     audioRef
   }

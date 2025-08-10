@@ -7,11 +7,8 @@ require('dotenv').config({
 
 // Gerekli paketleri import et
 const express = require('express');
-const compression = require('compression');
 const axios = require('axios');
 const cors = require('cors');
-const rateLimit = require('express-rate-limit');
-const helmet = require('helmet');
 const Joi = require('joi');
 const pino = require('pino');
 const expressPino = require('express-pino-logger');
@@ -36,14 +33,7 @@ const logger = pino({
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
 
-// Local network için basitleştirilmiş security middleware
-// RPi Zero 2W local network'te çalıştığı için minimal security
-app.use(helmet({
-  contentSecurityPolicy: false, // Local network'te disable
-  crossOriginEmbedderPolicy: false, // Local network'te disable
-  // CORP'u helmet üzerinden tamamen kapatıp, /audio için manuel ayarlayacağız
-  crossOriginResourcePolicy: false
-}));
+// Güvenlik başlıkları ve karmaşık kalkanlar kaldırıldı (kişisel/lokal kullanım)
 
 // Request logging
 app.use(expressPino({ logger }));
@@ -51,51 +41,13 @@ app.use(expressPino({ logger }));
 // Veritabanı modülü
 const storyDb = require('./database/db');
 
-// Enable gzip compression for better performance
-app.use(compression({
-  level: process.env.COMPRESSION_LEVEL ? parseInt(process.env.COMPRESSION_LEVEL) : 6,
-  threshold: 1024,
-  filter: (req, res) => {
-    if (req.headers['x-no-compression'] || req.url.includes('/audio/')) {
-      return false
-    }
-    return compression.filter(req, res)
-  }
-}));
+// Gzip/sıkıştırma kaldırıldı: paketler doğrudan iletilir
 
-// Local network için yumuşak rate limiting (RPi Zero 2W)
-// Genel rate limit kaldırıldı; sadece gerekli endpoint'lerde sınırlama uygulanır
-
-// Veritabanı işlemleri için gevşek rate limit
-const dbLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 100, // Yüksek limit
-  message: { error: 'Çok fazla veritabanı isteği. Lütfen biraz bekleyin.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-// LLM API istekleri için makul rate limit
-const llmLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 20, // Makul limit - çok masal istenmesini engeller
-  message: { error: 'Çok fazla masal oluşturma isteği. Lütfen 1 dakika bekleyin.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-// TTS API istekleri için gevşek rate limit
-const ttsLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 15, // Makul limit - ses dosyası üretimi için
-  message: { error: 'Çok fazla ses üretme isteği. Lütfen biraz bekleyin.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+// Rate limiting kaldırıldı: istekler doğrudan aktarılır
 
 // Local network CORS konfigürasyonu (RPi Zero 2W için)
 // Local network'te çalıştığı için basit ve permissive CORS
-app.use(cors({ 
+app.use(cors({
   origin: true, // Tüm origin'lere izin ver (local network)
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -169,8 +121,8 @@ app.get('/health', async (req, res) => {
     res.status(statusCode).json(healthStatus);
   } catch (error) {
     logger.error({ error: error.message }, 'Health check failed');
-    res.status(500).json({ 
-      status: 'unhealthy', 
+    res.status(500).json({
+      status: 'unhealthy',
       error: error.message,
       timestamp: new Date().toISOString()
     });
@@ -192,7 +144,7 @@ try {
         }
       }
     }));
-    
+
     // Catch-all handler for SPA routing (only for non-API routes)
     app.get(/^(?!\/api|\/audio|\/health).*/, (req, res, next) => {
       // Send index.html for all other routes (SPA)
@@ -224,23 +176,23 @@ app.get('/api/shared/:shareId/audio', (req, res) => {
   try {
     const shareId = req.params.shareId;
     const story = storyDb.getStoryByShareId(shareId);
-    
+
     if (!story?.audio) {
       return res.status(404).json({ error: 'Paylaşılan masalın ses dosyası bulunamadı.' });
     }
-    
+
     const audioPath = path.join(__dirname, 'audio', story.audio.file_name);
-    
+
     // Dosyanın var olup olmadığını kontrol et
     if (!fs.existsSync(audioPath)) {
       return res.status(404).json({ error: 'Ses dosyası fiziksel olarak bulunamadı.' });
     }
-    
+
     // Ses dosyasını stream olarak gönder
     res.setHeader('Content-Type', 'audio/mpeg');
     const stream = fs.createReadStream(audioPath);
     stream.pipe(res);
-    
+
   } catch (error) {
     console.error('Paylaşılan ses dosyası servisi hatası:', error);
     res.status(500).json({ error: 'Ses dosyası servis edilirken hata oluştu.' });
@@ -259,9 +211,17 @@ app.get('/api/shared/:shareId/audio', (req, res) => {
 // });
 
 // --- LLM İSTEKLERİ İÇİN ENDPOINT ---
-app.post('/api/llm', llmLimiter, async (req, res) => {
+app.post('/api/llm', async (req, res) => {
+  const tStart = Date.now();
+  try {
+    console.log('[API /api/llm] request:start', {
+      ip: req.ip,
+      headers: { 'content-type': req.headers['content-type'] },
+      bodyKeys: Object.keys(req.body || {})
+    });
+  } catch {}
   // Frontend'den gelen ayarları ve prompt'u al
-  const { provider = 'openai', modelId, prompt, max_tokens, temperature } = req.body;
+  const { provider = 'openai', modelId, prompt, max_tokens, temperature, endpoint: clientEndpoint } = req.body;
 
   // Input validation
   if (!modelId || !prompt) {
@@ -272,17 +232,8 @@ app.post('/api/llm', llmLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Geçerli bir prompt girin.' });
   }
 
-  if (max_tokens && (typeof max_tokens !== 'number' || max_tokens <= 0 || max_tokens > 4000)) {
-    return res.status(400).json({ error: 'max_tokens 1 ile 4000 arasında olmalıdır.' });
-  }
-
-  // Sunucu tarafı allow-list ve endpoint seçimi
-  const LLM_ENDPOINTS = {
-    openai: 'https://api.openai.com/v1/chat/completions',
-    gemini: 'https://generativelanguage.googleapis.com/v1beta/models'
-  };
-  if (!LLM_ENDPOINTS[provider]) {
-    return res.status(400).json({ error: 'Desteklenen LLM provider: openai, gemini' });
+  if (max_tokens && (typeof max_tokens !== 'number' || max_tokens <= 0 || max_tokens > 5000)) {
+    return res.status(400).json({ error: 'max_tokens 1 ile 5000 arasında olmalıdır.' });
   }
 
   // API key'leri yalnızca sunucu ortamından al
@@ -293,13 +244,20 @@ app.post('/api/llm', llmLimiter, async (req, res) => {
   const headers = { 'Content-Type': 'application/json' };
   let body;
 
+  // Endpoint belirleme: Öncelik client'tan gelen endpoint'te
+  if (clientEndpoint && typeof clientEndpoint === 'string') {
+    endpoint = clientEndpoint;
+  }
+
   if (provider === 'openai') {
     if (!OPENAI_API_KEY) {
       return res.status(500).json({ error: 'OpenAI API anahtarı sunucuda tanımlı değil.' });
     }
-    endpoint = LLM_ENDPOINTS.openai;
+    if (!endpoint) {
+      endpoint = 'https://api.openai.com/v1/chat/completions';
+    }
     headers.Authorization = `Bearer ${OPENAI_API_KEY}`;
-    // OpenAI Chat Completions formatı
+  // OpenAI Chat Completions formatı
     body = {
       model: modelId,
       messages: [
@@ -318,11 +276,22 @@ app.post('/api/llm', llmLimiter, async (req, res) => {
         body.max_tokens = max_tokens;
       }
     }
+    console.log('[API /api/llm] provider:openai payload', {
+      endpoint,
+      hasAuth: !!headers.Authorization,
+      temperature: body.temperature,
+      max_tokens: body.max_tokens,
+      max_completion_tokens: body.max_completion_tokens,
+      model: body.model,
+      msgCount: body.messages?.length
+    });
   } else if (provider === 'gemini') {
     if (!GEMINI_LLM_API_KEY) {
       return res.status(500).json({ error: 'Gemini API anahtarı sunucuda tanımlı değil.' });
     }
-    endpoint = `${LLM_ENDPOINTS.gemini}/${encodeURIComponent(modelId)}:generateContent?key=${encodeURIComponent(GEMINI_LLM_API_KEY)}`;
+    if (!endpoint) {
+      endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelId)}:generateContent?key=${encodeURIComponent(GEMINI_LLM_API_KEY)}`;
+    }
     // Gemini generateContent formatı
     body = {
       contents: [{ parts: [{ text: prompt }] }],
@@ -331,93 +300,46 @@ app.post('/api/llm', llmLimiter, async (req, res) => {
         maxOutputTokens: max_tokens && Number.isFinite(max_tokens) ? max_tokens : undefined
       }
     };
+    console.log('[API /api/llm] provider:gemini payload', {
+      endpoint,
+      temperature: body.generationConfig.temperature,
+      maxOutputTokens: body.generationConfig.maxOutputTokens,
+      contentsLen: body.contents?.[0]?.parts?.[0]?.text?.length
+    });
+  } else {
+    // Diğer provider'lar için generic JSON format ve client-provided endpoint gerekir
+    if (!endpoint) {
+      return res.status(400).json({ error: 'Bilinmeyen LLM sağlayıcısı için endpoint belirtin.' });
+    }
+    body = {
+      model: modelId,
+      prompt,
+      temperature: Number.isFinite(temperature) ? temperature : 1.0,
+      max_tokens: max_tokens && Number.isFinite(max_tokens) ? max_tokens : undefined
+    };
+    console.log('[API /api/llm] provider:generic payload', {
+      endpoint,
+      temperature: body.temperature,
+      max_tokens: body.max_tokens,
+      promptLen: (prompt || '').length
+    });
   }
 
-  // Yardımcı: response metnini çıkar
-  function extractTextFromLLM(data) {
-    try {
-      if (!data) {
-        return '';
-      }
-      // OpenAI chat
-      if (data.choices?.[0]) {
-        if (data.choices[0].message?.content) {
-          return String(data.choices[0].message.content).trim();
-        }
-        if (data.choices[0].text) {
-          return String(data.choices[0].text).trim();
-        }
-      }
-      // Gemini
-      if (Array.isArray(data.candidates) && data.candidates[0]) {
-        const c = data.candidates[0];
-        if (typeof c.output_text === 'string') {
-          return c.output_text.trim();
-        }
-        const parts = c.content?.parts;
-        if (Array.isArray(parts)) {
-          const j = parts.map(p => (typeof p === 'string' ? p : (p?.text || ''))).join('').trim();
-          if (j) {
-            return j;
-          }
-        }
-      }
-      if (typeof data.text === 'string') {
-        return data.text.trim();
-      }
-      if (typeof data.output === 'string') {
-        return data.output.trim();
-      }
-      if (typeof data.response === 'string') {
-        return data.response.trim();
-      }
-      return '';
-    } catch {
-      return '';
-    }
-  }
+  // Herhangi bir metin manipülasyonu veya yeniden biçimleme yapılmaz
 
   try {
-    // İlk istek
-    let response = await axios.post(endpoint, body, { headers });
-    let data = response.data;
-    let text = extractTextFromLLM(data);
-
-    // Çok kısa ise (ör. < 300 karakter) tek seferlik retry: promptu güçlendir, token limitini artır
-    if (!text || text.replace(/\s+/g, ' ').trim().length < 300) {
-      const strongerPrompt = `${prompt}\n\nLütfen masalı en az 350-600 kelime arasında, 5-8 paragraf halinde yaz. Sadece masal metnini döndür.`;
-      if (provider === 'openai') {
-        body = {
-          ...body,
-          messages: [
-            body.messages[0],
-            { role: 'user', content: strongerPrompt }
-          ]
-        };
-        if (max_tokens) {
-          const maxTokens = max_tokens ?? 600;
-          if (modelId.includes('gpt-5') || modelId.includes('o1') || modelId.includes('o3')) {
-            body.max_completion_tokens = Math.min(maxTokens * 2, 4000);
-          } else {
-            body.max_tokens = Math.min(maxTokens * 2, 4000);
-          }
-        }
-      } else if (provider === 'gemini') {
-        body = {
-          contents: [{ parts: [{ text: strongerPrompt }] }],
-          generationConfig: {
-            temperature: Number.isFinite(temperature) ? temperature : 1.0,
-            maxOutputTokens: Math.min((max_tokens || 600) * 2, 4000)
-          }
-        };
-      }
-      response = await axios.post(endpoint, body, { headers });
-      data = response.data;
-      text = extractTextFromLLM(data);
-    }
-
-    // Hem orijinal response'u koru, hem de normalize edilmiş text alanı ekle
-    res.json({ ...data, text });
+    console.log('[API /api/llm] forwarding:start', { endpoint });
+    const t0 = Date.now();
+    const response = await axios.post(endpoint, body, { headers });
+    const duration = Date.now() - t0;
+    const data = response.data;
+    console.log('[API /api/llm] forwarding:success', {
+      status: response.status,
+      durationMs: duration,
+      keys: Object.keys(data || {}),
+      textLen: typeof data?.text === 'string' ? data.text.length : undefined
+    });
+    res.json(data);
   } catch (error) {
     console.error('LLM API Hatası:', {
       provider,
@@ -434,11 +356,12 @@ app.post('/api/llm', llmLimiter, async (req, res) => {
     }
     res.status(error.response?.status || 500).json({ error: errorMessage });
   }
+  try { console.log('[API /api/llm] request:end', { totalMs: Date.now() - tStart }); } catch {}
 });
 
 // --- QUEUE API ---
 // Kuyruğu getir
-app.get('/api/queue', dbLimiter, (req, res) => {
+app.get('/api/queue', (req, res) => {
   try {
     const ids = storyDb.getQueue();
     res.json({ ids });
@@ -449,7 +372,7 @@ app.get('/api/queue', dbLimiter, (req, res) => {
 });
 
 // Kuyruğu komple sırayla ayarla
-app.put('/api/queue', dbLimiter, (req, res) => {
+app.put('/api/queue', (req, res) => {
   try {
     const { ids } = req.body || {};
     if (!Array.isArray(ids)) {
@@ -464,7 +387,7 @@ app.put('/api/queue', dbLimiter, (req, res) => {
 });
 
 // Kuyruğa ekle (sona)
-app.post('/api/queue/add', dbLimiter, (req, res) => {
+app.post('/api/queue/add', (req, res) => {
   try {
     const { id } = req.body || {};
     const sid = parseInt(id);
@@ -480,7 +403,7 @@ app.post('/api/queue/add', dbLimiter, (req, res) => {
 });
 
 // Kuyruktan çıkar
-app.delete('/api/queue/:id', dbLimiter, (req, res) => {
+app.delete('/api/queue/:id', (req, res) => {
   try {
     const sid = parseInt(req.params.id);
     if (!Number.isFinite(sid) || sid <= 0) {
@@ -498,7 +421,7 @@ app.delete('/api/queue/:id', dbLimiter, (req, res) => {
 // --- VERİTABANI API ENDPOINT'LERİ ---
 
 // Tüm masalları getir
-app.get('/api/stories', dbLimiter, (req, res) => {
+app.get('/api/stories', (req, res) => {
   try {
     const stories = storyDb.getAllStories();
     res.json(stories);
@@ -509,21 +432,21 @@ app.get('/api/stories', dbLimiter, (req, res) => {
 });
 
 // Belirli bir masalı getir
-app.get('/api/stories/:id', dbLimiter, (req, res) => {
+app.get('/api/stories/:id', (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    
+
     // Input validation: ID must be a positive integer
     if (isNaN(id) || id <= 0) {
       return res.status(400).json({ error: 'Geçersiz masal ID\'si.' });
     }
-    
+
     const story = storyDb.getStoryWithAudio(id);
-    
+
     if (!story) {
       return res.status(404).json({ error: 'Masal bulunamadı.' });
     }
-    
+
     res.json(story);
   } catch (error) {
     console.error('Masal getirme hatası:', error);
@@ -532,37 +455,37 @@ app.get('/api/stories/:id', dbLimiter, (req, res) => {
 });
 
 // Yeni masal oluştur
-app.post('/api/stories', dbLimiter, (req, res) => {
+app.post('/api/stories', (req, res) => {
   try {
     console.log('POST /api/stories - Gelen veri:', JSON.stringify(req.body, null, 2));
     const { storyText, storyType, customTopic } = req.body;
-    
+
     // Input validation
     if (!storyText || !storyType) {
       console.log('Validation error - storyText:', typeof storyText, storyText ? 'exists' : 'missing');
       console.log('Validation error - storyType:', typeof storyType, storyType ? 'exists' : 'missing');
       return res.status(400).json({ error: 'Masal metni ve türü gereklidir.' });
     }
-    
+
     if (typeof storyText !== 'string' || storyText.trim().length < 50) {
       return res.status(400).json({ error: 'Masal metni en az 50 karakter olmalıdır.' });
     }
-    
+
     if (storyText.length > 10000) {
       return res.status(400).json({ error: 'Masal metni 10.000 karakterden uzun olamaz.' });
     }
-    
+
     if (typeof storyType !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(storyType)) {
       return res.status(400).json({ error: 'Geçersiz masal türü.' });
     }
-    
+
     if (customTopic && (typeof customTopic !== 'string' || customTopic.length > 200)) {
       return res.status(400).json({ error: 'Özel konu 200 karakterden uzun olamaz.' });
     }
-    
+
     const storyId = storyDb.createStory(storyText.trim(), storyType, customTopic?.trim());
     const story = storyDb.getStory(storyId);
-    
+
     res.status(201).json(story);
   } catch (error) {
     console.error('Masal oluşturma hatası:', error);
@@ -571,44 +494,44 @@ app.post('/api/stories', dbLimiter, (req, res) => {
 });
 
 // Masal güncelle
-app.put('/api/stories/:id', dbLimiter, (req, res) => {
+app.put('/api/stories/:id', (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    
+
     // Input validation: ID must be a positive integer
     if (isNaN(id) || id <= 0) {
       return res.status(400).json({ error: 'Geçersiz masal ID\'si.' });
     }
-    
+
     const { storyText, storyType, customTopic } = req.body;
-    
+
     // Input validation
     if (!storyText || !storyType) {
       return res.status(400).json({ error: 'Masal metni ve türü gereklidir.' });
     }
-    
+
     if (typeof storyText !== 'string' || storyText.trim().length < 50) {
       return res.status(400).json({ error: 'Masal metni en az 50 karakter olmalıdır.' });
     }
-    
+
     if (storyText.length > 10000) {
       return res.status(400).json({ error: 'Masal metni 10.000 karakterden uzun olamaz.' });
     }
-    
+
     if (typeof storyType !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(storyType)) {
       return res.status(400).json({ error: 'Geçersiz masal türü.' });
     }
-    
+
     if (customTopic && (typeof customTopic !== 'string' || customTopic.length > 200)) {
       return res.status(400).json({ error: 'Özel konu 200 karakterden uzun olamaz.' });
     }
-    
+
     const updated = storyDb.updateStory(id, storyText.trim(), storyType, customTopic?.trim());
-    
+
     if (!updated) {
       return res.status(404).json({ error: 'Güncellenecek masal bulunamadı.' });
     }
-    
+
     const story = storyDb.getStory(id);
     res.json(story);
   } catch (error) {
@@ -618,21 +541,21 @@ app.put('/api/stories/:id', dbLimiter, (req, res) => {
 });
 
 // Masal sil
-app.delete('/api/stories/:id', dbLimiter, (req, res) => {
+app.delete('/api/stories/:id', (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    
+
     // Input validation: ID must be a positive integer
     if (isNaN(id) || id <= 0) {
       return res.status(400).json({ error: 'Geçersiz masal ID\'si.' });
     }
-    
+
     const deleted = storyDb.deleteStory(id);
-    
+
     if (!deleted) {
       return res.status(404).json({ error: 'Silinecek masal bulunamadı.' });
     }
-    
+
     res.json({ message: 'Masal başarıyla silindi.' });
   } catch (error) {
     console.error('Masal silme hatası:', error);
@@ -641,29 +564,29 @@ app.delete('/api/stories/:id', dbLimiter, (req, res) => {
 });
 
 // Masalın favori durumunu güncelle (PATCH)
-app.patch('/api/stories/:id/favorite', dbLimiter, (req, res) => {
+app.patch('/api/stories/:id/favorite', (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    
+
     // Input validation: ID must be a positive integer
     if (isNaN(id) || id <= 0) {
       return res.status(400).json({ error: 'Geçersiz masal ID\'si.' });
     }
-    
+
     const { isFavorite, is_favorite } = req.body;
     const favoriteValue = isFavorite !== undefined ? isFavorite : is_favorite;
-    
+
     if (typeof favoriteValue !== 'boolean') {
       return res.status(400).json({ error: 'isFavorite veya is_favorite boolean değer olmalıdır.' });
     }
-    
+
     const updated = storyDb.updateStoryFavorite(id, favoriteValue);
-    
+
     if (!updated) {
       return res.status(404).json({ error: 'Güncellenecek masal bulunamadı.' });
     }
-    
-    res.json({ 
+
+    res.json({
       message: 'Favori durumu başarıyla güncellendi.',
       story: updated
     });
@@ -674,29 +597,29 @@ app.patch('/api/stories/:id/favorite', dbLimiter, (req, res) => {
 });
 
 // Masalın favori durumunu güncelle (PUT - aynı işlevsellik)
-app.put('/api/stories/:id/favorite', dbLimiter, (req, res) => {
+app.put('/api/stories/:id/favorite', (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    
+
     // Input validation: ID must be a positive integer
     if (isNaN(id) || id <= 0) {
       return res.status(400).json({ error: 'Geçersiz masal ID\'si.' });
     }
-    
+
     const { isFavorite, is_favorite } = req.body;
     const favoriteValue = isFavorite !== undefined ? isFavorite : is_favorite;
-    
+
     if (typeof favoriteValue !== 'boolean') {
       return res.status(400).json({ error: 'isFavorite veya is_favorite boolean değer olmalıdır.' });
     }
-    
+
     const updated = storyDb.updateStoryFavorite(id, favoriteValue);
-    
+
     if (!updated) {
       return res.status(404).json({ error: 'Güncellenecek masal bulunamadı.' });
     }
-    
-    res.json({ 
+
+    res.json({
       message: 'Favori durumu başarıyla güncellendi.',
       story: updated
     });
@@ -707,15 +630,15 @@ app.put('/api/stories/:id/favorite', dbLimiter, (req, res) => {
 });
 
 // Belirli türdeki masalları getir
-app.get('/api/stories/type/:storyType', dbLimiter, (req, res) => {
+app.get('/api/stories/type/:storyType', (req, res) => {
   try {
     const storyType = req.params.storyType;
-    
+
     // Input validation: storyType should be alphanumeric
     if (!storyType || typeof storyType !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(storyType)) {
       return res.status(400).json({ error: 'Geçersiz masal türü.' });
     }
-    
+
     const stories = storyDb.getStoriesByType(storyType);
     res.json(stories);
   } catch (error) {
@@ -726,17 +649,15 @@ app.get('/api/stories/type/:storyType', dbLimiter, (req, res) => {
 
 
 // --- TTS İSTEKLERİ İÇİN ENDPOINT (GÜNCELLENMİŞ) ---
-app.post('/api/tts', ttsLimiter, async (req, res) => {
+app.post('/api/tts', async (req, res) => {
   // Frontend'den gelen ayarları ve metni al
-  const { provider, modelId, voiceId, requestBody, storyId } = req.body;
+  const { provider, modelId, voiceId, requestBody, storyId, endpoint: clientEndpoint } = req.body;
 
   // Input validation
   if (!provider || !requestBody) {
     return res.status(400).json({ error: 'Provider ve request body gereklidir.' });
   }
-  if (!['elevenlabs', 'gemini'].includes(provider)) {
-    return res.status(400).json({ error: 'Desteklenen provider: elevenlabs, gemini' });
-  }
+  // Provider kısıtlaması kaldırıldı: generic sağlayıcılar için endpoint gereklidir
 
   // Metin kontrolü
   let textToSpeak;
@@ -744,12 +665,19 @@ app.post('/api/tts', ttsLimiter, async (req, res) => {
     textToSpeak = requestBody.text;
   } else if (provider === 'gemini') {
     textToSpeak = requestBody.contents?.[0]?.parts?.[0]?.text;
+  } else {
+    // Generic TTS: yaygın alan adlarını dene
+    textToSpeak = requestBody.text
+      || requestBody.input
+      || requestBody.ssml
+      || requestBody.contents?.[0]?.parts?.[0]?.text
+      || '';
   }
   if (!textToSpeak || typeof textToSpeak !== 'string' || textToSpeak.trim().length === 0) {
     return res.status(400).json({ error: 'TTS için geçerli bir metin gereklidir.' });
   }
 
-  // Allow-list tabanlı endpoint ve anahtar seçimi
+  // Varsayılan endpointler (override edilebilir)
   const ELEVEN_BASE = 'https://api.elevenlabs.io/v1/text-to-speech';
   const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
   const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
@@ -769,7 +697,7 @@ app.post('/api/tts', ttsLimiter, async (req, res) => {
       }
 
       const audioFormat = 'mp3_44100_128';
-      endpoint = `${ELEVEN_BASE}/${encodeURIComponent(voiceId)}?output_format=${audioFormat}`;
+      endpoint = clientEndpoint || `${ELEVEN_BASE}/${encodeURIComponent(voiceId)}?output_format=${audioFormat}`;
       headers = {
         'xi-api-key': ELEVENLABS_API_KEY,
         'Content-Type': 'application/json'
@@ -787,7 +715,7 @@ app.post('/api/tts', ttsLimiter, async (req, res) => {
         return res.status(400).json({ error: 'Gemini için modelId gereklidir.' });
       }
 
-      endpoint = `${GEMINI_BASE}/${encodeURIComponent(modelId)}:generateContent?key=${encodeURIComponent(GEMINI_TTS_API_KEY)}`;
+      endpoint = clientEndpoint || `${GEMINI_BASE}/${encodeURIComponent(modelId)}:generateContent?key=${encodeURIComponent(GEMINI_TTS_API_KEY)}`;
       headers = { 'Content-Type': 'application/json' };
       response = await axios.post(endpoint, requestBody, { headers });
 
@@ -804,6 +732,15 @@ app.post('/api/tts', ttsLimiter, async (req, res) => {
       } else {
         throw new Error('Gemini API\'den ses verisi alınamadı');
       }
+    } else {
+      // Diğer provider'lar: clientEndpoint zorunlu
+      if (!clientEndpoint) {
+        return res.status(400).json({ error: 'Bilinmeyen TTS sağlayıcısı için endpoint belirtin.' });
+      }
+      endpoint = clientEndpoint;
+      headers = { 'Content-Type': 'application/json' };
+      // Çoğu TTS API binary döndürür, stream destekleyelim
+      response = await axios.post(endpoint, requestBody, { headers, responseType: 'stream' });
     }
 
     // Minimal logging, hassas veri yok
@@ -823,16 +760,16 @@ app.post('/api/tts', ttsLimiter, async (req, res) => {
         response.data.pipe(res);
         return;
       }
-      
+
   try {
         // Security: Use sanitized storyId for filename
         const fileName = `story-${sanitizedStoryId}-${Date.now()}.mp3`;
         const filePath = path.join(storyDb.getAudioDir(), fileName);
-        
+
         // Ses dosyasını kaydet
         const writeStream = fs.createWriteStream(filePath);
         response.data.pipe(writeStream);
-        
+
         writeStream.on('finish', () => {
           console.log('Audio file saved:', filePath);
           // Veritabanına ses dosyası bilgisini kaydet
@@ -844,22 +781,22 @@ app.post('/api/tts', ttsLimiter, async (req, res) => {
             } else if (provider === 'gemini') {
               usedVoiceId = requestBody.generationConfig?.speechConfig?.voiceConfig?.name || 'unknown';
             }
-            
+
             storyDb.saveAudio(sanitizedStoryId, fileName, filePath, usedVoiceId, requestBody);
             console.log('Audio info saved to database for story:', sanitizedStoryId);
           } catch (dbError) {
             console.error('Database save error:', dbError);
           }
         });
-        
+
         writeStream.on('error', (error) => {
           console.error('File write error:', error);
         });
-        
+
         // Aynı zamanda client'a da stream gönder
         res.setHeader('Content-Type', 'audio/mpeg');
         response.data.pipe(res);
-        
+
       } catch (fileError) {
         console.error('File handling error:', fileError);
         // Dosya hatası olsa bile client'a stream gönder
@@ -880,9 +817,9 @@ app.post('/api/tts', ttsLimiter, async (req, res) => {
   data: error.response?.data,
   message: error.message
     });
-    
+
     let errorMessage = `${provider} TTS API'sine istek gönderilirken hata oluştu.`;
-    
+
     if (error.response?.status === 401) {
       errorMessage = `${provider} API anahtarı geçersiz. Lütfen API anahtarını kontrol edin.`;
     } else if (error.response?.status === 400) {
@@ -892,7 +829,7 @@ app.post('/api/tts', ttsLimiter, async (req, res) => {
     } else if (error.response?.data?.error?.message) {
       errorMessage = `${provider} API Hatası: ${error.response.data.error.message}`;
     }
-    
+
     res.status(error.response?.status || 500).json({ error: errorMessage });
   }
 });
@@ -904,18 +841,18 @@ app.post('/api/tts', ttsLimiter, async (req, res) => {
 app.post('/api/stories/:id/share', (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    
+
     // Masalın var olup olmadığını kontrol et
     const story = storyDb.getStory(id);
     if (!story) {
       return res.status(404).json({ error: 'Paylaşılacak masal bulunamadı.' });
     }
-    
+
     const result = storyDb.shareStory(id);
-    
+
     if (result.success) {
       const shareUrl = `${req.protocol}://${req.get('host')}/shared/${result.shareId}`;
-      res.json({ 
+      res.json({
         success: true,
         shareId: result.shareId,
         shareUrl: shareUrl,
@@ -934,11 +871,11 @@ app.post('/api/stories/:id/share', (req, res) => {
 app.delete('/api/stories/:id/share', (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    
+
     const result = storyDb.unshareStory(id);
-    
+
     if (result) {
-      res.json({ 
+      res.json({
         success: true,
         message: 'Masal paylaşımdan kaldırıldı.'
       });
@@ -956,11 +893,11 @@ app.get('/api/shared/:shareId', (req, res) => {
   try {
     const shareId = req.params.shareId;
     const story = storyDb.getStoryByShareId(shareId);
-    
+
     if (!story) {
       return res.status(404).json({ error: 'Paylaşılan masal bulunamadı veya artık mevcut değil.' });
     }
-    
+
     res.json({
       id: story.share_id, // Share ID'yi public ID olarak kullan
       story_text: story.story_text,
@@ -980,7 +917,7 @@ app.get('/api/shared/:shareId', (req, res) => {
 app.get('/api/shared', (req, res) => {
   try {
     const stories = storyDb.getAllSharedStories();
-    
+
     // Sadece gerekli bilgileri döndür (güvenlik için)
     const publicStories = stories.map(story => ({
       id: story.share_id,
@@ -991,7 +928,7 @@ app.get('/api/shared', (req, res) => {
       created_at: story.created_at,
       hasAudio: !!story.audio
     }));
-    
+
     res.json(publicStories);
   } catch (error) {
     console.error('Paylaşılan masalları listeleme hatası:', error);
