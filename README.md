@@ -76,30 +76,30 @@ Signal Path: App → ALSA → I2S → DA7212 → Analog Output
 
 ```bash
 # Download and run the automated installer
-sudo curl -fsSL https://github.com/sarpel/bedtime-stories-app/raw/main/install_pi_zero_host.sh -o install_pi_zero_host.sh
+sudo curl -fsSL https://github.com/sarpel/bedtime-stories-app/raw/main/setup.sh -o setup.sh
 
 # Execute with recommended flags for Pi Zero 2 W
 sudo APP_REPO=https://github.com/sarpel/bedtime-stories-app.git \
      APP_PORT=8080 \
      APP_DIR=/opt/storyapp \
      APP_HOSTNAME=story \
-     bash ./install_pi_zero_host.sh --swap-during-build
+     bash ./setup.sh --swap-during-build
 ```
 
 ### Installation Options
 
 ```bash
 # Dry run (show what would be done)
-sudo bash ./install_pi_zero_host.sh --dry-run
+sudo bash ./setup.sh --dry-run
 
 # Skip audio setup (for headless testing)
-sudo bash ./install_pi_zero_host.sh --no-audio
+sudo bash ./setup.sh --no-audio
 
 # Use pre-built frontend (faster)
-sudo bash ./install_pi_zero_host.sh --no-build
+sudo bash ./setup.sh --no-build
 
 # Full uninstall (keeps data directories)
-sudo bash ./install_pi_zero_host.sh --uninstall
+sudo bash ./setup.sh --uninstall
 ```
 
 ---
@@ -506,7 +506,7 @@ sudo tar -czf /root/storyapp-backup-$(date +%Y%m%d).tar.gz \
 ```bash
 # Deploy new version (automated)
 sudo APP_REPO=https://github.com/sarpel/bedtime-stories-app.git \
-     bash /opt/storyapp/current/install_pi_zero_host.sh
+     bash /opt/storyapp/current/setup.sh
 
 # Manual rollback to previous version
 sudo ls -la /opt/storyapp/releases/
