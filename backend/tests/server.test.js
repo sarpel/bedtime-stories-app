@@ -35,7 +35,9 @@ describe('API endpoints', () => {
   .send({ provider: 'openai', modelId: 'gpt-4o-mini', prompt: 'p', max_tokens: 5 });
       expect(axios.post).toHaveBeenCalled();
       expect(res.status).toBe(200);
-      expect(res.body).toEqual({ ok: true });
+      // Sunucu normalize edilmiş yanıtın yanına text alanı ekler
+      expect(res.body.ok).toBe(true);
+      expect(typeof res.body.text).toBe('string');
     });
   });
 

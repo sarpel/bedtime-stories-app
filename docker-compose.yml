@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  bedtime-stories:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - LOG_LEVEL=warn
+    volumes:
+      - ./backend/database:/app/database
+      - ./backend/audio:/app/audio
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - bedtime-stories-network
+    healthcheck:
+      test: ["CMD", "node", "health-check.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Reverse proxy (nginx)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - bedtime-stories
+    restart: unless-stopped
+    networks:
+      - bedtime-stories-network
+
+networks:
+  bedtime-stories-network:
+    driver: bridge
+
+volumes:
+  database:
+  audio:
+  logs:

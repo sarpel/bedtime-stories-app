@@ -16,11 +16,31 @@ class AudioCodecMonitor {
       audioDevices: [],
       currentVolume: 50
     }
+    // Tarayıcı autoplay politikaları nedeniyle AudioContext ancak kullanıcı etkileşimi sonrası başlatılabilir
+    this.userGestureObserved = false
+    this._boundGestureHandler = null
   }
 
   startMonitoring() {
     if (this.isMonitoring) return
     this.isMonitoring = true
+
+    // İlk kullanıcı etkileşimini yakalayıp Web Audio testlerini o andan sonra etkinleştir
+    if (typeof window !== 'undefined' && !this.userGestureObserved) {
+      this._boundGestureHandler = () => {
+        this.userGestureObserved = true
+        // Bir kez çalışsın
+        if (this._boundGestureHandler) {
+          window.removeEventListener('pointerdown', this._boundGestureHandler)
+          window.removeEventListener('keydown', this._boundGestureHandler)
+          window.removeEventListener('touchstart', this._boundGestureHandler)
+          this._boundGestureHandler = null
+        }
+      }
+      window.addEventListener('pointerdown', this._boundGestureHandler, { once: true })
+      window.addEventListener('keydown', this._boundGestureHandler, { once: true })
+      window.addEventListener('touchstart', this._boundGestureHandler, { once: true })
+    }
 
     // Check audio system health every 30 seconds
     this.checkInterval = setInterval(() => {
@@ -47,6 +67,13 @@ class AudioCodecMonitor {
       
       // Check if audio context is available
       if (typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext)) {
+        // Kullanıcı etkileşimi olmadan AudioContext yaratmaya çalışma; tarayıcı uyarısı verir
+        if (!this.userGestureObserved) {
+          this.codecStatus.isHealthy = false
+          this.codecStatus.lastError = 'Audio context suspended (awaiting user gesture)'
+          // Web Audio testini pas geç, yalnızca bilgi amaçlı durum döndür
+          return
+        }
         const AudioContext = window.AudioContext || window.webkitAudioContext
         try {
           const testContext = new AudioContext()
@@ -155,6 +182,11 @@ class AudioCodecMonitor {
       // Try to resume suspended audio context
       if (typeof window !== 'undefined' && window.audioContext) {
         if (window.audioContext.state === 'suspended') {
+          // Mümkünse kullanıcı etkileşimini bekle
+          if (!this.userGestureObserved) {
+            audioLogger.warn('Cannot resume audio context before user gesture')
+            return false
+          }
           await window.audioContext.resume()
           audioLogger.info('Audio context resumed')
         }

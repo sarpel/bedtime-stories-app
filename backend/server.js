@@ -1,31 +1,61 @@
 // server.js
 
 // .env dosyasındaki gizli bilgileri process.env'ye yükler
-require('dotenv').config();
+require('dotenv').config({
+  path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env'
+});
 
 // Gerekli paketleri import et
 const express = require('express');
-const compression = require('compression'); // Add gzip compression for Pi Zero
+const compression = require('compression');
 const axios = require('axios');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
-// const multer = require('multer'); // Şu anda kullanılmıyor
+const helmet = require('helmet');
+const Joi = require('joi');
+const pino = require('pino');
+const expressPino = require('express-pino-logger');
 const fs = require('fs');
 const path = require('path');
+
+// Production vs Development konfigürasyonu
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Logger konfigürasyonu
+const logger = pino({
+  level: process.env.LOG_LEVEL || (isProduction ? 'warn' : 'info'),
+  transport: isProduction ? undefined : {
+    target: 'pino-pretty',
+    options: {
+      colorize: true
+    }
+  }
+});
+
+// Express uygulamasını oluştur
+const app = express();
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
+
+// Local network için basitleştirilmiş security middleware
+// RPi Zero 2W local network'te çalıştığı için minimal security
+app.use(helmet({
+  contentSecurityPolicy: false, // Local network'te disable
+  crossOriginEmbedderPolicy: false, // Local network'te disable
+  // CORP'u helmet üzerinden tamamen kapatıp, /audio için manuel ayarlayacağız
+  crossOriginResourcePolicy: false
+}));
+
+// Request logging
+app.use(expressPino({ logger }));
 
 // Veritabanı modülü
 const storyDb = require('./database/db');
 
-// Express uygulamasını oluştur
-const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001; // Ortam değişkeni ile özelleştirilebilir port
-
-// Enable gzip compression for better performance on Pi Zero 2W
+// Enable gzip compression for better performance
 app.use(compression({
-  level: 6, // Good balance of compression vs CPU usage for Pi Zero
-  threshold: 1024, // Only compress files larger than 1KB
+  level: process.env.COMPRESSION_LEVEL ? parseInt(process.env.COMPRESSION_LEVEL) : 6,
+  threshold: 1024,
   filter: (req, res) => {
-    // Don't compress if already compressed or audio files
     if (req.headers['x-no-compression'] || req.url.includes('/audio/')) {
       return false
     }
@@ -33,83 +63,156 @@ app.use(compression({
   }
 }));
 
-// Rate limiting konfigürasyonu
-// Genel API istekleri için rate limit
-const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 dakika
-  max: 100, // IP başına 15 dakikada maksimum 100 istek
-  message: { error: 'Çok fazla istek. Lütfen 15 dakika sonra tekrar deneyin.' },
-  standardHeaders: true, // `RateLimit-*` headers'ları gönder
-  legacyHeaders: false, // `X-RateLimit-*` headers'ları devre dışı bırak
-});
+// Local network için yumuşak rate limiting (RPi Zero 2W)
+// Genel rate limit kaldırıldı; sadece gerekli endpoint'lerde sınırlama uygulanır
 
-// Veritabanı işlemleri için daha sıkı rate limit
+// Veritabanı işlemleri için gevşek rate limit
 const dbLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 dakika
-  max: 20, // IP başına 1 dakikada maksimum 20 istek
-  message: { error: 'Çok fazla veritabanı isteği. Lütfen 1 dakika bekleyin.' },
+  windowMs: 60 * 1000,
+  max: 100, // Yüksek limit
+  message: { error: 'Çok fazla veritabanı isteği. Lütfen biraz bekleyin.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// LLM API istekleri için özel rate limit (daha pahalı işlemler)
+// LLM API istekleri için makul rate limit
 const llmLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 dakika
-  max: 5, // IP başına 1 dakikada maksimum 5 LLM isteği
+  windowMs: 60 * 1000,
+  max: 20, // Makul limit - çok masal istenmesini engeller
   message: { error: 'Çok fazla masal oluşturma isteği. Lütfen 1 dakika bekleyin.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// TTS API istekleri için özel rate limit (ses üretimi pahalı işlem)
+// TTS API istekleri için gevşek rate limit
 const ttsLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 dakika
-  max: 10, // IP başına 1 dakikada maksimum 10 TTS isteği
-  message: { error: 'Çok fazla ses üretme isteği. Lütfen 1 dakika bekleyin.' },
+  windowMs: 60 * 1000,
+  max: 15, // Makul limit - ses dosyası üretimi için
+  message: { error: 'Çok fazla ses üretme isteği. Lütfen biraz bekleyin.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// Frontend'den gelen JSON verilerini okuyabilmek için middleware
-app.use(express.json());
-
-// Sadece bizim Vite sunucumuzdan (http://localhost:5173) gelen isteklere izin ver.
-// Bu, başkalarının sizin backend'inizi kullanmasını engeller.
-// Paylaşılan masallar için daha esnek CORS ayarı
+// Local network CORS konfigürasyonu (RPi Zero 2W için)
+// Local network'te çalıştığı için basit ve permissive CORS
 app.use(cors({ 
-  origin: function (origin, callback) {
-    // Development sırasında localhost'tan gelen isteklere izin ver
-    // Production'da bu ayar güncellenmeli
-    if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1')) {
-      callback(null, true);
-    } else {
-      callback(new Error('CORS policy tarafından engellendi'));
-    }
+  origin: true, // Tüm origin'lere izin ver (local network)
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Range']
+}));
+
+// Frontend'den gelen JSON verilerini okuyabilmek için middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Static dosyalar için middleware (ses dosyalarını serve etmek için)
+// Local network'te CORS sorunu olmayacağı için basit static serving
+// /audio için CORP başlığını her istekte garanti et
+app.use('/audio', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+});
+
+app.use('/audio', express.static(path.join(__dirname, 'audio'), {
+  maxAge: process.env.CACHE_MAX_AGE || 86400000, // 24 hours
+  etag: true,
+  lastModified: true,
+  acceptRanges: true,
+  setHeaders: (res) => {
+    // Tarayıcının cross-origin medya akışını engellememesi için
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   }
 }));
 
-// Static dosyalar için middleware (ses dosyalarını serve etmek için)
-app.use('/audio', express.static(path.join(__dirname, 'audio')));
+// Rate limiting'i sadece gerekli endpoint'lerde uygula (local network için minimal)
+// Genel API rate limiting'i kaldır - sadece kritik endpoint'lerde kullan
 
-// Rate limiting uygula
-app.use('/api', generalLimiter); // Tüm API endpoint'lerine genel rate limit
-app.use('/api/stories', dbLimiter); // Veritabanı işlemleri için özel rate limit
+// Health check endpoint (comprehensive)
+app.get('/health', async (req, res) => {
+  try {
+    const healthStatus = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      version: process.env.npm_package_version || '1.5.0',
+      environment: process.env.NODE_ENV || 'development',
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      services: {
+        database: 'checking...',
+        filesystem: 'checking...'
+      }
+    };
+
+    // Check database connection
+    try {
+      storyDb.getAllStories(1); // Try to get one story
+      healthStatus.services.database = 'healthy';
+    } catch (error) {
+      healthStatus.services.database = 'unhealthy';
+      healthStatus.status = 'degraded';
+      logger.error({ error: error.message }, 'Database health check failed');
+    }
+
+    // Check audio directory
+    try {
+      const audioDir = path.join(__dirname, 'audio');
+      fs.accessSync(audioDir, fs.constants.R_OK | fs.constants.W_OK);
+      healthStatus.services.filesystem = 'healthy';
+    } catch (error) {
+      healthStatus.services.filesystem = 'unhealthy';
+      healthStatus.status = 'degraded';
+      logger.error({ error: error.message }, 'Filesystem health check failed');
+    }
+
+    const statusCode = healthStatus.status === 'healthy' ? 200 : 503;
+    res.status(statusCode).json(healthStatus);
+  } catch (error) {
+    logger.error({ error: error.message }, 'Health check failed');
+    res.status(500).json({ 
+      status: 'unhealthy', 
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 // Üretimde frontend'i backend'den servis etmek için (../dist klasörü varsa)
 try {
   const distPath = path.join(__dirname, '..', 'dist');
   if (fs.existsSync(distPath)) {
-    app.use(express.static(distPath));
-    app.get('/', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
+    // Serve static files with proper caching
+    app.use(express.static(distPath, {
+      maxAge: isProduction ? '1y' : '0',
+      etag: true,
+      lastModified: true,
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache');
+        }
+      }
+    }));
+    
+    // Catch-all handler for SPA routing (only for non-API routes)
+    app.get(/^(?!\/api|\/audio|\/health).*/, (req, res, next) => {
+      // Send index.html for all other routes (SPA)
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        next();
+      }
+    });
+  } else if (isProduction) {
+    logger.warn('Production mode but no dist folder found');
   }
-} catch {
-  // statik servis başarısız olsa bile backend API çalışmaya devam eder
+} catch (error) {
+  logger.error({ error: error.message }, 'Error setting up static file serving');
 }
 
-// Basit sağlık kontrolü endpoint'i (deploy scriptleri için)
+// Legacy health check endpoint (for compatibility)
 app.get('/healthz', (req, res) => {
   try {
-    // Minimum kontrol: process çalışıyor ve temel bağımlılıklar yüklenmiş
     res.status(200).json({ status: 'ok' });
   } catch {
     res.status(500).json({ status: 'error' });
@@ -122,7 +225,7 @@ app.get('/api/shared/:shareId/audio', (req, res) => {
     const shareId = req.params.shareId;
     const story = storyDb.getStoryByShareId(shareId);
     
-    if (!story || !story.audio) {
+    if (!story?.audio) {
       return res.status(404).json({ error: 'Paylaşılan masalın ses dosyası bulunamadı.' });
     }
     
@@ -154,8 +257,6 @@ app.get('/api/shared/:shareId/audio', (req, res) => {
 //     cb(null, 'story-' + uniqueSuffix + '.mp3');
 //   }
 // });
-
-// const upload = multer({ storage: storage });
 
 // --- LLM İSTEKLERİ İÇİN ENDPOINT ---
 app.post('/api/llm', llmLimiter, async (req, res) => {
@@ -189,7 +290,7 @@ app.post('/api/llm', llmLimiter, async (req, res) => {
   const GEMINI_LLM_API_KEY = process.env.GEMINI_LLM_API_KEY || process.env.GEMINI_TTS_API_KEY;
 
   let endpoint;
-  let headers = { 'Content-Type': 'application/json' };
+  const headers = { 'Content-Type': 'application/json' };
   let body;
 
   if (provider === 'openai') {
@@ -235,25 +336,41 @@ app.post('/api/llm', llmLimiter, async (req, res) => {
   // Yardımcı: response metnini çıkar
   function extractTextFromLLM(data) {
     try {
-      if (!data) return '';
+      if (!data) {
+        return '';
+      }
       // OpenAI chat
-      if (data.choices && data.choices[0]) {
-        if (data.choices[0].message?.content) return String(data.choices[0].message.content).trim();
-        if (data.choices[0].text) return String(data.choices[0].text).trim();
+      if (data.choices?.[0]) {
+        if (data.choices[0].message?.content) {
+          return String(data.choices[0].message.content).trim();
+        }
+        if (data.choices[0].text) {
+          return String(data.choices[0].text).trim();
+        }
       }
       // Gemini
       if (Array.isArray(data.candidates) && data.candidates[0]) {
         const c = data.candidates[0];
-        if (typeof c.output_text === 'string') return c.output_text.trim();
+        if (typeof c.output_text === 'string') {
+          return c.output_text.trim();
+        }
         const parts = c.content?.parts;
         if (Array.isArray(parts)) {
           const j = parts.map(p => (typeof p === 'string' ? p : (p?.text || ''))).join('').trim();
-          if (j) return j;
+          if (j) {
+            return j;
+          }
         }
       }
-      if (typeof data.text === 'string') return data.text.trim();
-      if (typeof data.output === 'string') return data.output.trim();
-      if (typeof data.response === 'string') return data.response.trim();
+      if (typeof data.text === 'string') {
+        return data.text.trim();
+      }
+      if (typeof data.output === 'string') {
+        return data.output.trim();
+      }
+      if (typeof data.response === 'string') {
+        return data.response.trim();
+      }
       return '';
     } catch {
       return '';
@@ -278,10 +395,11 @@ app.post('/api/llm', llmLimiter, async (req, res) => {
           ]
         };
         if (max_tokens) {
+          const maxTokens = max_tokens ?? 600;
           if (modelId.includes('gpt-5') || modelId.includes('o1') || modelId.includes('o3')) {
-            body.max_completion_tokens = Math.min((max_tokens || 600) * 2, 4000);
+            body.max_completion_tokens = Math.min(maxTokens * 2, 4000);
           } else {
-            body.max_tokens = Math.min((max_tokens || 600) * 2, 4000);
+            body.max_tokens = Math.min(maxTokens * 2, 4000);
           }
         }
       } else if (provider === 'gemini') {

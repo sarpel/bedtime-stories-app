@@ -1,12 +1,22 @@
 {
-  "name": "backend",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "bedtime-stories-backend",
+  "version": "1.5.0",
+  "description": "Backend API for Bedtime Stories App",
+  "main": "server.js",
   "scripts": {
-    "test": "jest",
-    "dev": "node server.js",
-    "lint": "echo 'Backend: No linting configured yet'"
+  "start": "cross-env NODE_ENV=production node server.js",
+  "start:linux": "cross-env NODE_ENV=production node server.js",
+  "dev": "cross-env NODE_ENV=development node server.js",
+  "dev:linux": "cross-env NODE_ENV=development node server.js",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
+    "lint": "eslint *.js database/*.js tests/*.js",
+    "lint:fix": "eslint *.js database/*.js tests/*.js --fix",
+    "security:audit": "npm audit",
+    "security:fix": "npm audit fix",
+    "db:migrate": "node database/migrate.js",
+    "db:backup": "node database/backup.js",
+    "health:check": "node health-check.js"
   },
   "keywords": [],
   "author": "",
@@ -20,10 +30,21 @@
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
     "express-rate-limit": "^8.0.1",
-    "multer": "^2.0.2"
+    "helmet": "^8.0.0",
+    "joi": "^17.13.3",
+    "multer": "^2.0.2",
+    "pino": "^9.5.0",
+    "pino-pretty": "^13.0.0",
+    "express-pino-logger": "^7.0.0"
   },
   "devDependencies": {
+    "eslint": "^9.25.0",
     "jest": "^29.7.0",
-    "supertest": "^6.3.3"
+  "supertest": "^6.3.3",
+  "cross-env": "^7.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   }
 }

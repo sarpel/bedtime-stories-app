@@ -4,9 +4,9 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 
-// Veritabanı dosyasının konumu
-const DB_PATH = path.join(__dirname, 'stories.db');
-const AUDIO_DIR = path.join(__dirname, '../audio');
+// Veritabanı ve audio dizinlerinin konumu (ortam değişkeni ile override edilebilir)
+const DB_PATH = process.env.STORIES_DB_PATH || path.join(__dirname, 'stories.db');
+const AUDIO_DIR = process.env.AUDIO_DIR_PATH || path.join(__dirname, '../audio');
 
 // Audio klasörünü oluştur
 if (!fs.existsSync(AUDIO_DIR)) {
@@ -16,7 +16,6 @@ if (!fs.existsSync(AUDIO_DIR)) {
 // SQLite veritabanı bağlantısı - Optimized for Pi Zero 2W
 const db = new Database(DB_PATH, {
   // Pi Zero optimizations
-  memory: false, // Use disk-based database to save RAM
   readonly: false,
   fileMustExist: false,
   timeout: 5000,
@@ -403,7 +402,9 @@ const storyDb = {
   getStoryWithAudio(id) {
     try {
       const row = statements.getStoryWithAudio.get(id);
-      if (!row) return null;
+      if (!row) {
+        return null;
+      }
       
       return {
         id: row.id,
@@ -471,7 +472,9 @@ const storyDb = {
   addToQueue(id) {
     try {
       const current = this.getQueue();
-      if (current.includes(id)) return false;
+      if (current.includes(id)) {
+        return false;
+      }
       const { maxpos } = statements.getMaxQueuePos.get();
       statements.insertQueueItem.run(maxpos + 1, id);
       return true;
@@ -511,7 +514,9 @@ const storyDb = {
   getStoryByShareId(shareId) {
     try {
       const row = statements.getStoryByShareId.get(shareId);
-      if (!row) return null;
+      if (!row) {
+        return null;
+      }
 
       return {
         id: row.id,
