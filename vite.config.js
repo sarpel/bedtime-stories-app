@@ -97,7 +97,6 @@ export default defineConfig(({ mode }) => {
             ],
             'app-monitoring': [
               './src/utils/stabilityMonitor',
-              './src/utils/stabilityMonitor-optimized',
               './src/utils/memoryPressureMonitor',
               './src/components/PerformanceMonitor'
             ]
@@ -107,9 +106,9 @@ export default defineConfig(({ mode }) => {
           entryFileNames: isProd ? 'assets/[name].[hash].js' : '[name].js',
           assetFileNames: isProd ? 'assets/[name].[hash].[ext]' : '[name].[ext]'
         },
-  // External dependencies (if using CDN)
-  // Keep empty to bundle everything by default
-  external: [],
+        // External dependencies (if using CDN)
+        // Keep empty to bundle everything by default
+        external: [],
 
         // Tree shaking configuration
         treeshake: {
