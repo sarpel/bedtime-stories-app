@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import safeLocalStorage from '../utils/safeLocalStorage.js'
 
 const MAX_HISTORY = 10 // Son 10 masalı sakla
 
@@ -7,20 +8,25 @@ export function useStoryHistory() {
 
   // Load history from localStorage on mount
   useEffect(() => {
-    const savedHistory = localStorage.getItem('bedtime-stories-history')
-    if (savedHistory) {
-      try {
-        setHistory(JSON.parse(savedHistory))
-      } catch (error) {
-        console.error('Masal geçmişi yüklenirken hata:', error)
-        setHistory([])
-      }
+    const savedHistory = safeLocalStorage.get('bedtime-stories-history', [])
+    try {
+      setHistory(Array.isArray(savedHistory) ? savedHistory : [])
+    } catch (error) {
+      console.error('Masal geçmişi yüklenirken hata:', error)
+      setHistory([])
     }
   }, [])
 
-  // Save history to localStorage whenever it changes
+  // Save history to localStorage whenever it changes (debounced)
   useEffect(() => {
-    localStorage.setItem('bedtime-stories-history', JSON.stringify(history))
+    const timeoutId = setTimeout(() => {
+      const saved = safeLocalStorage.set('bedtime-stories-history', history)
+      if (!saved) {
+        console.warn('Masal geçmişi localStorage\'a kaydedilemedi')
+      }
+    }, 300) // 300ms debounce
+
+    return () => clearTimeout(timeoutId)
   }, [history])
 
   const addToHistory = (story) => {

@@ -100,11 +100,25 @@ function initDatabase() {
     )
   `);
 
+  // Queue tablosu (sıra tutmak için basit mapping)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS queue (
+      position INTEGER PRIMARY KEY,
+      story_id INTEGER NOT NULL,
+      FOREIGN KEY (story_id) REFERENCES stories (id) ON DELETE CASCADE
+    )
+  `);
+
   // İndeksler performans için
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_stories_type ON stories (story_type);
     CREATE INDEX IF NOT EXISTS idx_stories_created ON stories (created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_audio_story_id ON audio_files (story_id);
+  `);
+
+  // Queue indeksleri
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_queue_story_id ON queue (story_id);
   `);
 
   // Paylaşım sütunları ekledikten sonra indeksleri oluştur
@@ -215,6 +229,23 @@ const statements = {
     FROM stories s
     LEFT JOIN audio_files a ON s.id = a.story_id
     WHERE s.id = ?
+  `)
+  ,
+  // Queue operations
+  getQueueAll: db.prepare(`
+    SELECT story_id FROM queue ORDER BY position ASC
+  `),
+  clearQueue: db.prepare(`
+    DELETE FROM queue
+  `),
+  insertQueueItem: db.prepare(`
+    INSERT INTO queue (position, story_id) VALUES (?, ?)
+  `),
+  deleteQueueItem: db.prepare(`
+    DELETE FROM queue WHERE story_id = ?
+  `),
+  getMaxQueuePos: db.prepare(`
+    SELECT COALESCE(MAX(position), 0) as maxpos FROM queue
   `)
 };
 
@@ -394,6 +425,63 @@ const storyDb = {
       return { success: false };
     } catch (error) {
       console.error('Masal paylaşma hatası:', error);
+      throw error;
+    }
+  },
+
+  // Queue operations
+  getQueue() {
+    try {
+      const rows = statements.getQueueAll.all();
+      return rows.map(r => r.story_id);
+    } catch (error) {
+      console.error('Kuyruk getirme hatası:', error);
+      throw error;
+    }
+  },
+
+  setQueue(ids) {
+    try {
+      const tx = db.transaction((list) => {
+        statements.clearQueue.run();
+        list.forEach((id, idx) => {
+          statements.insertQueueItem.run(idx + 1, id);
+        });
+      });
+      tx(ids);
+      return true;
+    } catch (error) {
+      console.error('Kuyruk güncelleme hatası:', error);
+      throw error;
+    }
+  },
+
+  addToQueue(id) {
+    try {
+      const current = this.getQueue();
+      if (current.includes(id)) return false;
+      const { maxpos } = statements.getMaxQueuePos.get();
+      statements.insertQueueItem.run(maxpos + 1, id);
+      return true;
+    } catch (error) {
+      console.error('Kuyruğa ekleme hatası:', error);
+      throw error;
+    }
+  },
+
+  removeFromQueue(id) {
+    try {
+      statements.deleteQueueItem.run(id);
+      // Pozisyonları yeniden sıklaştır
+      const rows = statements.getQueueAll.all();
+      const tx = db.transaction(() => {
+        statements.clearQueue.run();
+        rows.forEach((r, idx) => statements.insertQueueItem.run(idx + 1, r.story_id));
+      });
+      tx();
+      return true;
+    } catch (error) {
+      console.error('Kuyruktan çıkarma hatası:', error);
       throw error;
     }
   },

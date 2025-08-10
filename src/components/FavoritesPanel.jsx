@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx';
 import { Button } from '@/components/ui/button.jsx';
 import { Badge } from '@/components/ui/badge.jsx';
@@ -71,60 +71,55 @@ export default function FavoritesPanel({
   };
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card ref={panelRef} className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b">
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-1">
+      <Card ref={panelRef} className="w-full max-w-5xl max-h-[95vh] overflow-y-auto scrollbar-thin">
+        <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-2">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-2xl flex items-center gap-2">
-                <Heart className="h-6 w-6 text-primary" />
-                Favori Masallarım
+              <CardTitle className="text-sm flex items-center gap-1">
+                <Heart className="h-4 w-4 text-primary" />
+                Favoriler ({favorites.length})
               </CardTitle>
-              <CardDescription>
-                Beğendiğin masalları burada saklayabilirsin ({favorites.length} masal)
-              </CardDescription>
             </div>
-            <Button variant="outline" onClick={onClose} size="sm">
-              <X className="h-4 w-4 mr-2" />
-              Kapat
+            <Button variant="outline" onClick={onClose} size="sm" className="h-7 px-2">
+              <X className="h-3 w-3" />
             </Button>
           </div>
         </CardHeader>
 
-        <CardContent className="p-6">
+        <CardContent className="p-2">
           {favorites.length === 0 ? (
-            <div className="text-center py-12">
-              <Heart className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-medium mb-2">Henüz favori masalın yok</h3>
-              <p className="text-muted-foreground">
+            <div className="text-center py-4">
+              <Heart className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+              <div className="text-sm font-medium mb-1">Henüz favori masalın yok</div>
+              <p className="text-muted-foreground text-xs">
                 Masalları beğendiğinde kalp ikonuna tıklayarak favorilere ekleyebilirsin
               </p>
             </div>
           ) : (
-            <ScrollArea className="h-[calc(90vh-200px)]">
+            <ScrollArea className="h-96">
               <div className="space-y-1">
                 {favorites.map((favorite, index) => (
-                  // # Yorum: key, sarmalayıcı div'e taşındı.
                   <div key={favorite.id}>
-                    <div className="border rounded-lg hover:shadow-md transition-shadow p-2">
+                    <div className="border rounded p-2">
                       <div className="space-y-1">
-                        {/* Başlık satırı - masal türü, süre, tarih ve kaldır butonu */}
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1 flex-1 min-w-0">
-                            <Badge variant="secondary" className="text-xs px-1.5 py-0.5 h-5">
+                        {/* Başlık satırı - kompakt */}
+                        <div className="flex items-center justify-between gap-1">
+                          <div className="flex items-center gap-1 flex-wrap flex-1 min-w-0">
+                            <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
                               {getStoryTypeName(favorite.storyType)}
                             </Badge>
                             {favorite.customTopic && (
-                              <Badge variant="outline" className="text-xs px-1.5 py-0.5 h-5 max-w-20 truncate">
+                              <Badge variant="outline" className="text-xs px-1 py-0 h-4 max-w-16 truncate">
                                 {favorite.customTopic}
                               </Badge>
                             )}
-                            <Badge variant="outline" className="text-xs flex items-center gap-1 px-1.5 py-0.5 h-5">
-                              <Clock className="h-2.5 w-2.5" />
+                            <Badge variant="outline" className="text-xs flex items-center gap-0.5 px-1 py-0 h-4">
+                              <Clock className="h-2 w-2" />
                               {getReadingTime(favorite.story)}dk
                             </Badge>
-                            <Badge variant="outline" className="text-xs flex items-center gap-1 px-1.5 py-0.5 h-5">
-                              <Calendar className="h-2.5 w-2.5" />
+                            <Badge variant="outline" className="text-xs flex items-center gap-0.5 px-1 py-0 h-4">
+                              <Calendar className="h-2 w-2" />
                               {formatDate(favorite.createdAt)}
                             </Badge>
                           </div>
@@ -132,20 +127,20 @@ export default function FavoritesPanel({
                             size="sm"
                             variant="outline"
                             onClick={() => onRemove(favorite.id)}
-                            className="text-destructive hover:text-destructive-foreground hover:bg-destructive h-6 px-2"
+                            className="text-destructive hover:text-destructive-foreground hover:bg-destructive h-5 px-1 text-xs"
                           >
-                            <Trash2 className="h-2.5 w-2.5 mr-1" />
+                            <Trash2 className="h-2 w-2 mr-0.5" />
                             Kaldır
                           </Button>
                         </div>
 
-                        {/* Masal içeriği ve audio controls - aynı satırda */}
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-xs text-muted-foreground leading-tight line-clamp-2 h-8 overflow-hidden flex-1">
-                            {favorite.story.substring(0, 120)}...
+                        {/* Masal içeriği ve ses kontrolü - kompakt */}
+                        <div className="flex items-start justify-between gap-1">
+                          <p className="text-xs text-muted-foreground leading-tight line-clamp-1 overflow-hidden flex-1">
+                            {favorite.story.substring(0, 80)}...
                           </p>
 
-                          {/* Audio controls eğer varsa - sağ tarafta */}
+                          {/* Audio controls - kompakt */}
                           {favorite.audioUrl && (
                             <div className="flex-shrink-0">
                               <AudioControls
@@ -172,8 +167,7 @@ export default function FavoritesPanel({
                         </div>
                       </div>
                     </div>
-                    {/* # Yorum: Separator, kartın dışına, ait olduğu yere taşındı. */}
-                    {index < favorites.length - 1 && <Separator className="my-0.5" />}
+                    {index < favorites.length - 1 && <div className="h-px bg-border my-0.5" />}
                   </div>
                 ))}
               </div>
