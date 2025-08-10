@@ -1,5 +1,6 @@
 import { config } from './configService.js'
-import { audioCache } from '@/utils/cache.js'
+import { audioCache } from '../utils/cache.js'
+import optimizedDatabaseService from './optimizedDatabaseService.js'
 // Audio quality imports kaldırıldı - basit sabit format kullanılacak
 
 // TTS Service for audio generation
@@ -48,15 +49,17 @@ export class TTSService {
       // Eğer storyId varsa, önce veritabanından ses dosyasını kontrol et
       if (storyId) {
         try {
-          const databaseService = (await import('./optimizedDatabaseService.js')).default;
-          const story = await databaseService.getStory(storyId);
+          const story = await optimizedDatabaseService.getStory(storyId);
           if (story && story.audio && story.audio.file_name) {
-            const audioUrl = databaseService.getAudioUrl(story.audio.file_name);
+            const audioUrl = optimizedDatabaseService.getAudioUrl(story.audio.file_name);
             onProgress?.(100);
             return audioUrl;
           }
         } catch (dbError) {
-          console.warn('Veritabanından ses dosyası alınamadı, yeni ses oluşturuluyor:', dbError);
+          // Reduced logging for Pi Zero - only log occasionally
+          if (Math.random() < 0.1) {
+            console.warn('Veritabanından ses dosyası alınamadı, yeni ses oluşturuluyor:', dbError);
+          }
         }
       }
 

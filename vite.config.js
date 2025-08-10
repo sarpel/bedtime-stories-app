@@ -30,7 +30,8 @@ export default defineConfig(({ mode }) => {
       }
     },
     build: {
-      // Performance optimizations
+      // Performance optimizations for Raspberry Pi Zero 2W
+      target: 'es2020', // Better compatibility with ARM processors
       rollupOptions: {
         output: {
           manualChunks: {
@@ -43,30 +44,38 @@ export default defineConfig(({ mode }) => {
           }
         }
       },
-      // Optimize chunk sizes
-      chunkSizeWarningLimit: 1000,
+      // Optimize chunk sizes for Pi Zero memory constraints
+      chunkSizeWarningLimit: 600, // Increased to 600KB to allow main app bundle
       // Enable source maps only in development
       sourcemap: isDev,
       // Minimize in production
       minify: isProd ? 'terser' : false,
-      // Terser options for better compression
+      // Terser options for better compression (Pi Zero specific)
       terserOptions: {
         compress: {
           drop_console: isProd,
           drop_debugger: true,
-          pure_funcs: ['console.log', 'console.info']
+          pure_funcs: ['console.log', 'console.info', 'console.debug'],
+          passes: 2, // More compression passes for Pi Zero
+          unsafe_arrows: true,
+          unsafe_comps: true,
+          unsafe_methods: true
         },
         mangle: {
-          safari10: true
+          safari10: true,
+          keep_fnames: false // Reduce bundle size
         },
         format: {
-          comments: false
+          comments: false,
+          ascii_only: true // Better compatibility
         }
       },
       // CSS optimization
       cssCodeSplit: true,
-      // Asset optimization
-      assetsInlineLimit: 4096
+      // Asset optimization for Pi Zero
+      assetsInlineLimit: 2048, // Reduced from 4096
+      // Reduce memory usage during build
+      reportCompressedSize: false
     },
     optimizeDeps: {
       // Pre-bundle these dependencies

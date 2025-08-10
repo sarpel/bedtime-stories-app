@@ -13,11 +13,23 @@ if (!fs.existsSync(AUDIO_DIR)) {
   fs.mkdirSync(AUDIO_DIR, { recursive: true });
 }
 
-// SQLite veritabanı bağlantısı
-const db = new Database(DB_PATH);
+// SQLite veritabanı bağlantısı - Optimized for Pi Zero 2W
+const db = new Database(DB_PATH, {
+  // Pi Zero optimizations
+  memory: false, // Use disk-based database to save RAM
+  readonly: false,
+  fileMustExist: false,
+  timeout: 5000,
+  verbose: null // Disable verbose logging in production
+});
 
-// WAL modu performans için
+// WAL modu performans için + Pi Zero specific optimizations
 db.pragma('journal_mode = WAL');
+db.pragma('synchronous = NORMAL'); // Faster than FULL, safe for Pi Zero
+db.pragma('cache_size = -2000'); // 2MB cache (reduced for Pi Zero)
+db.pragma('temp_store = MEMORY'); // Use memory for temp tables (small amounts)
+db.pragma('mmap_size = 67108864'); // 64MB memory map (reduced for Pi Zero)
+db.pragma('page_size = 4096'); // Optimal for Pi Zero's ARM architecture
 
 // Veritabanı tablolarını oluştur
 function initDatabase() {

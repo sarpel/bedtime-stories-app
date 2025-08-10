@@ -1,5 +1,5 @@
 // Quick test for API validation improvements
-const app = require('./server.js');
+require('./server.js');
 
 console.log('✅ Server module loaded successfully');
 console.log('✅ All syntax checks passed');

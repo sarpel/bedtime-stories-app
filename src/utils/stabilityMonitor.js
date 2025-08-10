@@ -1,17 +1,22 @@
 /**
- * Application Stability Monitor
- * Uygulamanın kararlılığını izler ve otomatik iyileştirmeler önerir
+ * Stability Monitor - Optimized for Raspberry Pi Zero 2W
+ * Reduced memory usage and logging for 512MB RAM constraint
  */
+
+import { stabilityLogger } from './logger.js'
+import safeLocalStorage from './safeLocalStorage.js'
 
 class StabilityMonitor {
   constructor() {
     this.errorCount = 0
     this.warningCount = 0
-    this.lastCleanup = Date.now()
     this.performanceIssues = []
+    this.lastCleanup = Date.now()
     this.isMonitoring = false
-    
-  // Otomatik başlatmayı kaldır: main.jsx kontrol edecek
+    this.memoryCheckInterval = null
+    this.cleanupInterval = null
+    this.maxErrors = 20 // Reduced for Pi Zero
+    this.maxPerformanceIssues = 10 // Reduced for Pi Zero
   }
 
   startMonitoring() {
@@ -36,43 +41,43 @@ class StabilityMonitor {
       })
     }
 
-    // Performance monitoring
+    // Performance monitoring (less frequent for Pi Zero)
     this.monitorPerformance()
 
-    // Automatic cleanup
+    // Automatic cleanup (more frequent for Pi Zero)
     this.scheduleCleanup()
 
-    console.log('🛡️ Stability Monitor started')
+    stabilityLogger.info('Stability Monitor started (Pi Zero optimized)')
   }
 
   handleError(type, message, details = {}) {
     this.errorCount++
     
-    console.error(`🚨 StabilityMonitor: ${type}`, message, details)
+    stabilityLogger.error(`${type}: ${message}`, 'ERROR_HANDLER', details)
 
-    // Error tracking
+    // Error tracking (limited to prevent memory buildup)
     const errorData = {
       type,
       message,
       details,
       timestamp: Date.now(),
-  url: (typeof window !== 'undefined' && window.location?.href) ? window.location.href : undefined,
-  userAgent: (typeof navigator !== 'undefined' ? navigator.userAgent : undefined)
+      url: (typeof window !== 'undefined' && window.location?.href) ? window.location.href : undefined,
+      userAgent: (typeof navigator !== 'undefined' ? navigator.userAgent : undefined)
     }
 
-    // Store recent errors
+    // Store recent errors (reduced limit for Pi Zero)
     const recentErrors = this.getRecentErrors()
     recentErrors.push(errorData)
     
-    // Keep only last 10 errors
-    if (recentErrors.length > 10) {
+    // Keep only last 5 errors for Pi Zero memory constraints
+    if (recentErrors.length > 5) {
       recentErrors.shift()
     }
     
     try {
       localStorage.setItem('app-stability-errors', JSON.stringify(recentErrors))
     } catch {
-      console.warn('Failed to store error data')
+      stabilityLogger.warn('Failed to store error data - storage full')
     }
 
     // Auto-recovery actions
@@ -81,26 +86,26 @@ class StabilityMonitor {
 
   attemptRecovery(errorType, message) {
     try {
-      // Memory-related recovery
+      // Memory-related recovery (more aggressive for Pi Zero)
       if (message.includes('out of memory') || message.includes('Maximum call stack')) {
-        console.log('🔧 Attempting memory recovery...')
+        stabilityLogger.info('Attempting memory recovery (Pi Zero mode)')
         this.performEmergencyCleanup()
       }
 
       // Storage-related recovery
       if (message.includes('QuotaExceededError') || message.includes('localStorage')) {
-        console.log('🔧 Attempting storage recovery...')
+        stabilityLogger.info('Attempting storage recovery')
         this.performStorageCleanup()
       }
 
       // Network-related recovery
       if (message.includes('fetch') || message.includes('network') || errorType.includes('api')) {
-        console.log('🔧 Network error detected, checking connectivity...')
+        stabilityLogger.info('Network error detected, checking connectivity')
         this.checkNetworkConnectivity()
       }
 
     } catch (recoveryError) {
-      console.error('Recovery attempt failed:', recoveryError)
+      stabilityLogger.error('Recovery attempt failed', 'RECOVERY', recoveryError)
     }
   }
 
@@ -114,64 +119,63 @@ class StabilityMonitor {
         }
       })
 
-  // Not: window.gc kullanımı kaldırıldı
-
-      console.log('✅ Emergency cleanup completed')
+      stabilityLogger.info('Emergency cleanup completed')
     } catch (error) {
-      console.error('Emergency cleanup failed:', error)
+      stabilityLogger.error('Emergency cleanup failed', 'CLEANUP', error)
     }
   }
 
   performStorageCleanup() {
     try {
-      // Import safe localStorage utility
-      import('../utils/safeLocalStorage.js').then(({ default: safeLocalStorage }) => {
-        safeLocalStorage.cleanup()
-        console.log('✅ Storage cleanup completed')
-      })
+      // Use statically imported safeLocalStorage
+      safeLocalStorage.cleanup()
+      stabilityLogger.info('Storage cleanup completed')
     } catch (error) {
-      console.error('Storage cleanup failed:', error)
+      stabilityLogger.error('Storage cleanup failed', 'CLEANUP', error)
     }
   }
 
   checkNetworkConnectivity() {
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      console.warn('🌐 Network is offline')
-      // Show offline notification if needed
-      this.showNotification('⚠️ İnternet bağlantısı kesildi', 'warning')
-    } else {
-  // Backend health endpoint ile test (düşük maliyetli)
-  fetch('http://localhost:3001/healthz', { method: 'GET' })
-        .then(() => {
-          console.log('🌐 Network connectivity confirmed')
-        })
-        .catch(() => {
-          console.warn('🌐 Network connectivity issues detected')
-          this.showNotification('⚠️ İnternet bağlantısında sorun var', 'warning')
-        })
+      stabilityLogger.warn('Network is offline')
+      return
     }
+
+    // Simple connectivity check
+    fetch('/healthz', { method: 'HEAD' })
+      .then(() => {
+        stabilityLogger.debug('Network connectivity confirmed')
+      })
+      .catch(() => {
+        stabilityLogger.warn('Network connectivity issues detected')
+      })
   }
 
   monitorPerformance() {
-    // Monitor memory usage
+    // Monitor memory usage (less frequent for Pi Zero - every 60 seconds)
     if (typeof performance !== 'undefined' && performance.memory) {
       this.memoryCheckInterval = setInterval(() => {
         const memoryUsage = (performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit) * 100
         
-        if (memoryUsage > 85) {
-          console.warn(`🧠 High memory usage: ${memoryUsage.toFixed(1)}%`)
+        if (memoryUsage > 70) { // Lowered threshold for Pi Zero
+          stabilityLogger.warn(`High memory usage: ${memoryUsage.toFixed(1)}%`)
           this.performanceIssues.push({
             type: 'high_memory',
             value: memoryUsage,
             timestamp: Date.now()
           })
           
-          // Auto cleanup at 90%
-          if (memoryUsage > 90) {
+          // Keep limited performance issues
+          if (this.performanceIssues.length > this.maxPerformanceIssues) {
+            this.performanceIssues.shift()
+          }
+          
+          // Auto cleanup at 85% for Pi Zero
+          if (memoryUsage > 85) {
             this.performEmergencyCleanup()
           }
         }
-      }, 30000) // Check every 30 seconds
+      }, 60000) // Check every 60 seconds for Pi Zero
     }
   }
 
@@ -179,8 +183,8 @@ class StabilityMonitor {
     this.cleanupInterval = setInterval(() => {
       const now = Date.now()
       
-      // Cleanup every 10 minutes
-      if (now - this.lastCleanup > 10 * 60 * 1000) {
+      // Cleanup every 5 minutes for Pi Zero
+      if (now - this.lastCleanup > 5 * 60 * 1000) {
         this.performStorageCleanup()
         this.lastCleanup = now
       }
@@ -188,9 +192,8 @@ class StabilityMonitor {
   }
 
   showNotification(message, type = 'info') {
-    // Simple console notification for now
-    // Can be extended to show UI notifications
-    console.log(`📢 ${type.toUpperCase()}: ${message}`)
+    // Simple notification system optimized for Pi Zero
+    stabilityLogger.info(`${type.toUpperCase()}: ${message}`)
   }
 
   getRecentErrors() {
@@ -206,9 +209,9 @@ class StabilityMonitor {
     return {
       errorCount: this.errorCount,
       warningCount: this.warningCount,
-      performanceIssues: this.performanceIssues.slice(-5), // Last 5 issues
+      performanceIssues: this.performanceIssues.slice(-3), // Last 3 issues for Pi Zero
       recentErrors: this.getRecentErrors(),
-      isHealthy: this.errorCount < 5 && this.warningCount < 10
+      isHealthy: this.errorCount < 3 && this.warningCount < 5 // Stricter for Pi Zero
     }
   }
 
@@ -231,29 +234,30 @@ class StabilityMonitor {
     try {
       localStorage.removeItem('app-stability-errors')
     } catch {
-      console.warn('Failed to clear error storage')
+      stabilityLogger.warn('Failed to clear error storage')
     }
-    console.log('🔄 Stability Monitor reset')
+    stabilityLogger.info('Stability Monitor reset')
   }
 
   // Stop monitoring and clean up
   stopMonitoring() {
     this.isMonitoring = false
     
-    // Clear intervals
     if (this.memoryCheckInterval) {
       clearInterval(this.memoryCheckInterval)
+      this.memoryCheckInterval = null
     }
     
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval)
+      this.cleanupInterval = null
     }
     
-    console.log('🛡️ Stability Monitor stopped')
+    stabilityLogger.info('Stability Monitor stopped')
   }
 }
 
-// Global instance
+// Create singleton instance
 const stabilityMonitor = new StabilityMonitor()
 
 export default stabilityMonitor

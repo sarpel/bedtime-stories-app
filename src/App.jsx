@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Textarea } from '@/components/ui/textarea.jsx'
@@ -24,6 +24,11 @@ import { useAudioPlayer } from './hooks/useAudioPlayer.js'
 import { useIsMobile } from './hooks/use-mobile.js'
 import ApiKeyHelp from './components/ApiKeyHelp.jsx'
 import safeLocalStorage from './utils/safeLocalStorage.js'
+// Pi Zero optimizations
+import { logger } from './utils/logger.js'
+import stabilityMonitor from './utils/stabilityMonitor.js'
+import audioCodecMonitor from './utils/audioCodecMonitor.js'
+import memoryPressureMonitor from './utils/memoryPressureMonitor.js'
 import './App.css'
 
 function App() {
@@ -170,6 +175,24 @@ function App() {
       updateStory(id, updates)
     }
   }
+
+  // Initialize Pi Zero monitoring systems
+  useEffect(() => {
+    // Start monitoring systems optimized for Pi Zero 2W
+    stabilityMonitor.startMonitoring()
+    memoryPressureMonitor.startMonitoring()
+    audioCodecMonitor.startMonitoring()
+
+    logger.info('Pi Zero 2W monitoring systems initialized')
+
+    // Cleanup on unmount
+    return () => {
+      stabilityMonitor.stopMonitoring()
+      memoryPressureMonitor.stopMonitoring()
+      audioCodecMonitor.stopMonitoring()
+      logger.info('Pi Zero 2W monitoring systems cleaned up')
+    }
+  }, [])
 
   // Story text değişikliği için fonksiyon
   const handleStoryChange = (newStory) => {

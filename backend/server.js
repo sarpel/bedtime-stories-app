@@ -5,6 +5,7 @@ require('dotenv').config();
 
 // Gerekli paketleri import et
 const express = require('express');
+const compression = require('compression'); // Add gzip compression for Pi Zero
 const axios = require('axios');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
@@ -18,6 +19,19 @@ const storyDb = require('./database/db');
 // Express uygulamasını oluştur
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001; // Ortam değişkeni ile özelleştirilebilir port
+
+// Enable gzip compression for better performance on Pi Zero 2W
+app.use(compression({
+  level: 6, // Good balance of compression vs CPU usage for Pi Zero
+  threshold: 1024, // Only compress files larger than 1KB
+  filter: (req, res) => {
+    // Don't compress if already compressed or audio files
+    if (req.headers['x-no-compression'] || req.url.includes('/audio/')) {
+      return false
+    }
+    return compression.filter(req, res)
+  }
+}));
 
 // Rate limiting konfigürasyonu
 // Genel API istekleri için rate limit
