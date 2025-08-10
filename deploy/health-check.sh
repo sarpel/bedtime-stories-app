@@ -52,7 +52,7 @@ log() {
     shift
     local message="$*"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    
+
     # Console output with colors
     case "$level" in
         "INFO")  echo -e "${GREEN}[INFO]${NC} $message" ;;
@@ -60,7 +60,7 @@ log() {
         "ERROR") echo -e "${RED}[ERROR]${NC} $message" ;;
         "DEBUG") [ "$VERBOSE" = true ] && echo -e "${CYAN}[DEBUG]${NC} $message" ;;
     esac
-    
+
     # File logging
     if [[ -w "$(dirname "$LOG_FILE")" ]] 2>/dev/null; then
         echo "[$timestamp] [$level] $message" >> "$LOG_FILE"
@@ -85,7 +85,7 @@ create_lock() {
     if [[ -f "$LOCK_FILE" ]]; then
         local lock_pid
         lock_pid=$(cat "$LOCK_FILE" 2>/dev/null || echo "unknown")
-        
+
         if kill -0 "$lock_pid" 2>/dev/null; then
             error_exit "Health check already running (PID: $lock_pid)" 1
         else
@@ -93,7 +93,7 @@ create_lock() {
             rm -f "$LOCK_FILE"
         fi
     fi
-    
+
     echo $$ > "$LOCK_FILE"
 }
 
@@ -159,89 +159,89 @@ EOF
 
 check_raspberry_pi_hardware() {
     log "INFO" "Checking Raspberry Pi hardware..."
-    
+
     # Check if running on Raspberry Pi
     if [[ ! -f /proc/device-tree/model ]]; then
         ISSUES_FOUND+=("Not running on Raspberry Pi hardware")
         return 1
     fi
-    
+
     local pi_model
     pi_model=$(cat /proc/device-tree/model 2>/dev/null || echo "unknown")
     log "DEBUG" "Detected Pi model: $pi_model"
-    
+
     # Check for Pi Zero 2 W specifically
     if [[ ! "$pi_model" =~ "Pi Zero 2" ]]; then
         WARNINGS_FOUND+=("Not running on Pi Zero 2 W (detected: $pi_model)")
     fi
-    
+
     # Check CPU temperature
     if [[ -f /sys/class/thermal/thermal_zone0/temp ]]; then
         local cpu_temp_raw
         cpu_temp_raw=$(cat /sys/class/thermal/thermal_zone0/temp)
         local cpu_temp=$((cpu_temp_raw / 1000))
-        
+
         log "DEBUG" "CPU temperature: ${cpu_temp}°C"
-        
+
         if [[ $cpu_temp -gt $MAX_CPU_TEMP ]]; then
             ISSUES_FOUND+=("CPU temperature too high: ${cpu_temp}°C (max: ${MAX_CPU_TEMP}°C)")
         fi
     fi
-    
+
     # Check load average
     local load_avg
     load_avg=$(uptime | awk -F'load average:' '{print $2}' | awk '{print $1}' | sed 's/,//')
-    
+
     if (( $(echo "$load_avg > $MAX_LOAD_AVERAGE" | bc -l) )); then
         WARNINGS_FOUND+=("High system load: $load_avg (max recommended: $MAX_LOAD_AVERAGE)")
     fi
-    
+
     log "INFO" "✓ Hardware check completed"
 }
 
 check_memory_resources() {
     log "INFO" "Checking memory resources..."
-    
+
     # Check available memory
     local free_memory
     free_memory=$(free -m | awk 'NR==2{printf "%.0f", $7}')
-    
+
     log "DEBUG" "Free memory: ${free_memory}MB"
-    
+
     if [[ $free_memory -lt $MIN_FREE_MEMORY ]]; then
         ISSUES_FOUND+=("Low memory: ${free_memory}MB available (minimum: ${MIN_FREE_MEMORY}MB)")
-        
+
         if [[ "$FIX_ISSUES" = true ]]; then
             log "INFO" "Attempting to free memory..."
             sync
             echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
         fi
     fi
-    
+
     # Check swap usage
     local swap_used
     swap_used=$(free -m | awk 'NR==3{printf "%.0f", $3}')
-    
+
     if [[ $swap_used -gt 0 ]]; then
         WARNINGS_FOUND+=("Swap in use: ${swap_used}MB (may indicate memory pressure)")
     fi
-    
+
     log "INFO" "✓ Memory check completed"
 }
 
 check_disk_space() {
     log "INFO" "Checking disk space..."
-    
+
     # Check root filesystem
     local free_space
     free_space=$(df / | awk 'NR==2 {print $(NF-2)}')
     free_space=$((free_space / 1024)) # Convert to MB
-    
+
     log "DEBUG" "Free disk space: ${free_space}MB"
-    
+
     if [[ $free_space -lt $MIN_FREE_DISK ]]; then
         ISSUES_FOUND+=("Low disk space: ${free_space}MB available (minimum: ${MIN_FREE_DISK}MB)")
-        
+
         if [[ "$FIX_ISSUES" = true ]]; then
             log "INFO" "Attempting to clean up disk space..."
             # Clean up old logs
@@ -250,14 +250,14 @@ check_disk_space() {
             find /tmp -type f -mtime +1 -delete 2>/dev/null || true
         fi
     fi
-    
+
     # Check for SD card health (if applicable)
     if [[ -f /sys/block/mmcblk0/device/life_time ]]; then
         local sd_health
         sd_health=$(cat /sys/block/mmcblk0/device/life_time 2>/dev/null || echo "unknown")
         log "DEBUG" "SD card health: $sd_health"
     fi
-    
+
     log "INFO" "✓ Disk space check completed"
 }
 
@@ -267,30 +267,30 @@ check_disk_space() {
 
 check_audio_system() {
     log "INFO" "Checking audio system..."
-    
+
     # Check ALSA devices
     if ! command -v aplay >/dev/null 2>&1; then
         ISSUES_FOUND+=("ALSA utilities not installed")
         return 1
     fi
-    
+
     # List available audio devices
     local audio_devices
     audio_devices=$(aplay -l 2>/dev/null | grep -c "card" || echo "0")
-    
+
     if [[ $audio_devices -eq 0 ]]; then
         ISSUES_FOUND+=("No audio devices detected")
     else
         log "DEBUG" "Found $audio_devices audio device(s)"
     fi
-    
+
     # Check for IQaudio Codec Zero specifically
     if aplay -l 2>/dev/null | grep -qi "iqaudio\|codec"; then
         log "DEBUG" "IQaudio Codec Zero detected"
     else
         WARNINGS_FOUND+=("IQaudio Codec Zero not detected in audio devices")
     fi
-    
+
     # Test audio output (if fix-issues enabled)
     if [[ "$FIX_ISSUES" = true ]] && [[ $audio_devices -gt 0 ]]; then
         log "INFO" "Testing audio output..."
@@ -300,7 +300,7 @@ check_audio_system() {
             WARNINGS_FOUND+=("Audio test failed - speakers may not be connected")
         fi
     fi
-    
+
     log "INFO" "✓ Audio system check completed"
 }
 
@@ -310,17 +310,17 @@ check_audio_system() {
 
 check_systemd_service() {
     log "INFO" "Checking SystemD service status..."
-    
+
     # Check if service exists
     if ! systemctl list-unit-files | grep -q "^${SERVICE_NAME}.service"; then
         ISSUES_FOUND+=("SystemD service ${SERVICE_NAME}.service not installed")
         return 1
     fi
-    
+
     # Check service status
     local service_status
     service_status=$(systemctl is-active "$SERVICE_NAME" 2>/dev/null || echo "inactive")
-    
+
     case "$service_status" in
         "active")
             log "DEBUG" "Service is active and running"
@@ -343,29 +343,29 @@ check_systemd_service() {
             WARNINGS_FOUND+=("Service $SERVICE_NAME status unknown: $service_status")
             ;;
     esac
-    
+
     # Check service enabled status
     if ! systemctl is-enabled "$SERVICE_NAME" >/dev/null 2>&1; then
         WARNINGS_FOUND+=("Service $SERVICE_NAME is not enabled for auto-start")
-        
+
         if [[ "$FIX_ISSUES" = true ]]; then
             log "INFO" "Enabling service for auto-start..."
             systemctl enable "$SERVICE_NAME"
         fi
     fi
-    
+
     log "INFO" "✓ SystemD service check completed"
 }
 
 check_network_connectivity() {
     log "INFO" "Checking network connectivity..."
-    
+
     # Check local network interface
     if ! ip link show | grep -q "state UP"; then
         ISSUES_FOUND+=("No active network interfaces found")
         return 1
     fi
-    
+
     # Check application port binding
     if command -v netstat >/dev/null 2>&1; then
         if netstat -tln | grep -q ":${EXPECTED_PORT}\s"; then
@@ -374,14 +374,14 @@ check_network_connectivity() {
             WARNINGS_FOUND+=("Application not listening on expected port $EXPECTED_PORT")
         fi
     fi
-    
+
     # Test external connectivity (if internet required)
     if timeout 5 ping -c 1 8.8.8.8 >/dev/null 2>&1; then
         log "DEBUG" "External connectivity available"
     else
         WARNINGS_FOUND+=("No external internet connectivity")
     fi
-    
+
     log "INFO" "✓ Network connectivity check completed"
 }
 
@@ -391,7 +391,7 @@ check_network_connectivity() {
 
 check_application_health() {
     log "INFO" "Checking application health..."
-    
+
     # Check if Node.js process is running
     if pgrep -f "node.*server.js" >/dev/null; then
         log "DEBUG" "Node.js process found"
@@ -399,10 +399,10 @@ check_application_health() {
         ISSUES_FOUND+=("Node.js application process not running")
         return 1
     fi
-    
+
     # Check application health endpoint
     local health_url="http://localhost:${EXPECTED_PORT}/health"
-    
+
     if command -v curl >/dev/null 2>&1; then
         local response
         if response=$(timeout "$TIMEOUT_DURATION" curl -s "$health_url" 2>/dev/null); then
@@ -415,7 +415,7 @@ check_application_health() {
             WARNINGS_FOUND+=("Application health endpoint not accessible")
         fi
     fi
-    
+
     # Check database connectivity
     if [[ -f "$PROJECT_ROOT/backend/database/stories.db" ]]; then
         if [[ -r "$PROJECT_ROOT/backend/database/stories.db" ]]; then
@@ -426,7 +426,7 @@ check_application_health() {
     else
         WARNINGS_FOUND+=("Database file not found - may be first run")
     fi
-    
+
     # Check audio directory
     if [[ -d "$PROJECT_ROOT/backend/audio" ]]; then
         local audio_files
@@ -435,45 +435,45 @@ check_application_health() {
     else
         WARNINGS_FOUND+=("Audio directory not found")
     fi
-    
+
     log "INFO" "✓ Application health check completed"
 }
 
 check_environment_configuration() {
     log "INFO" "Checking environment configuration..."
-    
+
     # Check for required environment files
     local env_file="$PROJECT_ROOT/backend/.env"
-    
+
     if [[ ! -f "$env_file" ]]; then
         ISSUES_FOUND+=("Environment file not found: $env_file")
         return 1
     fi
-    
+
     # Check for required environment variables
     local required_vars=("OPENAI_API_KEY" "ELEVENLABS_API_KEY" "NODE_ENV")
     local missing_vars=()
-    
+
     source "$env_file" 2>/dev/null || {
         ISSUES_FOUND+=("Failed to source environment file")
         return 1
     }
-    
+
     for var in "${required_vars[@]}"; do
         if [[ -z "${!var:-}" ]]; then
             missing_vars+=("$var")
         fi
     done
-    
+
     if [[ ${#missing_vars[@]} -gt 0 ]]; then
         ISSUES_FOUND+=("Missing required environment variables: ${missing_vars[*]}")
     fi
-    
+
     # Check Node.js environment
     if [[ "${NODE_ENV:-}" != "production" ]]; then
         WARNINGS_FOUND+=("NODE_ENV not set to production (current: ${NODE_ENV:-unset})")
     fi
-    
+
     log "INFO" "✓ Environment configuration check completed"
 }
 
@@ -485,27 +485,27 @@ generate_health_report() {
     local total_issues=${#ISSUES_FOUND[@]}
     local total_warnings=${#WARNINGS_FOUND[@]}
     local exit_code=0
-    
+
     # Determine exit code
     if [[ $total_issues -gt 0 ]]; then
         exit_code=2
     elif [[ $total_warnings -gt 0 ]]; then
         exit_code=1
     fi
-    
+
     if [[ "$OUTPUT_FORMAT" == "json" ]]; then
         generate_json_report "$exit_code"
     else
         generate_text_report "$exit_code"
     fi
-    
+
     return $exit_code
 }
 
 generate_json_report() {
     local exit_code="$1"
     local timestamp=$(date -Iseconds)
-    
+
     cat << EOF
 {
     "timestamp": "$timestamp",
@@ -535,7 +535,7 @@ EOF
 generate_text_report() {
     local exit_code="$1"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    
+
     echo
     echo -e "${BOLD}==============================================================================${NC}"
     echo -e "${BOLD}BEDTIME STORIES APP - HEALTH CHECK REPORT${NC}"
@@ -544,7 +544,7 @@ generate_text_report() {
     echo -e "Hostname:  $(hostname)"
     echo -e "Status:    $([ $exit_code -eq 0 ] && echo -e "${GREEN}HEALTHY${NC}" || [ $exit_code -eq 1 ] && echo -e "${YELLOW}WARNING${NC}" || echo -e "${RED}CRITICAL${NC}")"
     echo
-    
+
     # System information
     echo -e "${BOLD}SYSTEM INFORMATION:${NC}"
     echo -e "  Uptime:       $(uptime -p)"
@@ -552,7 +552,7 @@ generate_text_report() {
     echo -e "  Memory Usage: $(free -h | awk 'NR==2{printf "%s/%s (%.1f%%)", $3,$2,$3*100/$2}')"
     echo -e "  Disk Usage:   $(df -h / | awk 'NR==2{printf "%s/%s (%s)", $3,$2,$5}')"
     echo
-    
+
     # Critical issues
     if [[ ${#ISSUES_FOUND[@]} -gt 0 ]]; then
         echo -e "${RED}${BOLD}CRITICAL ISSUES (${#ISSUES_FOUND[@]}):${NC}"
@@ -561,7 +561,7 @@ generate_text_report() {
         done
         echo
     fi
-    
+
     # Warnings
     if [[ ${#WARNINGS_FOUND[@]} -gt 0 ]]; then
         echo -e "${YELLOW}${BOLD}WARNINGS (${#WARNINGS_FOUND[@]}):${NC}"
@@ -570,14 +570,14 @@ generate_text_report() {
         done
         echo
     fi
-    
+
     # Success message
     if [[ $exit_code -eq 0 ]]; then
         echo -e "${GREEN}${BOLD}✓ ALL HEALTH CHECKS PASSED${NC}"
         echo -e "The Bedtime Stories App is healthy and ready for use."
         echo
     fi
-    
+
     echo -e "${BOLD}==============================================================================${NC}"
 }
 
@@ -588,13 +588,13 @@ generate_text_report() {
 main() {
     parse_arguments "$@"
     create_lock
-    
+
     log "INFO" "Starting health check for Bedtime Stories App..."
     log "DEBUG" "Running on: $(hostname) at $(date)"
-    
+
     # Ensure log directory exists
     mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
-    
+
     # Execute all health checks
     check_raspberry_pi_hardware || true
     check_memory_resources || true
@@ -604,13 +604,13 @@ main() {
     check_network_connectivity || true
     check_application_health || true
     check_environment_configuration || true
-    
+
     # Generate and display report
     generate_health_report
     local final_exit_code=$?
-    
+
     log "INFO" "Health check completed with exit code: $final_exit_code"
-    
+
     cleanup
     exit $final_exit_code
 }

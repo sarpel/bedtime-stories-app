@@ -80,7 +80,7 @@ The repository is now production-ready for Raspberry Pi Zero 2 W deployment with
    ```bash
    # Run comprehensive health check
    ./deploy/health-check.sh --verbose
-   
+
    # Auto-fix any issues found
    ./deploy/health-check.sh --fix-issues
    ```
@@ -135,9 +135,9 @@ sudo systemctl enable --now bedtime-stories-app.service
 
 ---
 
-**Repository Status**: ✅ PRODUCTION READY  
-**Target Platform**: Raspberry Pi Zero 2 W + IQaudio Codec Zero HAT  
-**Deployment Method**: SystemD services with automated setup  
-**Security Level**: Hardened (no exposed secrets, minimal privileges)  
-**Performance**: Optimized for 512MB RAM constraints  
+**Repository Status**: ✅ PRODUCTION READY
+**Target Platform**: Raspberry Pi Zero 2 W + IQaudio Codec Zero HAT
+**Deployment Method**: SystemD services with automated setup
+**Security Level**: Hardened (no exposed secrets, minimal privileges)
+**Performance**: Optimized for 512MB RAM constraints
 **Monitoring**: Comprehensive health checks with auto-remediation

@@ -5,6 +5,7 @@
 This is a Turkish bedtime stories application optimized for **Raspberry Pi Zero 2 W** deployment with **IQaudio Codec Zero HAT**. The system generates custom bedtime stories using AI and converts them to high-quality Turkish speech, designed specifically for a 5-year-old Turkish girl.
 
 ### Key Features
+
 - **AI Story Generation**: Custom Turkish bedtime stories using OpenAI GPT or Gemini
 - **High-Quality TTS**: Turkish voice synthesis via ElevenLabs or Gemini TTS
 - **Hybrid Data Storage**: SQLite database with localStorage fallback
@@ -16,6 +17,7 @@ This is a Turkish bedtime stories application optimized for **Raspberry Pi Zero 
 ## 📋 Hardware Requirements
 
 ### Raspberry Pi Zero 2 W Specifications
+
 - **CPU**: BCM2710A1 quad-core ARM Cortex-A53 @ 1GHz (throttles to ~600MHz sustained)
 - **Memory**: 512MB RAM (shared with GPU) - **Critical constraint**
 - **Storage**: Class 10 SD card (16GB minimum, 32GB recommended)
@@ -23,6 +25,7 @@ This is a Turkish bedtime stories application optimized for **Raspberry Pi Zero 
 - **Audio**: 40-pin GPIO header for HAT connection
 
 ### Audio Hardware Setup
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Raspberry Pi Zero 2 W                    │
@@ -53,6 +56,7 @@ Signal Path: App → ALSA → I2S → DA7212 → Analog Output
 ```
 
 ### Verified Audio Hardware
+
 - **Primary**: IQaudio Codec Zero (pre-Raspberry Pi acquisition, Dialog DA7212)
 - **Alternative**: WM8960-based HATs with similar pinout
 - **Driver**: Legacy `iqaudio-codec` overlay (Bookworm compatible)
@@ -62,12 +66,14 @@ Signal Path: App → ALSA → I2S → DA7212 → Analog Output
 ## ⚙️ Software Installation
 
 ### Prerequisites
+
 - **OS**: Raspberry Pi OS Lite (Bookworm, 32-bit armhf recommended)
 - **Network**: WiFi configured with internet access
 - **SSH**: Enabled for remote administration
 - **Time Sync**: NTP configured (important for SSL certificate validation)
 
 ### One-Command Installation
+
 ```bash
 # Download and run the automated installer
 sudo curl -fsSL https://github.com/sarpel/bedtime-stories-app/raw/main/install_pi_zero_host.sh -o install_pi_zero_host.sh
@@ -81,11 +87,12 @@ sudo APP_REPO=https://github.com/sarpel/bedtime-stories-app.git \
 ```
 
 ### Installation Options
+
 ```bash
 # Dry run (show what would be done)
 sudo bash ./install_pi_zero_host.sh --dry-run
 
-# Skip audio setup (for headless testing)  
+# Skip audio setup (for headless testing)
 sudo bash ./install_pi_zero_host.sh --no-audio
 
 # Use pre-built frontend (faster)
@@ -100,7 +107,9 @@ sudo bash ./install_pi_zero_host.sh --uninstall
 ## 🔧 Configuration
 
 ### API Keys Setup
+
 1. **Copy environment template**:
+
    ```bash
    sudo cp /opt/storyapp/current/backend/.env.example /opt/storyapp/current/backend/.env
    sudo chown storyapp:storyapp /opt/storyapp/current/backend/.env
@@ -108,25 +117,28 @@ sudo bash ./install_pi_zero_host.sh --uninstall
    ```
 
 2. **Configure API keys**:
+
    ```bash
    sudo nano /opt/storyapp/current/backend/.env
    ```
-   
+
    **Required**: At least one LLM and one TTS provider:
    - `OPENAI_API_KEY` (for GPT story generation)
    - `ELEVENLABS_API_KEY` (for Turkish voice synthesis)
-   
+
    **Optional alternatives**:
    - `GEMINI_LLM_API_KEY` (alternative to OpenAI)
    - `GEMINI_TTS_API_KEY` (alternative to ElevenLabs)
 
 3. **Restart services**:
+
    ```bash
    sudo systemctl restart storyapp
    sudo systemctl status storyapp --no-pager
    ```
 
 ### Audio Configuration Verification
+
 ```bash
 # Check audio device detection
 aplay -l
@@ -142,6 +154,7 @@ dtoverlay -l | grep -i iqaudio
 ```
 
 ### Performance Tuning for 512MB RAM
+
 ```bash
 # Edit environment file
 sudo nano /etc/storyapp/env
@@ -158,10 +171,11 @@ NODE_OPTIONS="--max-old-space-size=200"
 ## 🚀 Operations
 
 ### Service Management
+
 ```bash
 # Start/stop/restart services
 sudo systemctl start storyapp
-sudo systemctl stop storyapp  
+sudo systemctl stop storyapp
 sudo systemctl restart storyapp
 sudo systemctl status storyapp --no-pager
 
@@ -174,6 +188,7 @@ sudo systemctl status storyaudio --no-pager
 ```
 
 ### Health Monitoring
+
 ```bash
 # Quick health check
 curl -fsSL http://localhost:8080/healthz
@@ -190,6 +205,7 @@ df -h
 ```
 
 ### Log Management
+
 ```bash
 # Application logs
 sudo tail -f /var/log/storyapp/app.log
@@ -206,6 +222,7 @@ sudo zcat /var/log/storyapp/app.log.1.gz | tail -50
 ```
 
 ### Database Management
+
 ```bash
 # Check database status
 sudo -u storyapp sqlite3 /opt/storyapp/current/backend/database/stories.db "SELECT COUNT(*) FROM stories;"
@@ -224,6 +241,7 @@ sudo -u storyapp sqlite3 /opt/storyapp/current/backend/database/stories.db "PRAG
 ### Audio Issues
 
 #### No Sound Output
+
 ```bash
 # Check audio device enumeration
 aplay -l
@@ -243,6 +261,7 @@ sudo amixer -c 0 sset Headphone 70% unmute
 ```
 
 #### Audio Distortion
+
 ```bash
 # Check for underruns
 dmesg | grep -i underrun
@@ -257,6 +276,7 @@ vcgencmd get_throttled
 ```
 
 #### I2S Conflicts
+
 ```bash
 # Disable conflicting audio
 sudo nano /boot/firmware/config.txt
@@ -272,6 +292,7 @@ sudo reboot
 ### Memory Issues
 
 #### Out of Memory During Story Generation
+
 ```bash
 # Check current memory usage
 free -h
@@ -287,6 +308,7 @@ sudo nano /etc/storyapp/env
 ```
 
 #### SD Card Full
+
 ```bash
 # Check disk space
 df -h
@@ -302,6 +324,7 @@ sudo find /var/lib/storyapp/media/ -name "*.mp3" -mtime +30 -delete
 ### Network Issues
 
 #### App Not Accessible
+
 ```bash
 # Check service binding
 sudo netstat -tlnp | grep 8080
@@ -318,6 +341,7 @@ ping story.local
 ```
 
 #### API Key Errors
+
 ```bash
 # Check environment variables loaded
 sudo systemctl show storyapp | grep Environment
@@ -332,6 +356,7 @@ curl -H "Authorization: Bearer your-api-key" https://api.openai.com/v1/models
 ### Performance Issues
 
 #### High CPU Usage
+
 ```bash
 # Check process CPU usage
 top -p $(pgrep node)
@@ -349,6 +374,7 @@ sudo nano /opt/storyapp/current/backend/.env
 ```
 
 #### Slow Response Times
+
 ```bash
 # Check I/O wait
 iostat -x 1
@@ -369,6 +395,7 @@ sudo -u storyapp sqlite3 /opt/storyapp/current/backend/database/stories.db "VACU
 ## 📊 Performance Monitoring
 
 ### System Health Commands
+
 ```bash
 # CPU temperature and throttling
 vcgencmd measure_temp
@@ -389,24 +416,26 @@ cat /proc/loadavg
 ```
 
 ### Application Metrics
+
 ```bash
 # Node.js process stats
 ps -eo pid,ppid,cmd,%mem,%cpu --sort=-%mem | grep node
 
 # Database size and performance
 sudo -u storyapp sqlite3 /opt/storyapp/current/backend/database/stories.db "
-  SELECT 
+  SELECT
     COUNT(*) as story_count,
     AVG(LENGTH(story_text)) as avg_story_length,
     SUM(LENGTH(story_text)) as total_characters
   FROM stories;"
 
-# Audio file statistics  
+# Audio file statistics
 find /var/lib/storyapp/media/ -name "*.mp3" -exec ls -lh {} \; | \
   awk '{total+=$5} END {print "Total audio files:", NR, "Size:", total/1024/1024 "MB"}'
 ```
 
 ### Automated Health Checks
+
 ```bash
 # Create monitoring script
 cat > /usr/local/bin/story-health-check << 'EOF'
@@ -450,6 +479,7 @@ chmod +x /usr/local/bin/story-health-check
 ## 🔄 Maintenance
 
 ### Regular Maintenance Tasks
+
 ```bash
 # Weekly: Clean logs and temporary files
 sudo journalctl --vacuum-time=7d
@@ -472,6 +502,7 @@ sudo tar -czf /root/storyapp-backup-$(date +%Y%m%d).tar.gz \
 ```
 
 ### Update Deployment
+
 ```bash
 # Deploy new version (automated)
 sudo APP_REPO=https://github.com/sarpel/bedtime-stories-app.git \
@@ -488,6 +519,7 @@ sudo systemctl restart storyapp
 ## 🔒 Security Considerations
 
 ### File Permissions
+
 ```bash
 # Verify secure permissions
 ls -la /opt/storyapp/current/backend/.env          # Should be 640 storyapp:storyapp
@@ -496,6 +528,7 @@ ls -ld /var/lib/storyapp                          # Should be 755 storyapp:story
 ```
 
 ### Network Security
+
 ```bash
 # Check listening ports
 sudo netstat -tlnp | grep ":8080"
@@ -511,6 +544,7 @@ sudo ufw --force enable
 ```
 
 ### API Key Protection
+
 - Never commit `.env` files to version control
 - Use strong, unique API keys for each deployment
 - Regularly rotate API keys
@@ -521,16 +555,19 @@ sudo ufw --force enable
 ## 📞 Support & Resources
 
 ### Getting Help
+
 - **Issues**: [GitHub Issues](https://github.com/sarpel/bedtime-stories-app/issues)
 - **Documentation**: [Project Wiki](https://github.com/sarpel/bedtime-stories-app/wiki)
 - **Raspberry Pi Forums**: [Official RPi Community](https://www.raspberrypi.org/forums/)
 
 ### Useful Resources
+
 - **IQaudio Codec Zero**: [Legacy Documentation](https://github.com/iqaudio/Pi-Codec)
 - **ALSA Configuration**: [Advanced Linux Sound Architecture](https://wiki.archlinux.org/title/Advanced_Linux_Sound_Architecture)
 - **Raspberry Pi Performance**: [Official Monitoring Guide](https://www.raspberrypi.org/documentation/computers/os.html#monitoring)
 
 ### Performance Benchmarks
+
 | Metric | Target (Pi Zero 2 W) | Warning Threshold |
 |--------|---------------------|-------------------|
 | CPU Temperature | < 65°C | > 70°C |
