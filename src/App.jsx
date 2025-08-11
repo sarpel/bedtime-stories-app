@@ -112,6 +112,7 @@ function App() {
   // Veritabanı hook'u (yeni sistem)
   const {
     stories: dbStories,
+    loadStories,
     createStory: createDbStory,
     updateStory: updateDbStory,
     deleteStory: deleteDbStory,
@@ -386,6 +387,9 @@ function App() {
       analyticsService.trackAudioGeneration(storyId, settings.voiceId || 'default', true, duration)
 
       console.log('Audio generated for story:', storyId, audioUrl)
+
+      // Hikayeleri yeniden yükle ki yeni audio bilgisi görünsün
+      await loadStories()
 
     } catch (error) {
       console.error('Audio generation failed for story:', storyId, error)
