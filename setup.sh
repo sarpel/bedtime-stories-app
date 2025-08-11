@@ -736,12 +736,6 @@ parse_arguments() {
             --no-swap)
                 ENABLE_SWAP_FOR_BUILD=0
                 ;;
-<<<<<<< HEAD
-            --swap-during-build)
-                ENABLE_SWAP_FOR_BUILD=1
-                ;;
-=======
->>>>>>> 97f23b3c26cddd2257d9679ec8125c37238a7b23
             --rollback)
                 shift
                 if [ $# -eq 0 ]; then
