@@ -80,23 +80,28 @@ export class TTSService {
       const requestBody = this.prepareRequestBody(text)
       onProgress?.(30)
 
+      const requestPayload = {
+        provider: this.provider,
+        modelId: this.modelId,
+        voiceId: this.voiceId,
+        requestBody: requestBody,
+        storyId: storyId
+      }
+
+      console.log('🔊 [TTSService] Request payload:', requestPayload)
+
       // İstek relative backend yoluna yapılıyor (Vite proxy/prod aynı origin)
       const response = await fetch(`/api/tts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          provider: this.provider,
-          modelId: this.modelId,
-          voiceId: this.voiceId,
-          requestBody: requestBody,
-          storyId: storyId
-        })
+        body: JSON.stringify(requestPayload)
       })
 
       onProgress?.(60)
 
+      console.log('🔊 [TTSService] Response status:', response.status)
       if (!response.ok) {
         const errorText = await response.text()
         throw new Error(`TTS API hatası (${response.status}): ${errorText}`)

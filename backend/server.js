@@ -631,11 +631,19 @@ app.get('/api/stories/type/:storyType', (req, res) => {
 
 // --- TTS İSTEKLERİ İÇİN ENDPOINT (GÜNCELLENMİŞ) ---
 app.post('/api/tts', async (req, res) => {
+  console.log('🔊 [Backend TTS] Request received:', {
+    provider: req.body.provider,
+    voiceId: req.body.voiceId,
+    hasRequestBody: !!req.body.requestBody,
+    requestBodyKeys: req.body.requestBody ? Object.keys(req.body.requestBody) : []
+  })
+
   // Frontend'den gelen ayarları ve metni al
   const { provider, modelId, voiceId, requestBody, storyId, endpoint: clientEndpoint } = req.body;
 
   // Input validation
   if (!provider || !requestBody) {
+    console.log('🔊 [Backend TTS] Validation failed:', { provider, hasRequestBody: !!requestBody })
     return res.status(400).json({ error: 'Provider ve request body gereklidir.' });
   }
   // Provider kısıtlaması kaldırıldı: generic sağlayıcılar için endpoint gereklidir
@@ -664,16 +672,24 @@ app.post('/api/tts', async (req, res) => {
   const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
   const GEMINI_TTS_API_KEY = process.env.GEMINI_TTS_API_KEY || process.env.GEMINI_LLM_API_KEY;
 
+  console.log('🔊 [Backend TTS] API Keys status:', {
+    elevenlabs: ELEVENLABS_API_KEY ? 'DEFINED' : 'UNDEFINED',
+    gemini: GEMINI_TTS_API_KEY ? 'DEFINED' : 'UNDEFINED'
+  })
+
   let endpoint;
   let headers = {};
   let response;
 
   try {
     if (provider === 'elevenlabs') {
+      console.log('🔊 [Backend TTS] Using ElevenLabs provider')
       if (!ELEVENLABS_API_KEY) {
+        console.log('🔊 [Backend TTS] ElevenLabs API key missing!')
         return res.status(500).json({ error: 'ElevenLabs API anahtarı sunucuda tanımlanmamış.' });
       }
       if (!voiceId) {
+        console.log('🔊 [Backend TTS] Voice ID missing!')
         return res.status(400).json({ error: 'ElevenLabs için voiceId gereklidir.' });
       }
 

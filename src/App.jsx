@@ -350,8 +350,22 @@ function App() {
   }
 
   // Generate audio for any story by ID (for Story Management Panel)
-  const generateAudioForStory = async (storyId, storyText) => {
-    if (!storyText) return
+  const generateAudioForStory = async (storyInput, storyTextParam) => {
+    // Handle both story object and separate parameters for backward compatibility
+    const storyId = typeof storyInput === 'object' ? storyInput.id : storyInput
+    const storyText = typeof storyInput === 'object' ? (storyInput.story_text || storyInput.story) : storyTextParam
+
+    console.log('🔊 [generateAudioForStory] Called with:', {
+      inputType: typeof storyInput,
+      storyId,
+      hasStoryText: !!storyText,
+      storyTextLength: storyText?.length
+    })
+
+    if (!storyText) {
+      console.warn('🔊 [generateAudioForStory] No story text provided')
+      return
+    }
 
     setIsGeneratingAudio(true)
     setProgress(0)
@@ -535,54 +549,56 @@ function App() {
               <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Bedtime Stories</p>
             </div>
           </div>
-          <div className="flex gap-1 sm:gap-2">
+          <div className="flex gap-1 sm:gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowStoryManagement(true)}
-              className="gap-1 sm:gap-2 px-2 sm:px-3"
+              className="gap-1 px-2 h-8 text-xs"
             >
-              <BookOpen className="h-4 w-4" />
-              <span className="hidden sm:inline">Masal Yönetimi ({dbStories.length > 0 ? dbStories.length : history.length})</span>
-              <span className="sm:hidden">({dbStories.length > 0 ? dbStories.length : history.length})</span>
+              <BookOpen className="h-3 w-3" />
+              <span className="hidden md:inline">Masal Yönetimi</span>
+              <span className="md:hidden">Masallar</span>
+              <span className="text-xs">({dbStories.length > 0 ? dbStories.length : history.length})</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowFavorites(true)}
-              className="gap-1 sm:gap-2 px-2 sm:px-3"
+              className="gap-1 px-2 h-8 text-xs"
             >
-              <Heart className="h-4 w-4" />
-              <span className="hidden sm:inline">Favoriler ({favorites.length})</span>
-              <span className="sm:hidden">({favorites.length})</span>
+              <Heart className="h-3 w-3" />
+              <span className="hidden md:inline">Favoriler</span>
+              <span className="md:hidden">♥</span>
+              <span className="text-xs">({favorites.length})</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowAnalytics(true)}
-              className="gap-1 sm:gap-2 px-2 sm:px-3"
+              className="gap-1 px-2 h-8 text-xs"
             >
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Analitik</span>
+              <BarChart3 className="h-3 w-3" />
+              <span className="hidden lg:inline">Analitik</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowPerformanceMonitor(true)}
-              className="gap-1 sm:gap-2 px-2 sm:px-3"
+              className="gap-1 px-2 h-8 text-xs"
               title="Performans Monitörü"
             >
-              <Zap className="h-4 w-4" />
-              <span className="hidden sm:inline">Performans</span>
+              <Zap className="h-3 w-3" />
+              <span className="hidden lg:inline">Performans</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowSettings(!showSettings)}
-              className="gap-1 sm:gap-2 px-2 sm:px-3"
+              className="gap-1 px-2 h-8 text-xs"
             >
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Ayarlar</span>
+              <Settings className="h-3 w-3" />
+              <span className="hidden md:inline">Ayarlar</span>
             </Button>
           </div>
         </div>
