@@ -669,6 +669,7 @@ OPTIONS:
     --no-audio             Skip audio HAT configuration
     --skip-audio-test      Skip audio functionality testing
     --no-swap              Disable temporary swap during build
+    --swap-during-build    Enable temporary swap during build (default)
     --rollback BACKUP      Rollback to specified backup file
 
 ENVIRONMENT VARIABLES:
@@ -731,6 +732,9 @@ parse_arguments() {
                 ;;
             --no-swap)
                 ENABLE_SWAP_FOR_BUILD=0
+                ;;
+            --swap-during-build)
+                ENABLE_SWAP_FOR_BUILD=1
                 ;;
             --rollback)
                 shift
