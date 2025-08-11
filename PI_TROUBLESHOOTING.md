@@ -69,22 +69,29 @@ dos2unix setup.sh
 ## Step 5: Common Issues and Solutions
 
 ### Issue: "Unknown option: --swap-during-build"
+
 **Solution**: The script version is outdated. Make sure you have the latest version from main branch.
 
 ### Issue: Permission denied errors
+
 **Solution**: Run with sudo:
+
 ```bash
 sudo bash setup.sh --swap-during-build
 ```
 
 ### Issue: Line ending errors ($'\r': command not found)
+
 **Solution**: Fix line endings:
+
 ```bash
 sed -i 's/\r$//' setup.sh
 ```
 
 ### Issue: Out of memory during build
+
 **Solution**: Enable swap first:
+
 ```bash
 sudo dphys-swapfile swapoff
 sudo sed -i 's/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=512/' /etc/dphys-swapfile

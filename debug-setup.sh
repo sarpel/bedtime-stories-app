@@ -61,7 +61,7 @@ else
 fi
 echo
 
-# Check if Node.js is available  
+# Check if Node.js is available
 echo "7. Node.js Information:"
 if command -v node >/dev/null 2>&1; then
     echo "   Node.js version: $(node --version)"
@@ -104,14 +104,14 @@ echo
 echo "10. Setup Script Test:"
 if [ -f "./setup.sh" ]; then
     echo "   Testing setup.sh argument parsing..."
-    
+
     # Test help
     if bash ./setup.sh --help >/dev/null 2>&1; then
         echo "   ✅ --help works"
     else
         echo "   ❌ --help fails"
     fi
-    
+
     # Test swap-during-build
     if bash ./setup.sh --swap-during-build --dry-run >/dev/null 2>&1; then
         echo "   ✅ --swap-during-build works"
