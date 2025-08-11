@@ -480,34 +480,107 @@ run_installer() {
 
     setup_pi_zero_optimizations
 
-    # Prepare installer command arguments
-    local installer_args=()
-
-    if [ "$DRY_RUN" -eq 1 ]; then
-        installer_args+=("--dry-run")
+    # Prevent infinite loop - if already running installer, run actual installation logic
+    if [[ "${BASH_SOURCE[0]}" == "${0}" ]] && [[ "${INSTALLER_RUNNING:-0}" != "1" ]]; then
+        export INSTALLER_RUNNING=1
+        log "INFO" "Starting core installation process..."
+        
+        # Run the actual installation logic directly instead of recursive call
+        perform_core_installation
+        
+    else
+        log "INFO" "Installation already in progress, skipping recursive call"
     fi
-
-    if [ "$NO_AUDIO_SETUP" -eq 1 ]; then
-        installer_args+=("--no-audio")
-    fi
-
-    if [ "$ENABLE_SWAP_FOR_BUILD" -eq 1 ]; then
-        installer_args+=("--swap-during-build")
-    fi
-
-    # Execute the main installer with environment variables
-    log "INFO" "Starting core installation process..."
-    env APP_REPO="$APP_REPO" \
-        APP_PORT="$APP_PORT" \
-        APP_DIR="$APP_DIR" \
-        APP_HOSTNAME="$APP_HOSTNAME" \
-        APP_ENV="$APP_ENV" \
-        MEDIA_DIR="$MEDIA_DIR" \
-        bash "$0" "${installer_args[@]}"
 
     cleanup_pi_zero_optimizations
 
     log "INFO" "✅ Core installation completed"
+}
+
+# Core installation logic that was previously causing infinite loop
+perform_core_installation() {
+    log "INFO" "Installing system dependencies..."
+    
+    # Update package lists
+    run_command "Update package lists" apt-get update
+    
+    # Install required packages
+    run_command "Install dependencies" apt-get install -y \
+        curl \
+        git \
+        nodejs \
+        npm \
+        nginx \
+        supervisor \
+        sqlite3 \
+        alsa-utils \
+        pulseaudio \
+        pulseaudio-utils
+    
+    # Create application directories
+    run_command "Create app directory" mkdir -p "$APP_DIR"
+    run_command "Create media directory" mkdir -p "$MEDIA_DIR"
+    run_command "Create log directory" mkdir -p /var/log/storyapp
+    
+    # Clone or update repository
+    if [ ! -d "$APP_DIR/.git" ]; then
+        log "INFO" "Cloning application repository..."
+        run_command "Clone repository" git clone "$APP_REPO" "$APP_DIR"
+    else
+        log "INFO" "Updating existing repository..."
+        cd "$APP_DIR"
+        run_command "Pull latest changes" git pull origin main
+    fi
+    
+    # Install application dependencies
+    cd "$APP_DIR"
+    log "INFO" "Installing application dependencies..."
+    
+    # Frontend dependencies
+    run_command "Install frontend dependencies" npm install
+    run_command "Build frontend" npm run build
+    
+    # Backend dependencies
+    cd "$APP_DIR/backend"
+    run_command "Install backend dependencies" npm install
+    
+    # Setup systemd services
+    setup_systemd_services
+    
+    log "INFO" "Core installation completed successfully"
+}
+
+# Setup systemd service files
+setup_systemd_services() {
+    log "INFO" "Setting up systemd services..."
+    
+    # Create systemd service file
+    cat > /etc/systemd/system/storyapp.service << EOF
+[Unit]
+Description=Turkish Bedtime Stories App
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$APP_DIR/backend
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=10
+Environment=NODE_ENV=$APP_ENV
+Environment=PORT=$APP_PORT
+Environment=MEDIA_DIR=$MEDIA_DIR
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # Enable and start services
+    systemctl daemon-reload
+    systemctl enable storyapp.service
+    
+    log "INFO" "Systemd services configured"
 }
 
 # -----------------------------------------------------------------------------
