@@ -1,15 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button.jsx'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Textarea } from '@/components/ui/textarea.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
-import { Progress } from '@/components/ui/progress.jsx'
-import { Moon, Settings, Sparkles, Heart, AlertCircle, Volume2, BookOpen, X, BarChart3, Zap } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card.jsx'
+import { Moon, Settings, Heart, AlertCircle, BookOpen, BarChart3, Zap } from 'lucide-react'
 import SettingsPanel from './components/Settings.jsx'
 import StoryCreator from './components/StoryCreator.jsx'
 import FavoritesPanel from './components/FavoritesPanel.jsx'
 import StoryManagementPanel from './components/StoryManagementPanel.jsx'
-import AudioControls from './components/AudioControls.jsx'
 import AnalyticsDashboard from './components/AnalyticsDashboard.jsx'
 import PerformanceMonitor from './components/PerformanceMonitor.jsx'
 import StoryQueuePanel from './components/StoryQueuePanel.jsx'
@@ -24,6 +20,11 @@ import { useAudioPlayer } from './hooks/useAudioPlayer.js'
 import { useIsMobile } from './hooks/use-mobile.js'
 import ApiKeyHelp from './components/ApiKeyHelp.jsx'
 import safeLocalStorage from './utils/safeLocalStorage.js'
+// Pi Zero optimizations
+import { logger } from './utils/logger.js'
+import stabilityMonitor from './utils/stabilityMonitor.js'
+import audioCodecMonitor from './utils/audioCodecMonitor.js'
+import memoryPressureMonitor from './utils/memoryPressureMonitor.js'
 import './App.css'
 
 function App() {
@@ -48,15 +49,26 @@ function App() {
   const [settings, setSettings] = useState(() => {
     // localStorage'dan ayarları güvenli şekilde yükle
     const savedSettings = safeLocalStorage.get('bedtime-stories-settings')
+    const defaults = getDefaultSettings()
     if (savedSettings) {
       try {
-        return { ...getDefaultSettings(), ...savedSettings }
+        // Derin birleştirme: iç içe objelerde varsayılanları koru
+        return {
+          ...defaults,
+          ...savedSettings,
+          openaiLLM: { ...defaults.openaiLLM, ...(savedSettings.openaiLLM || {}) },
+          geminiLLM: { ...defaults.geminiLLM, ...(savedSettings.geminiLLM || {}) },
+          elevenlabs: { ...defaults.elevenlabs, ...(savedSettings.elevenlabs || {}) },
+          geminiTTS: { ...defaults.geminiTTS, ...(savedSettings.geminiTTS || {}) },
+          llmSettings: { ...defaults.llmSettings, ...(savedSettings.llmSettings || {}) },
+          voiceSettings: { ...defaults.voiceSettings, ...(savedSettings.voiceSettings || {}) }
+        }
       } catch (error) {
         console.error('Ayarlar yüklenirken hata:', error)
-        return getDefaultSettings()
+        return defaults
       }
     }
-    return getDefaultSettings()
+    return defaults
   })
 
   // Ayarları localStorage'a kaydet
@@ -100,6 +112,7 @@ function App() {
   // Veritabanı hook'u (yeni sistem)
   const {
     stories: dbStories,
+    loadStories,
     createStory: createDbStory,
     updateStory: updateDbStory,
     deleteStory: deleteDbStory,
@@ -113,7 +126,7 @@ function App() {
       const result = await toggleFavorite(storyData)
 
       // Analytics: Track favorite action
-      if (result && result.action && storyData.story) {
+      if (result?.action && storyData.story) {
         const storyId = storyData.id || currentStoryId
         analyticsService.trackFavoriteAction(storyId, result.action)
       }
@@ -147,8 +160,7 @@ function App() {
     setVolumeLevel,
     setPlaybackSpeed,
     seekTo,
-    setOnEnded,
-    audioRef: globalAudioRef
+    setOnEnded
   } = useAudioPlayer()
 
   // Advanced Audio Features kaldırıldı - çalışmayan download/bookmark özellikleri
@@ -170,6 +182,24 @@ function App() {
       updateStory(id, updates)
     }
   }
+
+  // Initialize Pi Zero monitoring systems
+  useEffect(() => {
+    // Start monitoring systems optimized for Pi Zero 2W
+    stabilityMonitor.startMonitoring()
+    memoryPressureMonitor.startMonitoring()
+    audioCodecMonitor.startMonitoring()
+
+    logger.info('Pi Zero 2W monitoring systems initialized')
+
+    // Cleanup on unmount
+    return () => {
+      stabilityMonitor.stopMonitoring()
+      memoryPressureMonitor.stopMonitoring()
+      audioCodecMonitor.stopMonitoring()
+      logger.info('Pi Zero 2W monitoring systems cleaned up')
+    }
+  }, [])
 
   // Story text değişikliği için fonksiyon
   const handleStoryChange = (newStory) => {
@@ -209,6 +239,10 @@ function App() {
       return
     }
 
+    console.log('[App] generateStory:start', {
+      selectedStoryType,
+      customTopicLen: customTopic.length
+    })
     setIsGenerating(true)
     setStory('')
     setProgress(0)
@@ -218,41 +252,52 @@ function App() {
 
     try {
       const llmService = new LLMService(settings)
+      console.log('[App] LLMService:created')
 
       // Eğer customTopic varsa onu kullan, yoksa selectedStoryType kullan
       const storyTypeToUse = customTopic.trim() ? 'custom' : selectedStoryType
       const topicToUse = customTopic.trim() || ''
+      console.log('[App] request:prepared', { storyTypeToUse, topicToUseLen: topicToUse.length })
 
       let story = await llmService.generateStory((progressValue) => {
         setProgress(progressValue)
+        console.log('[App] progress:', progressValue)
       }, storyTypeToUse, topicToUse)
+      console.log('[App] response:received', { length: story?.length || 0 })
 
       // LLM bazen boş/kısa yanıt döndürebilir; kullanıcı deneyimini korumak için fallback üret
       if (!story || (typeof story === 'string' && story.trim().length < 300)) {
         console.warn('LLM kısa/boş yanıt döndürdü, fallback masal üretilecek.')
+        console.log('[App] fallback:triggered', { length: story?.length || 0 })
         try {
           story = llmService.generateFallbackStory()
+          console.log('[App] fallback:generated', { length: story?.length || 0 })
         } catch {
           // generateFallbackStory başarısız olursa minimum metin kullan
           story = 'Bir zamanlar, çok uzak diyarlarda, iyi kalpli bir çocuk yaşarmış. Her gece yıldızlara bakar ve güzel rüyalar görürmüş. İyi geceler, tatlı rüyalar.'
+          console.log('[App] fallback:mintext')
         }
       }
 
       setStory(story)
+      console.log('[App] story:set', { length: story?.length || 0 })
 
       // Analytics: Track successful story generation
       const duration = Date.now() - startTime
       analyticsService.trackStoryGeneration(storyTypeToUse, topicToUse, true, duration)
+      console.log('[App] analytics:storyGeneration:success', { duration })
 
       // Veritabanına kaydet
       try {
         const dbStory = await createDbStory(story, storyTypeToUse, topicToUse)
         setCurrentStoryId(dbStory.id)
         console.log('Masal veritabanına kaydedildi:', dbStory.id)
+        console.log('[App] db:createStory:success', { id: dbStory.id })
 
         // Yeni story eklenmesi favorileri etkilemez, gereksiz refresh yok
       } catch (dbError) {
         console.error('Veritabanına kaydetme hatası:', dbError)
+        console.log('[App] db:createStory:error', { message: dbError?.message })
 
         // Fallback olarak localStorage kullan
         const id = addToHistory({
@@ -261,10 +306,12 @@ function App() {
           customTopic: topicToUse
         })
         setCurrentStoryId(id)
+        console.log('[App] history:add', { id })
       }
 
     } catch (error) {
       console.error('Story generation failed:', error)
+      console.log('[App] generateStory:error', { message: error?.message })
 
       // Analytics: Track failed story generation
       const duration = Date.now() - startTime
@@ -291,18 +338,35 @@ function App() {
         const llmService = new LLMService(settings)
         const fallbackStory = llmService.generateFallbackStory()
         setStory(fallbackStory)
+        console.log('[App] error:fallback:generated', { length: fallbackStory?.length || 0 })
       } catch {
         setStory('')
+        console.log('[App] error:fallback:failed')
       }
     } finally {
       setIsGenerating(false)
       setProgress(0)
+      console.log('[App] generateStory:end', { totalMs: Date.now() - startTime })
     }
   }
 
   // Generate audio for any story by ID (for Story Management Panel)
-  const generateAudioForStory = async (storyId, storyText) => {
-    if (!storyText) return
+  const generateAudioForStory = async (storyInput, storyTextParam) => {
+    // Handle both story object and separate parameters for backward compatibility
+    const storyId = typeof storyInput === 'object' ? storyInput.id : storyInput
+    const storyText = typeof storyInput === 'object' ? (storyInput.story_text || storyInput.story) : storyTextParam
+
+    console.log('🔊 [generateAudioForStory] Called with:', {
+      inputType: typeof storyInput,
+      storyId,
+      hasStoryText: !!storyText,
+      storyTextLength: storyText?.length
+    })
+
+    if (!storyText) {
+      console.warn('🔊 [generateAudioForStory] No story text provided')
+      return
+    }
 
     setIsGeneratingAudio(true)
     setProgress(0)
@@ -323,6 +387,9 @@ function App() {
       analyticsService.trackAudioGeneration(storyId, settings.voiceId || 'default', true, duration)
 
       console.log('Audio generated for story:', storyId, audioUrl)
+
+      // Hikayeleri yeniden yükle ki yeni audio bilgisi görünsün
+      await loadStories()
 
     } catch (error) {
       console.error('Audio generation failed for story:', storyId, error)
@@ -486,54 +553,56 @@ function App() {
               <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Bedtime Stories</p>
             </div>
           </div>
-          <div className="flex gap-1 sm:gap-2">
+          <div className="flex gap-1 sm:gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowStoryManagement(true)}
-              className="gap-1 sm:gap-2 px-2 sm:px-3"
+              className="gap-1 px-2 h-8 text-xs"
             >
-              <BookOpen className="h-4 w-4" />
-              <span className="hidden sm:inline">Masal Yönetimi ({dbStories.length > 0 ? dbStories.length : history.length})</span>
-              <span className="sm:hidden">({dbStories.length > 0 ? dbStories.length : history.length})</span>
+              <BookOpen className="h-3 w-3" />
+              <span className="hidden md:inline">Masal Yönetimi</span>
+              <span className="md:hidden">Masallar</span>
+              <span className="text-xs">({dbStories.length > 0 ? dbStories.length : history.length})</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowFavorites(true)}
-              className="gap-1 sm:gap-2 px-2 sm:px-3"
+              className="gap-1 px-2 h-8 text-xs"
             >
-              <Heart className="h-4 w-4" />
-              <span className="hidden sm:inline">Favoriler ({favorites.length})</span>
-              <span className="sm:hidden">({favorites.length})</span>
+              <Heart className="h-3 w-3" />
+              <span className="hidden md:inline">Favoriler</span>
+              <span className="md:hidden">♥</span>
+              <span className="text-xs">({favorites.length})</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowAnalytics(true)}
-              className="gap-1 sm:gap-2 px-2 sm:px-3"
+              className="gap-1 px-2 h-8 text-xs"
             >
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Analitik</span>
+              <BarChart3 className="h-3 w-3" />
+              <span className="hidden lg:inline">Analitik</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowPerformanceMonitor(true)}
-              className="gap-1 sm:gap-2 px-2 sm:px-3"
+              className="gap-1 px-2 h-8 text-xs"
               title="Performans Monitörü"
             >
-              <Zap className="h-4 w-4" />
-              <span className="hidden sm:inline">Performans</span>
+              <Zap className="h-3 w-3" />
+              <span className="hidden lg:inline">Performans</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowSettings(!showSettings)}
-              className="gap-1 sm:gap-2 px-2 sm:px-3"
+              className="gap-1 px-2 h-8 text-xs"
             >
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Ayarlar</span>
+              <Settings className="h-3 w-3" />
+              <span className="hidden md:inline">Ayarlar</span>
             </Button>
           </div>
         </div>
@@ -762,10 +831,9 @@ function App() {
       </footer>
 
       {/* Hidden Audio Element */}
-      <audio ref={globalAudioRef} className="hidden" />
+      {/* useAudioPlayer kendi Audio nesnesini yönettiği için ekstra <audio> elemanı gerekmiyor */}
     </div>
   )
 }
 
 export default App
-

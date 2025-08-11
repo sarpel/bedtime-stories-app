@@ -35,7 +35,19 @@ describe('API endpoints', () => {
   .send({ provider: 'openai', modelId: 'gpt-4o-mini', prompt: 'p', max_tokens: 5 });
       expect(axios.post).toHaveBeenCalled();
       expect(res.status).toBe(200);
-      expect(res.body).toEqual({ ok: true });
+  // Sunucu ham yanıtı olduğu gibi iletir
+  expect(res.body.ok).toBe(true);
+    });
+
+    test('allows custom provider with client-provided endpoint', async () => {
+      axios.post.mockResolvedValue({ data: { text: 'masal metni' } });
+      app = loadApp();
+      const res = await request(app)
+        .post('/api/llm')
+        .send({ provider: 'custom', modelId: 'x-model', prompt: 'p', endpoint: 'http://localhost/fake' });
+      expect(axios.post).toHaveBeenCalledWith('http://localhost/fake', expect.any(Object), expect.any(Object));
+      expect(res.status).toBe(200);
+      expect(res.body.text).toBe('masal metni');
     });
   });
 
@@ -62,6 +74,20 @@ describe('API endpoints', () => {
       expect(res.headers['content-type']).toBe('audio/mpeg');
       const body = res.text || res.body.toString();
       expect(body).toBe('audio');
+    });
+
+    test('allows custom TTS provider with client-provided endpoint', async () => {
+      const mockStream = Readable.from(['audio2']);
+      axios.post.mockResolvedValue({ data: mockStream, status: 200, headers: {} });
+      app = loadApp();
+      const res = await request(app)
+        .post('/api/tts')
+        .send({ provider: 'mytts', voiceId: 'v', modelId: 'm', requestBody: { text: 'merhaba' }, endpoint: 'http://localhost/tts' });
+      expect(axios.post).toHaveBeenCalledWith('http://localhost/tts', expect.any(Object), expect.objectContaining({ responseType: 'stream' }));
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toBe('audio/mpeg');
+      const body = res.text || res.body.toString();
+      expect(body).toBe('audio2');
     });
   });
 });

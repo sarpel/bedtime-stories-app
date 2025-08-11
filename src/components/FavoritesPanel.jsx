@@ -8,8 +8,8 @@ import AudioControls from './AudioControls.jsx';
 import {
   Heart,
   Trash2,
-  Play,
   Volume2,
+  Play,
   Clock,
   Calendar,
   Sparkles,
@@ -52,7 +52,7 @@ export default function FavoritesPanel({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [onClose]);
-  
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('tr-TR', {
@@ -63,16 +63,9 @@ export default function FavoritesPanel({
     });
   };
 
-  const getReadingTime = (text) => {
-    const wordsPerMinute = 150;
-    const words = text.trim().split(/\s+/).length;
-    const minutes = Math.ceil(words / wordsPerMinute);
-    return minutes;
-  };
-
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-1">
-      <Card ref={panelRef} className="w-full max-w-5xl max-h-[95vh] overflow-y-auto scrollbar-thin">
+      <Card ref={panelRef} className="w-full max-w-md sm:max-w-lg max-h-[95vh] overflow-y-auto scrollbar-thin">
         <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-2">
           <div className="flex items-center justify-between">
             <div>
@@ -102,45 +95,47 @@ export default function FavoritesPanel({
                 {favorites.map((favorite, index) => (
                   <div key={favorite.id}>
                     <div className="border rounded p-2">
-                      <div className="space-y-1">
-                        {/* Başlık satırı - kompakt */}
-                        <div className="flex items-center justify-between gap-1">
-                          <div className="flex items-center gap-1 flex-wrap flex-1 min-w-0">
-                            <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
+                      <div className="space-y-2">
+                        {/* 1. Satır: Başlık, Tür, Tarih (Sol) + Aksiyon Butonları (Sağ) */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1 flex-1 min-w-0">
+                            <h3 className="text-sm font-medium truncate">{favorite.title || 'Özel Masal'}</h3>
+                            <Badge variant="secondary" className="text-xs px-1 py-0 h-4 flex-shrink-0">
                               {getStoryTypeName(favorite.storyType)}
                             </Badge>
-                            {favorite.customTopic && (
-                              <Badge variant="outline" className="text-xs px-1 py-0 h-4 max-w-16 truncate">
-                                {favorite.customTopic}
-                              </Badge>
-                            )}
-                            <Badge variant="outline" className="text-xs flex items-center gap-0.5 px-1 py-0 h-4">
-                              <Clock className="h-2 w-2" />
-                              {getReadingTime(favorite.story)}dk
-                            </Badge>
-                            <Badge variant="outline" className="text-xs flex items-center gap-0.5 px-1 py-0 h-4">
-                              <Calendar className="h-2 w-2" />
+                            <Badge variant="outline" className="text-xs px-1 py-0 h-4 flex-shrink-0">
+                              <Calendar className="h-2 w-2 mr-0.5" />
                               {formatDate(favorite.createdAt)}
                             </Badge>
                           </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => onRemove(favorite.id)}
-                            className="text-destructive hover:text-destructive-foreground hover:bg-destructive h-5 px-1 text-xs"
-                          >
-                            <Trash2 className="h-2 w-2 mr-0.5" />
-                            Kaldır
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => onRemove(favorite.id)}
+                              className="text-destructive hover:text-destructive-foreground hover:bg-destructive h-6 px-1.5 text-xs"
+                            >
+                              <Trash2 className="h-3 w-3 mr-0.5" />
+                              Sil
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => playAudio(favorite.id, favorite.audioUrl)}
+                              className="h-6 px-1.5 text-xs"
+                              disabled={!favorite.audioUrl}
+                            >
+                              <Volume2 className="h-3 w-3 mr-0.5" />
+                              Seslendir
+                            </Button>
+                          </div>
                         </div>
 
-                        {/* Masal içeriği ve ses kontrolü - kompakt */}
-                        <div className="flex items-start justify-between gap-1">
-                          <p className="text-xs text-muted-foreground leading-tight line-clamp-1 overflow-hidden flex-1">
-                            {favorite.story.substring(0, 80)}...
+                        {/* 2. Satır: Önizleme (Sol) + Ses Kontrolleri (Sağ) */}
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-xs text-muted-foreground leading-tight line-clamp-2 flex-1">
+                            {favorite.story.substring(0, 120)}...
                           </p>
-
-                          {/* Audio controls - kompakt */}
                           {favorite.audioUrl && (
                             <div className="flex-shrink-0">
                               <AudioControls

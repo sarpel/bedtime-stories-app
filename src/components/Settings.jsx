@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
+import { useState, useRef, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Input } from '@/components/ui/input.jsx'
 import { Label } from '@/components/ui/label.jsx'
 import { Textarea } from '@/components/ui/textarea.jsx'
@@ -8,14 +8,51 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
-import { Separator } from '@/components/ui/separator.jsx'
 import { Brain, Volume2, MessageSquare, Save, RotateCcw, Settings as SettingsIcon } from 'lucide-react'
 import { getDefaultSettings } from '@/services/configService.js'
 import VoiceSelector from './VoiceSelector.jsx'
+import PropTypes from 'prop-types'
 // Audio quality ve background music imports kaldırıldı - sadece basit ayarlar
 
 export default function Settings({ settings, onSettingsChange, onClose }) {
   const [localSettings, setLocalSettings] = useState(settings)
+  const panelRef = useRef(null)
+
+  // Click outside handler
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Settings panel içindeki tıklamalarda panel'i kapatma
+      if (panelRef.current && !panelRef.current.contains(event.target)) {
+        // Dropdown/Select content'leri portal olarak body'e render edilir
+        // Bu tıklamaları ignore et
+        const isDropdownClick = event.target.closest('[data-radix-select-content]') ||
+          event.target.closest('[data-radix-popper-content-wrapper]') ||
+          event.target.closest('[data-radix-select-viewport]') ||
+          event.target.closest('[role="listbox"]') ||
+          event.target.closest('[role="option"]') ||
+          event.target.closest('.select-content') ||
+          event.target.closest('[data-state="open"]')
+
+        if (!isDropdownClick) {
+          onClose()
+        }
+      }
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [onClose])
 
 
   const updateSetting = (path, value) => {
@@ -52,27 +89,19 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
 
 
   return (
-    <div
-      className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-1"
-      onMouseDown={(e) => {
-        // Yalnızca arka plan (backdrop) tıklanınca kapat
-        if (e.target === e.currentTarget) onClose()
-      }}
-    >
-      <Card className="w-full max-w-[calc(100%-2rem)] sm:max-w-lg max-h-[95vh] overflow-y-auto relative z-[60] scrollbar-thin">
-        <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-2">
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-2">
+      <Card ref={panelRef} className="w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto scrollbar-thin border shadow-lg">
+        <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-3">
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-sm">Ayarlar</CardTitle>
-            </div>
-            <div className="flex gap-1">
-              <Button variant="outline" onClick={handleReset} size="sm" className="h-7 px-2 text-xs">
+            <CardTitle className="text-base font-semibold">Ayarlar</CardTitle>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleReset} size="sm" className="h-8 px-3 text-xs">
                 <RotateCcw className="h-3 w-3" />
               </Button>
-              <Button onClick={onClose} variant="outline" size="sm" className="h-7 px-2 text-xs">
+              <Button onClick={onClose} variant="outline" size="sm" className="h-8 px-3 text-xs">
                 İptal
               </Button>
-              <Button onClick={handleSave} size="sm" className="h-7 px-2 text-xs">
+              <Button onClick={handleSave} size="sm" className="h-8 px-3 text-xs">
                 <Save className="h-3 w-3 mr-1" />
                 Kaydet
               </Button>
@@ -80,34 +109,34 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
           </div>
         </CardHeader>
 
-        <CardContent className="p-2">
-          <Tabs defaultValue="llm" className="space-y-2">
-            <TabsList className="grid w-full grid-cols-3 h-7">
+        <CardContent className="p-3">
+          <Tabs defaultValue="llm" className="space-y-3">
+            <TabsList className="grid w-full grid-cols-3 h-8">
               <TabsTrigger value="llm" className="flex items-center gap-1 text-xs">
                 <Brain className="h-3 w-3" />
-                LLM
+                <span className="hidden sm:inline">LLM</span>
               </TabsTrigger>
               <TabsTrigger value="voice" className="flex items-center gap-1 text-xs">
                 <Volume2 className="h-3 w-3" />
-                Ses
+                <span className="hidden sm:inline">Ses</span>
               </TabsTrigger>
               <TabsTrigger value="content" className="flex items-center gap-1 text-xs">
                 <MessageSquare className="h-3 w-3" />
-                İçerik
+                <span className="hidden sm:inline">İçerik</span>
               </TabsTrigger>
             </TabsList>
 
             {/* LLM Settings - Kompakt */}
-            <TabsContent value="llm" className="space-y-2">
-              <div className="mx-auto space-y-2">
+            <TabsContent value="llm" className="space-y-3">
+              <div className="mx-auto space-y-1.5">
                 {/* LLM Provider Selection */}
-                <Card className="p-2 rounded-md">
-                  <div className="flex items-center gap-1 mb-2">
+                <Card className="p-1.5 rounded-md">
+                  <div className="flex items-center gap-1 mb-1">
                     <Brain className="h-3 w-3 text-primary" />
                     <span className="text-xs font-medium">LLM Sağlayıcı</span>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <div className="space-y-1">
                       <Label htmlFor="llm-provider" className="text-xs">Sağlayıcı Seçin</Label>
                       <Select
@@ -132,13 +161,13 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
 
                 {/* OpenAI LLM Settings */}
                 {(localSettings.llmProvider === 'openai' || !localSettings.llmProvider) && (
-                  <Card className="p-2 rounded-md">
-                    <div className="flex items-center gap-1 mb-2">
+                  <Card className="p-1.5 rounded-md">
+                    <div className="flex items-center gap-1 mb-1">
                       <SettingsIcon className="h-3 w-3 text-primary" />
                       <span className="text-xs font-medium">OpenAI Compatible Ayarları</span>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {/* API Endpoint */}
                       <div className="space-y-1">
                         <Label htmlFor="openai-llm-endpoint" className="text-xs">API Endpoint</Label>
@@ -190,13 +219,13 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
 
                 {/* Gemini LLM Settings */}
                 {localSettings.llmProvider === 'gemini' && (
-                  <Card className="p-2 rounded-md">
-                    <div className="flex items-center gap-1 mb-2">
+                  <Card className="p-1.5 rounded-md">
+                    <div className="flex items-center gap-1 mb-1">
                       <SettingsIcon className="h-3 w-3 text-primary" />
                       <span className="text-xs font-medium">Gemini LLM Ayarları</span>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {/* API Endpoint */}
                       <div className="space-y-1">
                         <Label htmlFor="gemini-llm-endpoint" className="text-xs">API Endpoint</Label>
@@ -237,13 +266,13 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                   </Card>
                 )}
 
-                <Card className="p-2 rounded-md">
-                  <div className="flex items-center gap-1 mb-2">
+                <Card className="p-1.5 rounded-md">
+                  <div className="flex items-center gap-1 mb-1">
                     <Brain className="h-3 w-3 text-primary" />
                     <span className="text-xs font-medium">Model Ayarları</span>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
                         <Label className="text-xs">Yaratıcılık</Label>
@@ -262,25 +291,6 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                         <span>Yaratıcı</span>
                       </div>
                     </div>
-
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs">Kelime Sayısı</Label>
-                        <Badge variant="outline" className="text-xs h-4 px-1">{localSettings.llmSettings?.maxTokens || 800}</Badge>
-                      </div>
-                      <Slider
-                        value={[localSettings.llmSettings?.maxTokens || 800]}
-                        onValueChange={(value) => updateSetting('llmSettings.maxTokens', value[0])}
-                        min={400}
-                        max={1200}
-                        step={100}
-                        className="w-full h-1"
-                      />
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Kısa</span>
-                        <span>Uzun</span>
-                      </div>
-                    </div>
                   </div>
                 </Card>
               </div>
@@ -289,16 +299,16 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
 
 
             {/* Voice Settings - Kompakt */}
-            <TabsContent value="voice" className="space-y-2">
-              <div className="mx-auto space-y-2">
+            <TabsContent value="voice" className="space-y-1.5">
+              <div className="mx-auto space-y-1.5">
                 {/* TTS Provider Selection */}
-                <Card className="p-2 rounded-md">
-                  <div className="flex items-center gap-1 mb-2">
+                <Card className="p-1.5 rounded-md">
+                  <div className="flex items-center gap-1 mb-1">
                     <Volume2 className="h-3 w-3 text-primary" />
                     <span className="text-xs font-medium">TTS Sağlayıcı</span>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <div className="space-y-1">
                       <Label htmlFor="tts-provider" className="text-xs">Sağlayıcı Seçin</Label>
                       <Select
@@ -323,13 +333,13 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
 
                 {/* ElevenLabs Settings */}
                 {(localSettings.ttsProvider === 'elevenlabs' || !localSettings.ttsProvider) && (
-                  <Card className="p-2">
-                    <div className="flex items-center gap-1 mb-2">
+                  <Card className="p-1.5">
+                    <div className="flex items-center gap-1 mb-1">
                       <SettingsIcon className="h-3 w-3 text-primary" />
                       <span className="text-xs font-medium">ElevenLabs Ayarları</span>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {/* API Endpoint */}
                       <div className="space-y-1">
                         <Label htmlFor="elevenlabs-endpoint" className="text-xs">API Endpoint</Label>
@@ -387,13 +397,13 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
 
                 {/* Gemini Settings */}
                 {localSettings.ttsProvider === 'gemini' && (
-                  <Card className="p-2">
-                    <div className="flex items-center gap-1 mb-2">
+                  <Card className="p-1.5">
+                    <div className="flex items-center gap-1 mb-1">
                       <SettingsIcon className="h-3 w-3 text-primary" />
                       <span className="text-xs font-medium">Gemini TTS Ayarları</span>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {/* API Endpoint */}
                       <div className="space-y-1">
                         <Label htmlFor="gemini-tts-endpoint" className="text-xs">API Endpoint</Label>
@@ -449,19 +459,33 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                 {/* Voice Selector - Sadece ElevenLabs için */}
                 {(localSettings.ttsProvider === 'elevenlabs' || !localSettings.ttsProvider) && (
                   <VoiceSelector
-                    selectedVoiceId={localSettings.voiceId || 'xsGHrtxT5AdDzYXTQT0d'}
-                    onVoiceChange={(voiceId) => updateSetting('voiceId', voiceId)}
+                    selectedVoiceId={localSettings.elevenlabs?.voiceId || localSettings.voiceId || 'xsGHrtxT5AdDzYXTQT0d'}
+                    settings={localSettings}
+                    onVoiceChange={(voiceId) => {
+                      // UI seçimi ile textbox senkron: iki yerde de sakla
+                      updateSetting('voiceId', voiceId)
+                      updateSetting('elevenlabs.voiceId', voiceId)
+                      // Anında kalıcılık için üstteki onSettingsChange'i çağır
+                      // (local panel state kaydederken gecikme olmasın)
+                      const merged = {
+                        ...localSettings,
+                        voiceId,
+                        elevenlabs: { ...(localSettings.elevenlabs || {}), voiceId }
+                      }
+                      onSettingsChange?.(merged)
+                      setLocalSettings(merged)
+                    }}
                   />
                 )}
 
                 {/* Voice Settings - Kompakt */}
-                <Card className="p-2">
-                  <div className="flex items-center gap-1 mb-2">
+                <Card className="p-1.5">
+                  <div className="flex items-center gap-1 mb-1">
                     <Volume2 className="h-3 w-3 text-primary" />
                     <span className="text-xs font-medium">Ses Ayarları</span>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
                         <Label className="text-xs">Hız</Label>
@@ -472,7 +496,7 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                         onValueChange={(value) => updateSetting('voiceSettings.speed', value[0])}
                         min={0.5}
                         max={2.0}
-                        step={0.1}
+                        step={0.05}
                         className="w-full h-1"
                       />
                       <div className="flex justify-between text-xs text-muted-foreground">
@@ -491,7 +515,7 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                         onValueChange={(value) => updateSetting('voiceSettings.pitch', value[0])}
                         min={0.5}
                         max={2.0}
-                        step={0.1}
+                        step={0.05}
                         className="w-full h-1"
                       />
                       <div className="flex justify-between text-xs text-muted-foreground">
@@ -510,7 +534,7 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                         onValueChange={(value) => updateSetting('voiceSettings.volume', value[0])}
                         min={0.1}
                         max={1.0}
-                        step={0.1}
+                        step={0.05}
                         className="w-full h-1"
                       />
                       <div className="flex justify-between text-xs text-muted-foreground">
@@ -532,7 +556,7 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                             onValueChange={(value) => updateSetting('voiceSettings.stability', value[0])}
                             min={0.0}
                             max={1.0}
-                            step={0.1}
+                            step={0.05}
                             className="w-full h-1"
                           />
                           <div className="flex justify-between text-xs text-muted-foreground">
@@ -551,7 +575,7 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                             onValueChange={(value) => updateSetting('voiceSettings.similarityBoost', value[0])}
                             min={0.0}
                             max={1.0}
-                            step={0.1}
+                            step={0.05}
                             className="w-full h-1"
                           />
                           <div className="flex justify-between text-xs text-muted-foreground">
@@ -567,15 +591,15 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
             </TabsContent>
 
             {/* Content Settings - Kompakt */}
-            <TabsContent value="content" className="space-y-2">
-              <div className="mx-auto space-y-2">
-                <Card className="p-2">
-                  <div className="flex items-center gap-1 mb-2">
+            <TabsContent value="content" className="space-y-1.5">
+              <div className="mx-auto space-y-1.5">
+                <Card className="p-1.5">
+                  <div className="flex items-center gap-1 mb-1">
                     <MessageSquare className="h-3 w-3 text-primary" />
                     <span className="text-xs font-medium">İçerik Ayarları</span>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <div className="space-y-1">
                       <Label htmlFor="story-length" className="text-xs">Masal Uzunluğu</Label>
                       <Select
@@ -666,3 +690,8 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
   )
 }
 
+Settings.propTypes = {
+  settings: PropTypes.object.isRequired,
+  onSettingsChange: PropTypes.func.isRequired,
+  onClose: PropTypes.func.isRequired,
+}

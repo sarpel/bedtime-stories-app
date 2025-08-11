@@ -63,7 +63,7 @@ const PerformanceMonitor = ({ isOpen, onClose }) => {
 
         // localStorage usage
         const localStorageUsage = safeLocalStorage.getUsageInfo();
-        
+
         setPerformanceData(prev => ({
           memoryUsage,
           cacheSize: localStorageUsage ? localStorageUsage.totalSizeKB : Math.floor(Math.random() * 50) + 10,
@@ -84,13 +84,13 @@ const PerformanceMonitor = ({ isOpen, onClose }) => {
   const clearCache = () => {
     // Gerçek cache temizleme
     safeLocalStorage.cleanup();
-    
+
     setCacheStats(prev => ({
       ...prev,
       totalItems: 0,
       size: '0 KB'
     }));
-    
+
     setRecentLogs(prev => [{
       id: Date.now(),
       time: new Date().toLocaleTimeString(),
@@ -107,7 +107,7 @@ const PerformanceMonitor = ({ isOpen, onClose }) => {
       apiCalls: Math.floor(Math.random() * 100),
       errors: Math.floor(Math.random() * 10)
     });
-    
+
     setRecentLogs(prev => [{
       id: Date.now(),
       time: new Date().toLocaleTimeString(),
@@ -119,30 +119,28 @@ const PerformanceMonitor = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-1">
-      <Card ref={panelRef} className="w-full max-w-5xl max-h-[95vh] overflow-y-auto scrollbar-thin">
-        <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-2">
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-2">
+      <Card ref={panelRef} className="w-full max-w-2xl sm:max-w-3xl max-h-[90vh] overflow-hidden scrollbar-thin border shadow-lg">
+        <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-3">
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-sm flex items-center gap-1">
-                <Monitor className="h-4 w-4" />
-                Performans
-              </CardTitle>
-            </div>
-            <Button variant="ghost" size="sm" onClick={onClose} className="h-7 w-7 p-0">
-              <X className="h-3 w-3" />
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Monitor className="h-4 w-4" />
+              Performans
+            </CardTitle>
+            <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
+              <X className="h-4 w-4" />
             </Button>
           </div>
         </CardHeader>
 
-        <CardContent className="p-2 space-y-2">
+        <CardContent className="p-3 space-y-3">
           {/* Memory Warning - Kompakt */}
           {isMemoryHigh && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2">
-              <div className="flex items-center gap-1 text-yellow-800 text-xs">
-                <AlertTriangle className="h-3 w-3" />
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-yellow-800 text-sm">
+                <AlertTriangle className="h-4 w-4" />
                 <span className="font-semibold">Yüksek Bellek Kullanımı</span>
-                <Button onClick={clearCache} size="sm" className="ml-auto h-6 text-xs bg-yellow-600 hover:bg-yellow-700">
+                <Button onClick={clearCache} size="sm" className="ml-auto h-7 text-xs bg-yellow-600 hover:bg-yellow-700">
                   Temizle
                 </Button>
               </div>
@@ -158,7 +156,7 @@ const PerformanceMonitor = ({ isOpen, onClose }) => {
               </div>
               <div className="text-lg font-bold">{performanceData.memoryUsage}%</div>
               <div className="w-full bg-gray-200 rounded-full h-1">
-                <div 
+                <div
                   className="bg-blue-500 h-1 rounded-full transition-all duration-300"
                   style={{ width: `${performanceData.memoryUsage}%` }}
                 />
@@ -249,15 +247,15 @@ const PerformanceMonitor = ({ isOpen, onClose }) => {
                     <span className="text-xs text-muted-foreground font-mono w-16">
                       {log.time}
                     </span>
-                    <Badge 
+                    <Badge
                       variant={
-                        log.type === 'error' ? 'destructive' : 
-                        log.type === 'warning' ? 'secondary' : 
-                        'outline'
+                        log.type === 'error' ? 'destructive' :
+                          log.type === 'warning' ? 'secondary' :
+                            'outline'
                       }
                       className="text-xs px-1"
                     >
-                      {log.type.slice(0,3).toUpperCase()}
+                      {log.type.slice(0, 3).toUpperCase()}
                     </Badge>
                     <span className="text-xs flex-1 truncate">{log.message}</span>
                   </div>

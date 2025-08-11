@@ -1,22 +1,22 @@
 import { Button } from '@/components/ui/button.jsx'
 import { Slider } from '@/components/ui/slider.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
-import { 
-  Play, 
-  Pause, 
-  Square, 
-  Volume2, 
+import {
+  Play,
+  Pause,
+  Square,
+  Volume2,
   VolumeX,
   Volume1,
   Gauge
   // Download, Bookmark, Music kaldırıldı - çalışmayan özellikler
 } from 'lucide-react'
 
-export default function AudioControls({ 
+export default function AudioControls({
   storyId,
-  audioUrl, 
-  isPlaying, 
-  isPaused, 
+  audioUrl,
+  isPlaying,
+  isPaused,
   progress,
   duration,
   volume,
@@ -24,6 +24,7 @@ export default function AudioControls({
   playbackRate,
   currentStoryId,
   onPlay,
+  onPause,
   onStop,
   onToggleMute,
   onVolumeChange,
@@ -63,7 +64,19 @@ export default function AudioControls({
       <Button
         variant="ghost"
         size={buttonSize}
-        onClick={() => onPlay(audioUrl, storyId)}
+        onClick={() => {
+          if (!audioUrl) return;
+          if (isThisPlaying) {
+            if (typeof onPause === 'function') {
+              onPause()
+            } else {
+              // Geriye dönük: onPlay toggle mantığıyla çalışsın
+              onPlay(audioUrl, storyId)
+            }
+          } else {
+            onPlay(audioUrl, storyId)
+          }
+        }}
         className="shrink-0"
       >
         {isThisPlaying ? (
@@ -96,7 +109,7 @@ export default function AudioControls({
             onValueChange={(value) => onSeek(value[0])}
             max={100}
             step={1}
-            className="flex-1"
+            className="flex-1 cursor-pointer"
           />
           <span className="text-xs text-muted-foreground shrink-0">
             {formatTime(duration)}
@@ -113,7 +126,7 @@ export default function AudioControls({
         >
           <VolumeIcon className={iconSize} />
         </Button>
-        
+
         {size !== 'sm' && size !== 'xs' && (
           <Slider
             value={[isMuted ? 0 : volume * 100]}
@@ -135,7 +148,7 @@ export default function AudioControls({
           >
             <Gauge className={iconSize} />
           </Button>
-          
+
           {/* Speed Preset Buttons */}
           <div className="flex gap-1">
             {[0.5, 0.75, 1, 1.25, 1.5, 2].map((speed) => (

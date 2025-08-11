@@ -1,7 +1,6 @@
 // Queue service for DB-backed playlist persistence
-import { config } from './configService.js'
-
-const BASE = config.backend.url || 'http://localhost:3001'
+// Same-origin backend: dev'de Vite proxy, prod'da aynı origin
+const BASE = ''
 
 export const queueService = {
   async getQueueIds() {

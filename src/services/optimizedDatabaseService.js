@@ -8,8 +8,7 @@ import { apiResponseCache } from '@/utils/cache.js'
  * - Performance monitoring
  */
 
-const API_BASE_URL = 'http://localhost:3001/api'
-const BASE_URL = 'http://localhost:3001'
+const API_BASE_URL = '/api'
 
 class OptimizedDatabaseService {
   constructor() {
@@ -27,23 +26,28 @@ class OptimizedDatabaseService {
   async cachedFetch(url, options = {}, cacheKey = null, cacheTTL = 300000) {
     const startTime = Date.now()
     const key = cacheKey || `${url}:${JSON.stringify(options)}`
-    
+    if (import.meta.env?.DEV) {
+      console.log('[DB] cachedFetch:start', { url, hasBody: !!options.body, cacheKey: key })
+    }
+
     // Check cache first
     const cached = this.queryCache.get(key)
     if (cached) {
       this.performanceMetrics.cacheHits++
+      console.log('[DB] cachedFetch:cacheHit', { url, cacheKey: key })
       return cached
     }
-    
+
     // Check if same request is already pending
     if (this.pendingRequests.has(key)) {
+      console.log('[DB] cachedFetch:pendingJoin', { url, cacheKey: key })
       return this.pendingRequests.get(key)
     }
-    
+
     // Make the request with timeout
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
-    
+    const timeoutId = setTimeout(() => controller.abort(), 20000) // 10 second timeout
+
     const requestPromise = fetch(url, {
       headers: {
         'Content-Type': 'application/json',
@@ -55,28 +59,33 @@ class OptimizedDatabaseService {
       clearTimeout(timeoutId)
       this.performanceMetrics.queryCount++
       this.performanceMetrics.cacheMisses++
-      
+
       const queryTime = Date.now() - startTime
-      this.performanceMetrics.averageQueryTime = 
+      this.performanceMetrics.averageQueryTime =
         (this.performanceMetrics.averageQueryTime + queryTime) / 2
-      
+
+      console.log('[DB] cachedFetch:response', { url, status: response.status, ms: queryTime })
+
       if (!response.ok) {
         throw new Error(`API Error: ${response.status}`)
       }
-      
+
       const data = await response.json()
-      
+
       // Cache the result
       this.queryCache.set(key, data, cacheTTL)
       this.pendingRequests.delete(key)
-      
+
+      console.log('[DB] cachedFetch:success', { url, cacheKey: key })
+
       return data
     }).catch(error => {
       clearTimeout(timeoutId)
       this.pendingRequests.delete(key)
+      console.log('[DB] cachedFetch:error', { url, message: error?.message })
       throw error
     })
-    
+
     this.pendingRequests.set(key, requestPromise)
     return requestPromise
   }
@@ -84,11 +93,11 @@ class OptimizedDatabaseService {
   // Get all stories with optimizations
   async getAllStories(useCache = true) {
     const cacheKey = 'all-stories'
-    
+
     if (!useCache) {
       this.queryCache.delete(cacheKey)
     }
-    
+
     return this.cachedFetch(
       `${API_BASE_URL}/stories`,
       {},
@@ -100,13 +109,14 @@ class OptimizedDatabaseService {
   // Get stories by type with caching
   async getStoriesByType(storyType, useCache = true) {
     const cacheKey = `stories-by-type:${storyType}`
-    
+
     if (!useCache) {
       this.queryCache.delete(cacheKey)
     }
-    
+
+    // Backend route is /api/stories/type/:storyType
     return this.cachedFetch(
-      `${API_BASE_URL}/stories?type=${encodeURIComponent(storyType)}`,
+      `${API_BASE_URL}/stories/type/${encodeURIComponent(storyType)}`,
       {},
       cacheKey,
       300000 // 5 minutes cache
@@ -116,11 +126,11 @@ class OptimizedDatabaseService {
   // Get single story with caching
   async getStory(id, useCache = true) {
     const cacheKey = `story:${id}`
-    
+
     if (!useCache) {
       this.queryCache.delete(cacheKey)
     }
-    
+
     return this.cachedFetch(
       `${API_BASE_URL}/stories/${id}`,
       {},
@@ -136,14 +146,14 @@ class OptimizedDatabaseService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ stories: storiesData })
     })
-    
+
     if (!response.ok) {
       throw new Error(`Batch create failed: ${response.status}`)
     }
-    
+
     // Invalidate relevant caches
     this.invalidateStoryCaches()
-    
+
     return response.json()
   }
 
@@ -153,36 +163,39 @@ class OptimizedDatabaseService {
     console.log('storyText:', typeof storyText, storyText ? storyText.substring(0, 100) + '...' : 'null/undefined');
     console.log('storyType:', typeof storyType, storyType);
     console.log('customTopic:', typeof customTopic, customTopic);
-    
+
     const requestBody = {
       storyText: storyText,
       storyType: storyType,
       customTopic: customTopic
     };
-    
+
     console.log('Request body to send:', JSON.stringify(requestBody, null, 2));
-    
+
+    console.log('[DB] createStory:request', { url: `${API_BASE_URL}/stories` })
     const response = await fetch(`${API_BASE_URL}/stories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody)
     })
-    
+
     if (!response.ok) {
       const errorText = await response.text()
       throw new Error(`Story creation failed: ${response.status} - ${errorText}`)
     }
-    
+
     const result = await response.json()
-    
+    console.log('[DB] createStory:success', { id: result?.id })
+
     // Invalidate relevant caches
     this.invalidateStoryCaches()
-    
+
     return result
   }
 
   // Update story with cache invalidation
   async updateStory(id, storyText, storyType, customTopic = null) {
+    console.log('[DB] updateStory:request', { id })
     const response = await fetch(`${API_BASE_URL}/stories/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -192,36 +205,40 @@ class OptimizedDatabaseService {
         customTopic: customTopic
       })
     })
-    
+
     if (!response.ok) {
       const errorText = await response.text()
       throw new Error(`Story update failed: ${response.status} - ${errorText}`)
     }
-    
+
     const result = await response.json()
-    
+    console.log('[DB] updateStory:success', { id })
+
     // Invalidate specific caches
     this.queryCache.delete(`story:${id}`)
     this.invalidateStoryCaches()
-    
+
     return result
   }
 
   // Delete story with cache invalidation
   async deleteStory(id) {
+    console.log('[DB] deleteStory:request', { id })
     const response = await fetch(`${API_BASE_URL}/stories/${id}`, {
       method: 'DELETE'
     })
-    
+
     if (!response.ok) {
       throw new Error(`Story deletion failed: ${response.status}`)
     }
-    
+
     // Invalidate specific caches
     this.queryCache.delete(`story:${id}`)
     this.invalidateStoryCaches()
-    
-    return response.json()
+
+    const result = await response.json()
+    console.log('[DB] deleteStory:success', { id })
+    return result
   }
 
   // Batch delete stories
@@ -231,15 +248,15 @@ class OptimizedDatabaseService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids })
     })
-    
+
     if (!response.ok) {
       throw new Error(`Batch delete failed: ${response.status}`)
     }
-    
+
     // Invalidate specific caches
     ids.forEach(id => this.queryCache.delete(`story:${id}`))
     this.invalidateStoryCaches()
-    
+
     return response.json()
   }
 
@@ -250,22 +267,22 @@ class OptimizedDatabaseService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_favorite: isFavorite })
     })
-    
+
     if (!response.ok) {
       throw new Error(`Favorite update failed: ${response.status}`)
     }
-    
+
     // Invalidate specific caches
     this.queryCache.delete(`story:${id}`)
     this.invalidateStoryCaches()
-    
+
     return response.json()
   }
 
   // Get recent stories with caching
   async getRecentStories(limit = 10) {
     const cacheKey = `recent-stories:${limit}`
-    
+
     return this.cachedFetch(
       `${API_BASE_URL}/stories?limit=${limit}&sort=recent`,
       {},
@@ -277,7 +294,7 @@ class OptimizedDatabaseService {
   // Get favorite stories with caching
   async getFavoriteStories() {
     const cacheKey = 'favorite-stories'
-    
+
     return this.cachedFetch(
       `${API_BASE_URL}/stories?favorites=true`,
       {},
@@ -289,12 +306,12 @@ class OptimizedDatabaseService {
   // Search stories with caching
   async searchStories(query, options = {}) {
     const cacheKey = `search:${query}:${JSON.stringify(options)}`
-    
+
     const searchParams = new URLSearchParams({
       q: query,
       ...options
     })
-    
+
     return this.cachedFetch(
       `${API_BASE_URL}/stories/search?${searchParams}`,
       {},
@@ -306,25 +323,25 @@ class OptimizedDatabaseService {
   // Audio operations
   getAudioUrl(fileName) {
     if (!fileName) return null
-  // Static audio files are served at /audio (not under /api)
-  return `${BASE_URL}/audio/${fileName}`
+    // Static audio files are served at /audio (not under /api)
+    return `/audio/${fileName}`
   }
 
   // Cache management
   invalidateStoryCaches() {
     // Remove all story-related caches
     const keysToDelete = []
-    
+
     // Collect cache keys to delete
     this.queryCache.cache.forEach((_, key) => {
-      if (key.startsWith('all-stories') || 
-          key.startsWith('stories-by-type') || 
-          key.startsWith('recent-stories') || 
-          key.startsWith('favorite-stories')) {
+      if (key.startsWith('all-stories') ||
+        key.startsWith('stories-by-type') ||
+        key.startsWith('recent-stories') ||
+        key.startsWith('favorite-stories')) {
         keysToDelete.push(key)
       }
     })
-    
+
     // Delete the keys
     keysToDelete.forEach(key => this.queryCache.delete(key))
   }
@@ -347,10 +364,10 @@ class OptimizedDatabaseService {
     try {
       // Preload recent stories
       await this.getRecentStories(20)
-      
+
       // Preload favorite stories
       await this.getFavoriteStories()
-      
+
       console.log('Common data preloaded successfully')
     } catch (error) {
       console.error('Failed to preload common data:', error)
@@ -377,8 +394,8 @@ class OptimizedDatabaseService {
         try {
           // Masalın zaten var olup olmadığını kontrol et
           const existingStories = await this.getAllStories(false) // No cache for migration
-          const exists = existingStories.some(existing => 
-            existing.story_text === story.story && 
+          const exists = existingStories.some(existing =>
+            existing.story_text === story.story &&
             existing.story_type === story.storyType
           )
 
@@ -390,7 +407,7 @@ class OptimizedDatabaseService {
           // Yeni masal oluştur
           await this.createStory(story.story, story.storyType, story.customTopic)
           migrated++
-          
+
           console.log(`Masal taşındı: ${story.storyType}`)
         } catch (error) {
           console.error('Masal taşıma hatası:', error)

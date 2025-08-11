@@ -1,12 +1,13 @@
 import { getStoryTypePrompt } from '@/utils/storyTypes.js'
 import { config } from './configService.js'
 import { storyCache } from '@/utils/cache.js'
+import { logger } from '@/utils/logger.js'
 
 // LLM Service for story generation
 export class LLMService {
   constructor(settings) {
     this.provider = settings.llmProvider || 'openai'
-    
+
     if (this.provider === 'openai') {
       // OpenAI ayarları
       this.endpoint = settings.openaiLLM?.endpoint || settings.llmEndpoint || config.openai.endpoint
@@ -18,13 +19,33 @@ export class LLMService {
       this.modelId = settings.geminiLLM?.modelId || config.geminiLLM.model
       this.apiKey = settings.geminiLLM?.apiKey || config.geminiLLM.apiKey
     }
-    
+
     // Kullanıcı ayarları
     this.customPrompt = settings.customPrompt
-  this.customInstructions = settings.customInstructions || ''
+    this.customInstructions = settings.customInstructions || ''
     this.storyLength = settings.storyLength
-    this.temperature = settings.llmSettings?.temperature || 0.9
-    this.maxTokens = settings.llmSettings?.maxTokens || 500
+    this.temperature = settings.llmSettings?.temperature ?? 0.9
+    // Yanıtların kısalmaması için maxTokens sabit 5000
+    this.maxTokens = 5000
+
+    // Debug: init logs (kimlik bilgisi ve tam prompt loglama yok)
+    try {
+      logger.debug('LLM Service initialized', 'LLMService', {
+        provider: this.provider,
+        modelId: this.modelId,
+        endpoint: (this.endpoint || '').toString(),
+        temperature: this.temperature,
+        maxTokens: this.maxTokens,
+        storyLength: this.storyLength,
+        hasCustomPrompt: !!this.customPrompt,
+        customPromptLen: this.customPrompt?.length || 0,
+        hasCustomInstructions: !!this.customInstructions,
+        customInstructionsLen: this.customInstructions?.length || 0
+      })
+    } catch (initErr) {
+      // Init logging failed; safe to ignore in production
+      logger.debug('LLM Service init log error', 'LLMService', { error: initErr?.message })
+    }
   }
 
   // Get story length instructions based on setting
@@ -40,7 +61,7 @@ export class LLMService {
   // Build the complete prompt
   buildPrompt(storyType = null, customTopic = '') {
     const lengthInstruction = this.getStoryLengthInstruction()
-    
+
     // Masal türü bilgisini ekle
     let storyTypeText = ''
     if (storyType && storyType !== 'general') {
@@ -50,12 +71,18 @@ export class LLMService {
         storyTypeText = `\nTür: ${getStoryTypePrompt(storyType, customTopic)}`
       }
     }
-    
-    const extraInstructions = (this.customInstructions && this.customInstructions.trim())
+
+    const extraInstructions = (this.customInstructions?.trim())
       ? `\n\nEk talimatlar:\n${this.customInstructions.trim()}`
       : ''
 
-    return `${this.customPrompt}${storyTypeText}\n\n${lengthInstruction}\n\nMasal Türkçe olmalı ve şu özellikleri içermeli:\n- 5 yaşındaki bir kız çocuğu için uygun\n- Eğitici ve pozitif değerler içeren\n- Uyku vakti için rahatlatıcı\n- Hayal gücünü geliştiren${extraInstructions}\n\nMasalı şimdi yaz:`
+    const prompt = `${this.customPrompt}${storyTypeText}\n\n${lengthInstruction}\n\nMasal Türkçe olmalı ve şu özellikleri içermeli:\n- 5 yaşındaki bir kız çocuğu için uygun\n- Eğitici ve pozitif değerler içeren\n- Uyku vakti için rahatlatıcı\n- Hayal gücünü geliştiren${extraInstructions}\n\nMasalı şimdi yaz:`
+    console.log('[LLMService:buildPrompt]', {
+      storyType,
+      customTopic,
+      promptLen: prompt.length
+    })
+    return prompt
   }
 
   // Generate story using custom LLM endpoint
@@ -67,12 +94,18 @@ export class LLMService {
       }
 
       // Önbellekten kontrol et
-      const cachedStory = storyCache.getStory(storyType, customTopic, {
+      const cacheKeyMeta = {
         llmSettings: { temperature: this.temperature, maxTokens: this.maxTokens },
         customPrompt: this.customPrompt
-      })
-      
+      }
+      const cachedStory = storyCache.getStory(storyType, customTopic, cacheKeyMeta)
+
       if (cachedStory) {
+        console.log('[LLMService:cacheHit]', {
+          storyType,
+          customTopic,
+          length: cachedStory.length
+        })
         onProgress?.(100)
         return cachedStory
       }
@@ -82,48 +115,77 @@ export class LLMService {
       const prompt = this.buildPrompt(storyType, customTopic)
       onProgress?.(30)
 
-    // İstek artık kendi backend sunucumuza (localhost:3001) yapılıyor
-  const response = await fetch('http://localhost:3001/api/llm', {
+      // İstek backend proxy'imize yönlendirilir (aynı origin, dev'de Vite proxy)
+      const url = `/api/llm`
+      const payload = {
+        provider: this.provider,
+        modelId: this.modelId,
+        prompt: prompt,
+        max_tokens: this.getMaxTokens(),
+        temperature: this.temperature
+      }
+      console.log('[LLMService:request:start]', {
+        url,
+        provider: this.provider,
+        modelId: this.modelId,
+        promptLen: prompt.length,
+        max_tokens: payload.max_tokens,
+        temperature: payload.temperature
+      })
+      const t0 = Date.now()
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         // Backend'e gerekli tüm bilgileri gönderiyoruz
-        body: JSON.stringify({
-      provider: this.provider,
-          modelId: this.modelId,
-          prompt: prompt,
-  max_tokens: this.getMaxTokens(),
-  temperature: this.temperature
-        })
+        body: JSON.stringify(payload)
       })
 
       onProgress?.(70)
 
       if (!response.ok) {
-        const errorData = await response.json()
+        const errorData = await response.json().catch(() => ({ error: 'non-json-response' }))
+        console.error('[LLMService:request:error]', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData?.error
+        })
         throw new Error(`LLM API hatası (${response.status}): ${errorData.error}`)
       }
 
       const data = await response.json()
+      const dt = Date.now() - t0
+      console.log('[LLMService:request:success]', {
+        status: response.status,
+        durationMs: dt,
+        keys: Object.keys(data || {}),
+        textLen: typeof data?.text === 'string' ? data.text.length : undefined
+      })
       onProgress?.(90)
 
       // Backend normalize edilmiş text döndürüyorsa onu kullan
       const story = (typeof data?.text === 'string' && data.text.trim())
         ? data.text.trim()
         : this.extractStoryFromResponse(data)
+      console.log('[LLMService:extract]', {
+        extractedLen: story?.length || 0,
+        isString: typeof story === 'string'
+      })
       onProgress?.(100)
-      
+
       // Önbellekle
-      storyCache.setStory(storyType, customTopic, {
-        llmSettings: { temperature: this.temperature, maxTokens: this.maxTokens },
-        customPrompt: this.customPrompt
-      }, story)
-      
+      storyCache.setStory(storyType, customTopic, cacheKeyMeta, story)
+      console.log('[LLMService:cacheSet]', {
+        storyType,
+        customTopic,
+        length: story.length
+      })
+
       return story
 
     } catch (error) {
-      console.error('LLM story generation error:', error)
+      console.error('[LLMService:error]', { message: error.message })
       throw error
     }
   }
@@ -149,7 +211,7 @@ export class LLMService {
         top_p: 0.9
       }
     }
-    
+
     // Claude/Anthropic format
     if (this.endpoint.includes('anthropic') || this.endpoint.includes('claude')) {
       return {
@@ -200,34 +262,34 @@ export class LLMService {
     }
 
     // OpenAI format
-    if (data.choices && data.choices[0] && data.choices[0].message) {
+    if (data?.choices?.[0]?.message) {
       return data.choices[0].message.content.trim()
     }
-    
+
     // Claude format
-    if (data.content && data.content[0] && data.content[0].text) {
+    if (data?.content?.[0]?.text) {
       return data.content[0].text.trim()
     }
-    
+
     // Generic completion format
-    if (data.choices && data.choices[0] && data.choices[0].text) {
+    if (data?.choices?.[0]?.text) {
       return data.choices[0].text.trim()
     }
-    
+
     // Direct text response
     if (typeof data === 'string') {
       return data.trim()
     }
-    
+
     // Custom response format
     if (data.response) {
       return data.response.trim()
     }
-    
+
     if (data.text) {
       return data.text.trim()
     }
-    
+
     if (data.output) {
       return data.output.trim()
     }
@@ -248,7 +310,7 @@ Ayşe o geceden sonra her gece bu sihirli kutuyu açar, tüm dünyaya sevgi ve m
 
 İyi geceler, tatlı rüyalar...`,
 
-  `Bir zamanlar, büyülü bir ormanda, Elif adında küçük bir kız yaşarmış. Elif, hayvanlarla konuşabilen özel bir yeteneği olan çok nazik bir çocukmuş.
+      `Bir zamanlar, büyülü bir ormanda, Elif adında küçük bir kız yaşarmış. Elif, hayvanlarla konuşabilen özel bir yeteneği olan çok nazik bir çocukmuş.
 
 Bir gün, ormandaki tüm hayvanlar üzgün görünüyormuş. Elif onlara ne olduğunu sormuş. Tavşan şöyle demiş: "Ormanımızın sihirli çiçeği kayboldu. Bu çiçek olmadan ormanda huzur olmaz."
 
@@ -266,8 +328,7 @@ O günden sonra Elif, sevginin her şeyi iyileştirebileceğini öğrenmiş. Sen
 
     // Basit tohumlama: storyType/customTopic metnini kullanarak deterministik/dağıtık seçim
     const hash = Array.from(String(seed)).reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) % 9973, 7);
-  const idx = (hash + Math.floor(Math.random() * 1000)) % fallbackStories.length;
+    const idx = (hash + Math.floor(Math.random() * 1000)) % fallbackStories.length;
     return fallbackStories[idx]
   }
 }
-

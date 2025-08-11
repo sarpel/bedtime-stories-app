@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger.js'
+
 // Masal paylaşım servisi
 class SharingService {
   constructor() {
@@ -27,7 +29,7 @@ class SharingService {
         message: data.message
       };
     } catch (error) {
-      console.error('Paylaşım hatası:', error);
+      logger.error('Paylaşım hatası', 'SharingService', { error: error?.message });
       return {
         success: false,
         error: error.message || 'Masal paylaşılırken bir hata oluştu'
@@ -56,7 +58,7 @@ class SharingService {
         message: data.message
       };
     } catch (error) {
-      console.error('Paylaşım kaldırma hatası:', error);
+      logger.error('Paylaşım kaldırma hatası:', 'SharingService', { error: error?.message });
       return {
         success: false,
         error: error.message || 'Paylaşım kaldırılırken bir hata oluştu'
@@ -80,7 +82,7 @@ class SharingService {
         story
       };
     } catch (error) {
-      console.error('Paylaşılan masal getirme hatası:', error);
+      logger.error('Paylaşılan masal getirme hatası:', 'SharingService', { error: error?.message });
       return {
         success: false,
         error: error.message || 'Paylaşılan masal getirilirken bir hata oluştu'
@@ -104,7 +106,7 @@ class SharingService {
         stories
       };
     } catch (error) {
-      console.error('Paylaşılan masallar listeleme hatası:', error);
+      logger.error('Paylaşılan masallar listeleme hatası:', 'SharingService', { error: error?.message });
       return {
         success: false,
         error: error.message || 'Paylaşılan masallar listelenirken bir hata oluştu'
@@ -127,7 +129,7 @@ class SharingService {
   createSocialShareUrls(shareUrl, storyTitle = 'Bedtime Story') {
     const text = encodeURIComponent(`${storyTitle} - Bedtime Stories App ile oluşturuldu`);
     const url = encodeURIComponent(shareUrl);
-    
+
     return {
       twitter: `https://twitter.com/intent/tweet?text=${text}&url=${url}`,
       facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
@@ -143,10 +145,10 @@ class SharingService {
       await navigator.clipboard.writeText(shareUrl);
       return { success: true };
     } catch (error) {
-      console.error('Clipboard kopyalama hatası:', error);
-      return { 
-        success: false, 
-        error: 'Link kopyalanamadı' 
+      logger.error('Clipboard kopyalama hatası:', 'SharingService', { error: error?.message });
+      return {
+        success: false,
+        error: 'Link kopyalanamadı'
       };
     }
   }
