@@ -176,12 +176,12 @@ export default function StoryCreator({
     : "Hangi konuda bir masal duymak istiyorsun? Örn: Uzay yolculuğu yapan kedinin macerası..."
 
   return (
-    <Card className="mb-8 overflow-hidden">
-      <CardHeader className="border-b">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <CardTitle className="flex items-center gap-2 mb-2">
-              <BookOpen className="h-5 w-5 text-primary" />
+    <Card className="mb-4 sm:mb-8 overflow-hidden">
+      <CardHeader className="border-b p-3 sm:p-6">
+        <div className="flex items-start justify-between flex-col sm:flex-row gap-3">
+          <div className="flex-1 w-full">
+            <CardTitle className="flex items-center gap-2 mb-2 text-base sm:text-lg">
+              <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
               {story ? extractStoryTitle(story) : 'Hangi Masalı Duymak İstersin?'}
               {isGenerating && (
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
@@ -189,37 +189,37 @@ export default function StoryCreator({
             </CardTitle>
             
             {story ? (
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary">Türkçe</Badge>
-                <Badge variant="outline">5 Yaş</Badge>
-                <Badge variant="outline">Uyku Vakti</Badge>
-                <Badge variant="outline" className="flex items-center gap-1">
+              <div className="flex flex-wrap gap-1 sm:gap-2">
+                <Badge variant="secondary" className="text-xs">Türkçe</Badge>
+                <Badge variant="outline" className="text-xs">5 Yaş</Badge>
+                <Badge variant="outline" className="text-xs">Uyku Vakti</Badge>
+                <Badge variant="outline" className="flex items-center gap-1 text-xs">
                   <Sparkles className="h-3 w-3" />
                   {getStoryTypeName(selectedType)}
                 </Badge>
-                <Badge variant="outline" className="flex items-center gap-1">
+                <Badge variant="outline" className="flex items-center gap-1 text-xs">
                   <Clock className="h-3 w-3" />
                   {getReadingTime(story)} dk okuma
                 </Badge>
               </div>
             ) : (
-              <CardDescription>
+              <CardDescription className="text-sm">
                 Masal türünü seç veya istediğin konuyu yaz
               </CardDescription>
             )}
           </div>
           
           {story && (
-            <div className="flex gap-2">
+            <div className="flex gap-1 sm:gap-2 flex-wrap w-full sm:w-auto">
               {/* Geri butonu */}
               <Button
                 variant="outline"
                 size="sm"
                 onClick={onClearStory}
-                className="self-end"
+                className="flex-1 sm:flex-none"
               >
-                <X className="h-4 w-4 mr-2" />
-                Geri
+                <X className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Geri</span>
               </Button>
               
               {/* Kaydet butonu */}
@@ -227,10 +227,10 @@ export default function StoryCreator({
                 variant="default"
                 size="sm"
                 onClick={onSaveStory}
-                className="self-end"
+                className="flex-1 sm:flex-none"
               >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Kaydet
+                <CheckCircle className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Kaydet</span>
               </Button>
               
               {/* Seslendir butonu */}
@@ -239,31 +239,32 @@ export default function StoryCreator({
                   onClick={onGenerateAudio}
                   variant="secondary"
                   size="sm"
-                  className="self-end"
+                  className="flex-1 sm:flex-none"
                 >
-                  <Volume2 className="h-4 w-4 mr-2" />
-                  Seslendir
+                  <Volume2 className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Seslendir</span>
                 </Button>
               )}
             </div>
           )}
           
           {story && (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 w-full sm:w-auto">
               {/* Audio controls */}
               {(isGeneratingAudio || audioUrl) && (
-                <div className="self-end">
+                <div className="w-full sm:self-end">
                   {isGeneratingAudio ? (
-                    <Button disabled size="sm">
+                    <Button disabled size="sm" className="w-full sm:w-auto">
                       <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
                       Seslendiriliyor...
                     </Button>
                   ) : (
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 w-full sm:w-auto">
                       <Button 
                         variant={isPlaying ? "secondary" : "default"}
                         size="sm"
                         onClick={isPlaying ? onPauseAudio : onPlayAudio}
+                        className="flex-1 sm:flex-none"
                       >
                         <Volume2 className="h-4 w-4" />
                       </Button>
@@ -271,6 +272,7 @@ export default function StoryCreator({
                         variant="outline"
                         size="sm"
                         onClick={onStopAudio}
+                        className="flex-1 sm:flex-none"
                       >
                         <X className="h-3 w-3" />
                       </Button>
@@ -280,20 +282,21 @@ export default function StoryCreator({
               )}
               
               {/* Favori ve diğer butonlar */}
-              <div className="flex gap-2">
+              <div className="flex gap-1 sm:gap-2 w-full sm:w-auto">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={onToggleFavorite}
-                  className={isFavorite ? 'text-red-500 hover:text-red-600' : ''}
+                  className={`flex-1 sm:flex-none ${isFavorite ? 'text-red-500 hover:text-red-600' : ''}`}
                 >
                   <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
                 </Button>
-                <div className="relative">
+                <div className="relative flex-1 sm:flex-none">
                   <Button 
                     variant="ghost" 
                     size="sm" 
                     onClick={() => setShowShareMenu(!showShareMenu)}
+                    className="w-full sm:w-auto"
                   >
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
@@ -374,36 +377,36 @@ export default function StoryCreator({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4 p-6">
+      <CardContent className="space-y-4 p-3 sm:p-6">
         {/* Masal Türü Butonları - Sadece masal oluşturulmamışsa göster */}
         {!story && (
           <div className="space-y-3">
             <Label className="text-sm font-medium">En Sevilen Masal Türleri</Label>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
               {storyTypes.slice(0, 5).map((type) => (
                 <Button
                   key={type.id}
                   variant={selectedType === type.id ? "default" : "outline"}
                   onClick={() => handleTypeChange(type.id)}
-                  className="flex flex-col items-center gap-1 h-16 p-2 text-xs"
+                  className="flex flex-col items-center gap-1 h-14 sm:h-16 p-1 sm:p-2 text-xs"
                   size="sm"
                 >
-                  <span className="text-lg">{type.icon}</span>
-                  <span className="leading-none text-center">{type.name}</span>
+                  <span className="text-base sm:text-lg">{type.icon}</span>
+                  <span className="leading-none text-center text-xs">{type.name}</span>
                 </Button>
               ))}
             </div>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
               {storyTypes.slice(5, 10).map((type) => (
                 <Button
                   key={type.id}
                   variant={selectedType === type.id ? "default" : "outline"}
                   onClick={() => handleTypeChange(type.id)}
-                  className="flex flex-col items-center gap-1 h-16 p-2 text-xs"
+                  className="flex flex-col items-center gap-1 h-14 sm:h-16 p-1 sm:p-2 text-xs"
                   size="sm"
                 >
-                  <span className="text-lg">{type.icon}</span>
-                  <span className="leading-none text-center">{type.name}</span>
+                  <span className="text-base sm:text-lg">{type.icon}</span>
+                  <span className="leading-none text-center text-xs">{type.name}</span>
                 </Button>
               ))}
             </div>
@@ -412,10 +415,10 @@ export default function StoryCreator({
 
         {/* Ana Metin Kutusu */}
         <div className="space-y-3">
-          <div className="flex items-end gap-3">
-            <div className="flex-1">
+          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
+            <div className="flex-1 w-full">
               {!story && (
-                <Label htmlFor="story-input">
+                <Label htmlFor="story-input" className="text-sm">
                   {selectedType ? 'Seçili Masal Türü' : 'Özel Masal Konun'}
                 </Label>
               )}
@@ -425,10 +428,10 @@ export default function StoryCreator({
                   placeholder={placeholder}
                   value={displayText}
                   onChange={handleStoryTextChange}
-                  className={`min-h-[300px] resize-none ${
+                  className={`resize-none ${
                     story 
-                      ? 'text-base leading-relaxed border-0 bg-transparent p-0 focus-visible:ring-0' 
-                      : 'min-h-[120px]'
+                      ? 'min-h-[250px] sm:min-h-[300px] text-sm sm:text-base leading-relaxed border-0 bg-transparent p-0 focus-visible:ring-0' 
+                      : 'min-h-[100px] sm:min-h-[120px] text-sm'
                   }`}
                   readOnly={isGenerating}
                 />
@@ -437,17 +440,17 @@ export default function StoryCreator({
                     variant="ghost"
                     size="sm"
                     onClick={onClearStory}
-                    className="absolute top-2 right-2 h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                    className="absolute top-2 right-2 h-6 w-6 sm:h-8 sm:w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
                     title="Metni temizle"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                 )}
               </div>
             </div>
             
             {!story && (
-              <div className="flex flex-col gap-2 min-w-[120px]">
+              <div className="flex flex-col gap-2 w-full sm:min-w-[120px] sm:w-auto">
                 <Button 
                   onClick={onGenerateStory}
                   disabled={isGenerating || (!selectedType && !customTopic.trim())}
@@ -457,12 +460,12 @@ export default function StoryCreator({
                   {isGenerating ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground border-t-transparent" />
-                      <span className="text-xs">Oluşturuluyor...</span>
+                      <span className="text-xs sm:text-sm">Oluşturuluyor...</span>
                     </>
                   ) : (
                     <>
                       <Sparkles className="h-4 w-4" />
-                      <span className="text-xs">Masal Oluştur</span>
+                      <span className="text-xs sm:text-sm">Masal Oluştur</span>
                     </>
                   )}
                 </Button>
@@ -499,8 +502,8 @@ export default function StoryCreator({
 
         {/* Seçim Özeti - Sadece masal oluşturulmamışsa ve seçim varsa göster */}
         {!story && (selectedType || customTopic.trim()) && (
-          <div className="p-3 bg-muted/50 rounded-lg">
-            <div className="flex items-center gap-2 mb-1">
+          <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
+            <div className="flex items-center gap-1 sm:gap-2 mb-1">
               {selectedType && (
                 <Badge variant="secondary" className="text-xs">
                   {storyTypes.find(t => t.id === selectedType)?.icon} {storyTypes.find(t => t.id === selectedType)?.name}
@@ -525,23 +528,23 @@ export default function StoryCreator({
 
         {/* Aksiyon Butonları - Sadece masal varsa göster */}
         {story && (
-          <div className="flex flex-wrap gap-3 pt-4 border-t">
+          <div className="flex flex-wrap gap-2 sm:gap-3 pt-3 sm:pt-4 border-t">
             <Button 
               onClick={onGenerateAudio}
               disabled={isGeneratingAudio}
               variant="outline"
-              className="flex items-center gap-2"
-              size="default"
+              className="flex items-center gap-1 sm:gap-2 flex-1 sm:flex-none"
+              size="sm"
             >
               {isGeneratingAudio ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
-                  <span className="text-xs">Sesli...</span>
+                  <span className="text-xs sm:text-sm">Sesli...</span>
                 </>
               ) : (
                 <>
                   <Volume2 className="h-4 w-4" />
-                  <span className="text-xs">Seslendir</span>
+                  <span className="text-xs sm:text-sm">Seslendir</span>
                 </>
               )}
             </Button>
