@@ -145,10 +145,11 @@ function initDatabase() {
 
   console.log('Veritabanı başarıyla başlatıldı:', DB_PATH);
 
-  // Boş veritabanına örnek 3 hikaye ekle
+  // Boş veritabanına örnek 3 hikaye ekle (opt-in)
   try {
+    const shouldSeed = process.env.SEED_SAMPLE_STORIES === 'true';
     const row = db.prepare('SELECT COUNT(*) as c FROM stories').get();
-    if (row.c === 0) {
+    if (shouldSeed && row.c === 0) {
       const now = new Date().toISOString();
       const insert = db.prepare('INSERT INTO stories (story_text, story_type, custom_topic, is_favorite, created_at) VALUES (?,?,?,?,?)');
       const samples = [
@@ -158,7 +159,7 @@ function initDatabase() {
       ];
       const tx = db.transaction(() => { samples.forEach(s => insert.run(...s)); });
       tx();
-      console.log('Örnek hikayeler eklendi.');
+      console.log('Örnek hikayeler eklendi (SEED_SAMPLE_STORIES=true).');
     }
   } catch (e) {
     console.error('Örnek hikayeler eklenemedi:', e.message);
