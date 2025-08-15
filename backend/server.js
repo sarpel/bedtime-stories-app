@@ -705,7 +705,12 @@ app.post('/api/tts', async (req, res) => {
   if (process.env.MAX_CONCURRENT_TTS && process.env.MAX_CONCURRENT_TTS !== '1') {
     // Politika gereği zorla 1 yap (env yanlış ayarlansa da)
     process.env.MAX_CONCURRENT_TTS = '1';
+  let maxConcurrentTTS = 1;
+  if (process.env.MAX_CONCURRENT_TTS && process.env.MAX_CONCURRENT_TTS !== '1') {
+    // Politika gereği: sadece 1 izin verilir, env yanlışsa uyarı ver
+    console.warn(`[Config] MAX_CONCURRENT_TTS env '${process.env.MAX_CONCURRENT_TTS}' olarak ayarlanmış, ancak sadece '1' destekleniyor. Uygulama '1' ile devam edecek.`);
   }
+  // İleride maxConcurrentTTS kullanılacaksa, buradan alınmalı
   const ELEVEN_BASE = (process.env.ELEVENLABS_ENDPOINT || '').replace(/\/$/, '');
   const GEMINI_BASE = (process.env.GEMINI_TTS_ENDPOINT || process.env.GEMINI_LLM_ENDPOINT || '').replace(/\/$/, '');
   const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
