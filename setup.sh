@@ -9,7 +9,9 @@ SCRIPT_VERSION="1.0.0"
 APP_REPO="${APP_REPO:-https://github.com/sarpel/bedtime-stories-app.git}"
 APP_DIR="${APP_DIR:-/opt/storyapp}"
 APP_PORT="${APP_PORT:-8080}"
-LOG_FILE="/var/log/storyapp-setup-$(date +%Y%m%d-%H%M%S).log"
+LOG_DIR="/var/log/storyapp"
+mkdir -p "$LOG_DIR" || true
+LOG_FILE="$LOG_DIR/setup-$(date +%Y%m%d-%H%M%S).log"
 
 log(){ echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
 err(){ echo "[ERROR] $*" | tee -a "$LOG_FILE" >&2; exit 1; }
@@ -87,7 +89,7 @@ summary(){
 main(){
     require_root
     install_packages
-    mkdir -p "$APP_DIR" /var/log/storyapp
+    mkdir -p "$APP_DIR" "$LOG_DIR"
     clone_or_update
     build_frontend
     install_backend

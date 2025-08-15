@@ -44,6 +44,7 @@ StartLimitBurst=5
 # -----------------------------------------------------------------------------
 Environment=NODE_ENV=production
 Environment=NODE_OPTIONS=--max-old-space-size=300
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 EnvironmentFile=-/etc/storyapp/.env
 EnvironmentFile=-/opt/storyapp/backend/.env
 
@@ -129,7 +130,7 @@ LockPersonality=yes
 # Resource Limits (Raspberry Pi Zero 2 W Optimized)
 # -----------------------------------------------------------------------------
 # Memory limits (critical for 512MB Pi Zero 2 W)
-MemoryMax=300M
+MemoryMax=340M
 MemoryHigh=180M
 MemorySwapMax=0
 

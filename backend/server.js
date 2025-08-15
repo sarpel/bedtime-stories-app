@@ -5,7 +5,6 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const axios = require('axios');
-const Joi = require('joi');
 const pino = require('pino');
 const pinoHttp = require('pino-http');
 
@@ -52,7 +51,7 @@ try {
     hasGeminiLLM: !!process.env.GEMINI_LLM_API_KEY,
     hasGeminiTTS: !!process.env.GEMINI_TTS_API_KEY
   });
-} catch { }
+} catch { /* initial presence log skipped */ }
 
 // Express uygulamasını oluştur
 const app = express();
@@ -82,16 +81,9 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Static dosyalar (ses + frontend build)
+// Static dosyalar (ses) - frontend build için tekil konsolide blok aşağıda (çift mount kaldırıldı)
 app.use('/audio', express.static(path.join(__dirname, 'audio'), { etag: true, lastModified: true }));
-// Frontend dist klasörünü Node üzerinden servis et (nginx kaldırıldı)
-const distDir = path.join(__dirname, '..', 'dist');
-if (fs.existsSync(distDir)) {
-  app.use(express.static(distDir));
-  app.get('/', (_req, res) => {
-    res.sendFile(path.join(distDir, 'index.html'));
-  });
-}
+// distDir burada tanımlanmıyor; aşağıdaki kapsamlı blokta yerel olarak hesaplanacak
 
 // Rate limiting uygulanmıyor (kişisel kurulum)
 
@@ -238,7 +230,7 @@ app.post('/api/llm', async (req, res) => {
       headers: { 'content-type': req.headers['content-type'] },
       bodyKeys: Object.keys(req.body || {})
     });
-  } catch { }
+  } catch { /* llm request start log skipped */ }
   // Frontend'den gelen ayarları ve prompt'u al
   const { provider = 'openai', modelId, prompt, max_tokens, temperature, endpoint: clientEndpoint } = req.body;
 
@@ -373,7 +365,7 @@ app.post('/api/llm', async (req, res) => {
     }
     res.status(error.response?.status || 500).json({ error: errorMessage });
   }
-  try { logger.info({ msg: '[API /api/llm] request:end', totalMs: Date.now() - tStart }); } catch { }
+  try { logger.info({ msg: '[API /api/llm] request:end', totalMs: Date.now() - tStart }); } catch { /* llm request end log skipped */ }
 });
 
 // --- QUEUE API ---
