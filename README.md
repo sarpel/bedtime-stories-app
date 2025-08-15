@@ -191,10 +191,10 @@ sudo systemctl status storyaudio --no-pager
 
 ```bash
 # Quick health check
-curl -fsSL http://localhost:8080/healthz
+curl -fsSL http://localhost:8080/health
 
 # Detailed status
-curl -fsSL http://localhost:8080/healthz | jq
+curl -fsSL http://localhost:8080/health | jq
 
 # Check resource usage
 htop
@@ -448,7 +448,7 @@ echo "=== Story App Health Check $(date) ==="
 systemctl is-active --quiet storyapp && echo "✓ App service: running" || echo "✗ App service: failed"
 
 # Health endpoint
-curl -fs http://localhost:8080/healthz >/dev/null && echo "✓ HTTP health: OK" || echo "✗ HTTP health: failed"
+curl -fs http://localhost:8080/health >/dev/null && echo "✓ HTTP health: OK" || echo "✗ HTTP health: failed"
 
 # Temperature check
 TEMP=$(vcgencmd measure_temp | grep -o '[0-9.]*')

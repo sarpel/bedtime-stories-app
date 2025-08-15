@@ -26,14 +26,14 @@ class StabilityMonitor {
     // Global error handler
     if (typeof window !== 'undefined') {
       window.addEventListener('error', (event) => {
-      this.handleError('javascript_error', event.error?.message || event.message, {
-        filename: event.filename,
-        lineno: event.lineno,
-        colno: event.colno
-      })
+        this.handleError('javascript_error', event.error?.message || event.message, {
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno
+        })
       })
 
-      // Unhandled promise rejection handler  
+      // Unhandled promise rejection handler
       window.addEventListener('unhandledrejection', (event) => {
         this.handleError('unhandled_promise_rejection', event.reason?.message || 'Promise rejected', {
           reason: event.reason
@@ -52,7 +52,7 @@ class StabilityMonitor {
 
   handleError(type, message, details = {}) {
     this.errorCount++
-    
+
     stabilityLogger.error(`${type}: ${message}`, 'ERROR_HANDLER', details)
 
     // Error tracking (limited to prevent memory buildup)
@@ -68,12 +68,12 @@ class StabilityMonitor {
     // Store recent errors (reduced limit for Pi Zero)
     const recentErrors = this.getRecentErrors()
     recentErrors.push(errorData)
-    
+
     // Keep only last 5 errors for Pi Zero memory constraints
     if (recentErrors.length > 5) {
       recentErrors.shift()
     }
-    
+
     try {
       localStorage.setItem('app-stability-errors', JSON.stringify(recentErrors))
     } catch {
@@ -142,7 +142,7 @@ class StabilityMonitor {
     }
 
     // Simple connectivity check
-    fetch('/healthz', { method: 'HEAD' })
+    fetch('/health', { method: 'HEAD' })
       .then(() => {
         stabilityLogger.debug('Network connectivity confirmed')
       })
@@ -156,7 +156,7 @@ class StabilityMonitor {
     if (typeof performance !== 'undefined' && performance.memory) {
       this.memoryCheckInterval = setInterval(() => {
         const memoryUsage = (performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit) * 100
-        
+
         if (memoryUsage > 70) { // Lowered threshold for Pi Zero
           stabilityLogger.warn(`High memory usage: ${memoryUsage.toFixed(1)}%`)
           this.performanceIssues.push({
@@ -164,12 +164,12 @@ class StabilityMonitor {
             value: memoryUsage,
             timestamp: Date.now()
           })
-          
+
           // Keep limited performance issues
           if (this.performanceIssues.length > this.maxPerformanceIssues) {
             this.performanceIssues.shift()
           }
-          
+
           // Auto cleanup at 85% for Pi Zero
           if (memoryUsage > 85) {
             this.performEmergencyCleanup()
@@ -182,7 +182,7 @@ class StabilityMonitor {
   scheduleCleanup() {
     this.cleanupInterval = setInterval(() => {
       const now = Date.now()
-      
+
       // Cleanup every 5 minutes for Pi Zero
       if (now - this.lastCleanup > 5 * 60 * 1000) {
         this.performStorageCleanup()
@@ -219,18 +219,18 @@ class StabilityMonitor {
     this.errorCount = 0
     this.warningCount = 0
     this.performanceIssues = []
-    
+
     // Clear intervals
     if (this.memoryCheckInterval) {
       clearInterval(this.memoryCheckInterval)
       this.memoryCheckInterval = null
     }
-    
+
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval)
       this.cleanupInterval = null
     }
-    
+
     try {
       localStorage.removeItem('app-stability-errors')
     } catch {
@@ -242,17 +242,17 @@ class StabilityMonitor {
   // Stop monitoring and clean up
   stopMonitoring() {
     this.isMonitoring = false
-    
+
     if (this.memoryCheckInterval) {
       clearInterval(this.memoryCheckInterval)
       this.memoryCheckInterval = null
     }
-    
+
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval)
       this.cleanupInterval = null
     }
-    
+
     stabilityLogger.info('Stability Monitor stopped')
   }
 }
