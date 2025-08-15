@@ -34,7 +34,7 @@ clone_or_update(){
 }
 
 build_frontend(){
-    log "Frontend build"; (cd "$APP_DIR" && npm install --omit=dev >>"$LOG_FILE" 2>&1 && npm run build >>"$LOG_FILE" 2>&1 || log "Build uyarı: devam" )
+    log "Frontend build"; (cd "$APP_DIR" && npm install --omit=dev >>"$LOG_FILE" 2>&1 && npm run build >>"$LOG_FILE" 2>&1 || log "Frontend build failed but continuing with deployment" )
 }
 
 install_backend(){

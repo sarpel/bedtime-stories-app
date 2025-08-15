@@ -257,7 +257,7 @@ app.post('/api/llm', async (req, res) => {
   }
 
   if (provider === 'openai') {
-    if (!OPENAI_API_KEY) { return res.status(500).json({ error: 'OpenAI API anahtarı eksik.' }); }
+    if (!OPENAI_API_KEY) { return res.status(503).json({ error: 'OpenAI API anahtarı eksik.' }); }
     if (!process.env.OPENAI_MODEL) { return res.status(500).json({ error: 'OPENAI_MODEL tanımlı değil.' }); }
     if (!process.env.OPENAI_ENDPOINT) { return res.status(500).json({ error: 'OPENAI_ENDPOINT tanımlı değil.' }); }
     const effectiveModel = modelId || process.env.OPENAI_MODEL;
@@ -697,7 +697,12 @@ app.post('/api/tts', async (req, res) => {
   if (process.env.MAX_CONCURRENT_TTS && process.env.MAX_CONCURRENT_TTS !== '1') {
     // Politika gereği zorla 1 yap (env yanlış ayarlansa da)
     process.env.MAX_CONCURRENT_TTS = '1';
+  let maxConcurrentTTS = 1;
+  if (process.env.MAX_CONCURRENT_TTS && process.env.MAX_CONCURRENT_TTS !== '1') {
+    // Politika gereği: sadece 1 izin verilir, env yanlışsa uyarı ver
+    console.warn(`[Config] MAX_CONCURRENT_TTS env '${process.env.MAX_CONCURRENT_TTS}' olarak ayarlanmış, ancak sadece '1' destekleniyor. Uygulama '1' ile devam edecek.`);
   }
+  // İleride maxConcurrentTTS kullanılacaksa, buradan alınmalı
   const ELEVEN_BASE = (process.env.ELEVENLABS_ENDPOINT || '').replace(/\/$/, '');
   const GEMINI_BASE = (process.env.GEMINI_TTS_ENDPOINT || process.env.GEMINI_LLM_ENDPOINT || '').replace(/\/$/, '');
   const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
