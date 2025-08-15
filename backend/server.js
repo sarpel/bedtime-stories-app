@@ -265,7 +265,7 @@ app.post('/api/llm', async (req, res) => {
   }
 
   if (provider === 'openai') {
-    if (!OPENAI_API_KEY) { return res.status(500).json({ error: 'OpenAI API anahtarı eksik.' }); }
+    if (!OPENAI_API_KEY) { return res.status(503).json({ error: 'OpenAI API anahtarı eksik.' }); }
     if (!process.env.OPENAI_MODEL) { return res.status(500).json({ error: 'OPENAI_MODEL tanımlı değil.' }); }
     if (!process.env.OPENAI_ENDPOINT) { return res.status(500).json({ error: 'OPENAI_ENDPOINT tanımlı değil.' }); }
     const effectiveModel = modelId || process.env.OPENAI_MODEL;
