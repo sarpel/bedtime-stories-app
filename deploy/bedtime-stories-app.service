@@ -4,9 +4,9 @@
 # Production-ready service configuration for Raspberry Pi Zero 2 W deployment
 # with comprehensive security, resource management, and monitoring capabilities.
 #
-# Installation: Copy to /etc/systemd/system/bedtime-stories-app.service
-# Enable: sudo systemctl enable bedtime-stories-app.service
-# Start: sudo systemctl start bedtime-stories-app.service
+# Installation: Copy to /etc/systemd/system/storyapp.service
+# Enable: sudo systemctl enable storyapp.service
+# Start: sudo systemctl start storyapp.service
 # =============================================================================
 
 [Unit]
@@ -17,7 +17,7 @@ Wants=network-online.target sound.target
 Requires=basic.target
 
 # Service dependencies and ordering
-BindsTo=storyaudio.service
+Wants=storyaudio.service
 After=storyaudio.service
 
 # Failure handling
@@ -43,28 +43,28 @@ StartLimitBurst=5
 # Environment Configuration
 # -----------------------------------------------------------------------------
 Environment=NODE_ENV=production
-Environment=NODE_OPTIONS=--max-old-space-size=200
-EnvironmentFile=-/etc/storyapp/env
-EnvironmentFile=-/opt/storyapp/current/backend/.env
+Environment=NODE_OPTIONS=--max-old-space-size=300
+EnvironmentFile=-/etc/storyapp/.env
+EnvironmentFile=-/opt/storyapp/backend/.env
 
 # -----------------------------------------------------------------------------
 # User & Group Security
 # -----------------------------------------------------------------------------
-User=storyapp
-Group=storyapp
+User=sarpel
+Group=sarpel
 SupplementaryGroups=audio
 
 # -----------------------------------------------------------------------------
 # Directory & File Access
 # -----------------------------------------------------------------------------
-WorkingDirectory=/opt/storyapp/current
-ExecStartPre=/bin/sh -c 'test -f /opt/storyapp/current/backend/server.js'
+WorkingDirectory=/opt/storyapp
+ExecStartPre=/bin/sh -c 'test -f /opt/storyapp/backend/server.js'
 
 # Writable paths (minimal access principle)
-ReadWritePaths=/var/log/storyapp /var/lib/storyapp /opt/storyapp/current/backend/database /opt/storyapp/current/backend/audio
+ReadWritePaths=/var/log/storyapp /var/lib/storyapp /opt/storyapp/backend/database /opt/storyapp/backend/audio
 
 # Read-only paths (application code)
-ReadOnlyPaths=/opt/storyapp/current
+ReadOnlyPaths=/opt/storyapp
 
 # Temporary directories
 PrivateTmp=yes
@@ -129,8 +129,8 @@ LockPersonality=yes
 # Resource Limits (Raspberry Pi Zero 2 W Optimized)
 # -----------------------------------------------------------------------------
 # Memory limits (critical for 512MB Pi Zero 2 W)
-MemoryMax=150M
-MemoryHigh=120M
+MemoryMax=300M
+MemoryHigh=180M
 MemorySwapMax=0
 
 # CPU limits (prevent monopolizing all cores)

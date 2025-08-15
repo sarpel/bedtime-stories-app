@@ -110,6 +110,7 @@ coverage/
 .tmp/
 temp/
 test-results/
+tests/
 # -----------------------------------------------------------------------------
 # Testing & Coverage
 # -----------------------------------------------------------------------------
@@ -190,15 +191,16 @@ vite.config.ts.timestamp-*
 *.ogg
 *.flac
 
-# Images and media
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.webp
-*.ico
-*.svg
-*.bmp
+# Images (UI asset'leri repoda tutulacak)
+# NOT: Büyük ses dosyaları yukarıda ignore edildi, görseller serbest
+!*.png
+!*.jpg
+!*.jpeg
+!*.gif
+!*.webp
+!*.ico
+!*.svg
+!*.bmp
 
 # Documents and archives
 *.pdf

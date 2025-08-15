@@ -25,9 +25,9 @@ const db = new Database(DB_PATH, {
 // WAL modu performans için + Pi Zero specific optimizations
 db.pragma('journal_mode = WAL');
 db.pragma('synchronous = NORMAL'); // Faster than FULL, safe for Pi Zero
-db.pragma('cache_size = -2000'); // 2MB cache (reduced for Pi Zero)
+db.pragma('cache_size = -1000'); // 1MB cache (reduced for Pi Zero)
 db.pragma('temp_store = MEMORY'); // Use memory for temp tables (small amounts)
-db.pragma('mmap_size = 67108864'); // 64MB memory map (reduced for Pi Zero)
+db.pragma('mmap_size = 33554432'); // 32MB memory map (reduced for Pi Zero)
 db.pragma('page_size = 4096'); // Optimal for Pi Zero's ARM architecture
 
 // Veritabanı tablolarını oluştur
@@ -72,7 +72,7 @@ function initDatabase() {
   try {
     db.exec(`ALTER TABLE stories ADD COLUMN share_id TEXT`);
     console.log('share_id sütunu eklendi');
-    
+
     // Share_id için unique index oluştur
     try {
       db.exec(`CREATE UNIQUE INDEX idx_share_id ON stories(share_id)`);
@@ -144,6 +144,25 @@ function initDatabase() {
   }
 
   console.log('Veritabanı başarıyla başlatıldı:', DB_PATH);
+
+  // Boş veritabanına örnek 3 hikaye ekle
+  try {
+    const row = db.prepare('SELECT COUNT(*) as c FROM stories').get();
+    if (row.c === 0) {
+      const now = new Date().toISOString();
+      const insert = db.prepare('INSERT INTO stories (story_text, story_type, custom_topic, is_favorite, created_at) VALUES (?,?,?,?,?)');
+      const samples = [
+        ['Küçük yıldız uykuya dalarken gökyüzü onu sarıp sakladı.', 'goodnight', 'yıldız', 0, now],
+        ['Minik tavşan ormanda nazik olmanın gerçek dostluk getirdiğini öğrendi.', 'kindness', 'tavşan', 0, now],
+        ['Sevgi dolu rüzgar sabırlı çiçeğe büyümenin zaman aldığını fısıldadı.', 'patience', 'çiçek', 0, now]
+      ];
+      const tx = db.transaction(() => { samples.forEach(s => insert.run(...s)); });
+      tx();
+      console.log('Örnek hikayeler eklendi.');
+    }
+  } catch (e) {
+    console.error('Örnek hikayeler eklenemedi:', e.message);
+  }
 }
 
 // Veritabanını başlat
@@ -156,18 +175,18 @@ const statements = {
     INSERT INTO stories (story_text, story_type, custom_topic)
     VALUES (?, ?, ?)
   `),
-  
+
   getStoryById: db.prepare(`
     SELECT * FROM stories WHERE id = ?
   `),
-  
+
   getAllStories: db.prepare(`
     SELECT s.*, a.file_name, a.file_path, a.voice_id
     FROM stories s
     LEFT JOIN audio_files a ON s.id = a.story_id
     ORDER BY s.created_at DESC
   `),
-  
+
   getStoriesByType: db.prepare(`
     SELECT s.*, a.file_name, a.file_path, a.voice_id
     FROM stories s
@@ -175,26 +194,26 @@ const statements = {
     WHERE s.story_type = ?
     ORDER BY s.created_at DESC
   `),
-  
+
   deleteStory: db.prepare(`
     DELETE FROM stories WHERE id = ?
   `),
-  
+
   updateStory: db.prepare(`
-    UPDATE stories 
+    UPDATE stories
     SET story_text = ?, story_type = ?, custom_topic = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `),
 
   updateStoryFavorite: db.prepare(`
-    UPDATE stories 
+    UPDATE stories
     SET is_favorite = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `),
 
   // Sharing operations
   updateStorySharing: db.prepare(`
-    UPDATE stories 
+    UPDATE stories
     SET is_shared = ?, share_id = ?, shared_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `),
@@ -219,18 +238,18 @@ const statements = {
     INSERT INTO audio_files (story_id, file_name, file_path, voice_id, voice_settings)
     VALUES (?, ?, ?, ?, ?)
   `),
-  
+
   getAudioByStoryId: db.prepare(`
     SELECT * FROM audio_files WHERE story_id = ?
   `),
-  
+
   deleteAudioByStoryId: db.prepare(`
     DELETE FROM audio_files WHERE story_id = ?
   `),
-  
+
   // Combined operations
   getStoryWithAudio: db.prepare(`
-    SELECT 
+    SELECT
       s.*,
       a.id as audio_id,
       a.file_name,
@@ -292,7 +311,7 @@ const storyDb = {
       const rows = statements.getAllStories.all();
       // Group audio files with stories
       const storiesMap = new Map();
-      
+
       rows.forEach(row => {
         if (!storiesMap.has(row.id)) {
           storiesMap.set(row.id, {
@@ -306,7 +325,7 @@ const storyDb = {
             audio: null
           });
         }
-        
+
         if (row.file_name) {
           storiesMap.get(row.id).audio = {
             file_name: row.file_name,
@@ -315,7 +334,7 @@ const storyDb = {
           };
         }
       });
-      
+
       return Array.from(storiesMap.values());
     } catch (error) {
       console.error('Masalları getirme hatası:', error);
@@ -349,7 +368,7 @@ const storyDb = {
       if (audio && fs.existsSync(audio.file_path)) {
         fs.unlinkSync(audio.file_path);
       }
-      
+
       // Veritabanından sil (CASCADE sayesinde audio_files da silinir)
       const result = statements.deleteStory.run(id);
       return result.changes > 0;
@@ -376,10 +395,10 @@ const storyDb = {
   saveAudio(storyId, fileName, filePath, voiceId, voiceSettings = null) {
     try {
       const result = statements.insertAudio.run(
-        storyId, 
-        fileName, 
-        filePath, 
-        voiceId, 
+        storyId,
+        fileName,
+        filePath,
+        voiceId,
         voiceSettings ? JSON.stringify(voiceSettings) : null
       );
       return result.lastInsertRowid;
@@ -405,7 +424,7 @@ const storyDb = {
       if (!row) {
         return null;
       }
-      
+
       return {
         id: row.id,
         story_text: row.story_text,
@@ -546,7 +565,7 @@ const storyDb = {
       const rows = statements.getAllSharedStories.all();
       // Group audio files with stories
       const storiesMap = new Map();
-      
+
       rows.forEach(row => {
         if (!storiesMap.has(row.id)) {
           storiesMap.set(row.id, {
@@ -563,7 +582,7 @@ const storyDb = {
             audio: null
           });
         }
-        
+
         if (row.file_name) {
           storiesMap.get(row.id).audio = {
             file_name: row.file_name,
@@ -572,7 +591,7 @@ const storyDb = {
           };
         }
       });
-      
+
       return Array.from(storiesMap.values());
     } catch (error) {
       console.error('Paylaşılan masalları getirme hatası:', error);
