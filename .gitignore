@@ -1,307 +1,54 @@
-# =============================================================================
-# PRODUCTION .GITIGNORE FOR RASPBERRY PI ZERO 2 W DEPLOYMENT
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# Node.js Runtime Artifacts
-# -----------------------------------------------------------------------------
-# Logs
-logs/
-*.log
+# Dependencies
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-lerna-debug.log*
-pids/
-*.pid
-*.seed
-*.pid.lock
 
-# Runtime data & diagnostic reports
-pids/
-*.pid
-*.seed
-*.pid.lock
-report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-
-# -----------------------------------------------------------------------------
-# Development Tools & IDEs
-# -----------------------------------------------------------------------------
-# Cursor IDE artifacts
-.cursor/
-.cursor/rules/
-.llm-context/
-.llm-context/rules/
-.llm-context/templates/
-.llm-context/config.yaml
-
-# VS Code configuration (keep workspace settings, ignore user settings)
-.vscode/settings.json
-.vscode/launch.json
-.vscode/extensions.json
-
-# -----------------------------------------------------------------------------
-# Dependency Management
-# -----------------------------------------------------------------------------
-# Package manager directories
-node_modules/
-jspm_packages/
-web_modules/
-
-# Package manager cache directories
-.npm/
-.yarn/
-.pnp.*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/sdks
-!.yarn/versions
-
-# -----------------------------------------------------------------------------
-# Build Artifacts & Distribution
-# -----------------------------------------------------------------------------
-# Production builds
+# Production build
 dist/
 build/
-out/
 
-# Build tool artifacts
-.cache/
-.parcel-cache/
-.next/
-.nuxt/
-.svelte-kit/
-.vitepress/dist/
-.vitepress/cache/
-.docusaurus/
-
-# TypeScript build info
-*.tsbuildinfo
-.tscache/
-
-# -----------------------------------------------------------------------------
-# Environment & Secrets (CRITICAL FOR PRODUCTION)
-# -----------------------------------------------------------------------------
-# Environment files with actual secrets
+# Environment variables
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-.env.production
-backend/.env
-backend/.env.production
 
-# Keep templates for deployment
-!.env.example
-!backend/.env.example
-
-# -----------------------------------------------------------------------------
-# Testing & Coverage
-# -----------------------------------------------------------------------------
-# Test coverage
-coverage/
-*.lcov
-.nyc_output/
-.coverage/
-
-# Test artifacts
-.tmp/
-temp/
-test-results/
-# -----------------------------------------------------------------------------
-# Testing & Coverage
-# -----------------------------------------------------------------------------
-# Test coverage
-coverage/
-*.lcov
-.nyc_output/
-.coverage/
-
-# Test artifacts
-.tmp/
-temp/
-test-results/
-
-# -----------------------------------------------------------------------------
-# Raspberry Pi Specific Exclusions
-# -----------------------------------------------------------------------------
-# Pi boot configuration backups
-/boot/config.txt.backup*
-/boot/firmware/config.txt.backup*
-
-# Application runtime directories (created by deployment script)
-/var/log/storyapp/
-/var/lib/storyapp/
-/opt/storyapp/
-
-# SystemD service files (managed by installer)
-storyapp.service
-storyaudio.service
-
-# Audio device state files
-/usr/share/alsa/alsa.conf.backup*
-/etc/asound.conf.backup*
-.asoundrc*
-
-# SQLite database files (contain user data)
-*.db
-*.db-shm
-*.db-wal
-stories.db*
-
-# Generated audio files (can be large, regenerated on demand)
-backend/audio/*.mp3
-backend/audio/*.wav
-/var/lib/storyapp/media/*.mp3
-/var/lib/storyapp/media/*.wav
-
-# SD Card Health Protection
-*.swp
-*.swap
-/swapfile-build
-
-# Performance monitoring data
-*.perfdata
-htop.config
-
-# -----------------------------------------------------------------------------
-# Framework Specific (React + Vite)
-# -----------------------------------------------------------------------------
-# Vite build artifacts
-vite.config.js.timestamp-*
-vite.config.ts.timestamp-*
-
-# React dev server
-.eslintcache
-
-# Tailwind CSS generated files
-*.css.map
-
-# -----------------------------------------------------------------------------
-# Large Binary Assets (Use Git LFS or External Storage)
-# -----------------------------------------------------------------------------
-# Audio samples and test files
-*.mp3
-*.wav
-*.m4a
-*.aac
-*.ogg
-*.flac
-
-# Images (UI asset'leri repoda tutulacak)
-# NOT: Büyük ses dosyaları yukarıda ignore edildi, görseller serbest
-!*.png
-!*.jpg
-!*.jpeg
-!*.gif
-!*.webp
-!*.ico
-!*.svg
-!*.bmp
-
-# Documents and archives
-*.pdf
-*.zip
-*.tar.gz
-*.rar
-*.7z
-
-# Note: For audio/media assets, consider:
-# - Git LFS for version-controlled assets
-# - External CDN/storage for user-generated content
-# - Local filesystem for Pi deployment-specific files
-
-# -----------------------------------------------------------------------------
-# Operating System Artifacts
-# -----------------------------------------------------------------------------
-# macOS
+# OS generated files
 .DS_Store
-.AppleDouble
-.LSOverride
-
-# Windows
-Thumbs.db
-Thumbs.db:encryptable
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 ehthumbs.db
-ehthumbs_vista.db
-*.tmp
-*.lnk
-Desktop.ini
+Thumbs.db
 
-# Linux
-*~
-.nfs*
-
-# -----------------------------------------------------------------------------
-# Editor & IDE Temporary Files
-# -----------------------------------------------------------------------------
-# Vim
+# IDE files
+.vscode/
+.idea/
 *.swp
 *.swo
 *~
 
-# Emacs
-*~
-\#*\#
-/.emacs.desktop
-/.emacs.desktop.lock
-*.elc
+# Runtime data
+*.pid
+*.seed
+*.pid.lock
 
-# Sublime Text
-*.sublime-workspace
-*.sublime-project
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
 
-# -----------------------------------------------------------------------------
-# Miscellaneous Development Artifacts
-# -----------------------------------------------------------------------------
-# Dependency license reports
-licenses/
-LICENSES.txt
+# Backend specific
+backend/audio/*.mp3
+backend/database/*.db
+backend/database/*.db-shm
+backend/database/*.db-wal
 
-# Bundle analyzer reports
-bundle-analyzer-report.html
-webpack-bundle-analyzer-report.html
+# Logs
+logs/
+*.log
 
-# Performance profiling
-*.cpuprofile
-*.heapprofile
-
-# Documentation builds (keep source docs)
-docs/build/
-_site/
-
-# Temporary development files
-todo.txt
-NOTES.md
-scratch.*
-debug.*
-
-# -----------------------------------------------------------------------------
-# Security Sensitive Files (CRITICAL)
-# -----------------------------------------------------------------------------
-# SSH keys and certificates
-*.pem
-*.key
-*.crt
-*.csr
-*.p12
-*.pfx
-
-# Database dumps with potential sensitive data
-*.sql
-*.dump
-
-# Configuration with embedded secrets
-config.production.json
-secrets.json
-
-# Backup files that might contain secrets
-*.backup
-*.bak
-*.orig
-
-# =============================================================================
-# END OF PRODUCTION .GITIGNORE
-# =============================================================================
+# Test files
+test-*.db
