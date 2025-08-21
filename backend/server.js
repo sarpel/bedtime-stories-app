@@ -81,6 +81,31 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// MIME type düzeltmeleri için middleware (ES modules için kritik)
+app.use((req, res, next) => {
+  const ext = path.extname(req.url).toLowerCase();
+
+  switch (ext) {
+    case '.js':
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      break;
+    case '.mjs':
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      break;
+    case '.css':
+      res.setHeader('Content-Type', 'text/css; charset=utf-8');
+      break;
+    case '.json':
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      break;
+    case '.svg':
+      res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
+      break;
+  }
+
+  next();
+});
+
 // Static dosyalar (ses) - frontend build için tekil konsolide blok aşağıda (çift mount kaldırıldı)
 app.use('/audio', express.static(path.join(__dirname, 'audio'), { etag: true, lastModified: true }));
 // distDir burada tanımlanmıyor; aşağıdaki kapsamlı blokta yerel olarak hesaplanacak
@@ -169,15 +194,33 @@ try {
   }
 
   if (staticPath && indexPath) {
-    // Serve static files with proper caching
+    // Serve static files with proper caching and MIME types
     app.use(express.static(staticPath, {
       maxAge: isProduction ? '1y' : '0',
       etag: true,
       lastModified: true,
       setHeaders: (res, filePath) => {
+        // Cache control for HTML files
         if (filePath.endsWith('.html')) {
           res.setHeader('Cache-Control', 'no-cache');
         }
+
+        // Fix MIME types for JavaScript modules
+        if (filePath.endsWith('.js')) {
+          res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+        }
+
+        // Ensure proper MIME types for other assets
+        if (filePath.endsWith('.css')) {
+          res.setHeader('Content-Type', 'text/css; charset=utf-8');
+        }
+
+        if (filePath.endsWith('.json')) {
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        }
+
+        // Security headers for all static files
+        res.setHeader('X-Content-Type-Options', 'nosniff');
       }
     }));
 

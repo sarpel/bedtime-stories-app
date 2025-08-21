@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "NODE_ENV=production node server.js",
+    "test": "node tests/smoke-prod.test.js && node tests/server.test.js",
     "audit": "npm audit",
     "audit:fix": "npm audit fix",
     "audit:report": "npm audit --json > security-audit-backend.json"
@@ -23,7 +24,9 @@
     "pino-pretty": "^13.0.0",
     "pino-http": "^10.4.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "supertest": "^6.3.4"
+  },
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"

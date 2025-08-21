@@ -32,6 +32,9 @@ check_health(){
         if curl -sf "http://localhost:$APP_PORT/health" >/dev/null; then
             log "✅ Health endpoint yanıt veriyor"
             curl -s "http://localhost:$APP_PORT/health" | jq '.' 2>/dev/null || curl -s "http://localhost:$APP_PORT/health"
+
+            # JavaScript dosyalarının MIME type'ını kontrol et
+            check_mime_types
             return 0
         else
             log "⏳ Health endpoint yanıt vermiyor (deneme $attempt/$max_attempts)"
@@ -42,6 +45,34 @@ check_health(){
 
     log "❌ Health endpoint erişilebilir değil"
     return 1
+}
+
+check_mime_types(){
+    log "JavaScript MIME type kontrolü..."
+
+    # Assets klasöründe JS dosyası ara
+    local js_file=""
+    if [ -d "$APP_DIR/assets" ]; then
+        js_file=$(find "$APP_DIR/assets" -name "*.js" -type f | head -1)
+    fi
+
+    if [ -n "$js_file" ]; then
+        local js_filename=$(basename "$js_file")
+        local mime_response=$(curl -s -I "http://localhost:$APP_PORT/assets/$js_filename" 2>/dev/null | grep -i "content-type" || true)
+
+        if echo "$mime_response" | grep -qi "application/javascript"; then
+            log "✅ JavaScript MIME type doğru"
+        elif echo "$mime_response" | grep -qi "text/jsx\|text/plain"; then
+            log "⚠️  JavaScript MIME type sorunu tespit edildi"
+            log "   Bulunan: $mime_response"
+            log "   Beklenen: application/javascript"
+            log "   Bu sorun ES module yükleme hatalarına neden olabilir"
+        else
+            log "⚠️  JavaScript MIME type kontrol edilemedi"
+        fi
+    else
+        log "⚠️  Test edilecek JavaScript dosyası bulunamadı"
+    fi
 }
 
 check_env_file(){
@@ -121,11 +152,33 @@ check_files(){
             log "❌ Eksik klasörler:"
             for dir in "${missing_dirs[@]}"; do
                 echo "  - $dir"
+                # Assets klasörü için özel kontrol ve öneri
+                if [[ "$dir" == */assets ]]; then
+                    echo "    ℹ️  Assets klasörü production için gerekli (JS/CSS build dosyaları)"
+                    echo "    🔧 Düzeltmek için:"
+                    echo "       cd $APP_DIR && npm run build"
+                    if [ -d "$APP_DIR/dist/assets" ]; then
+                        echo "       cp -r $APP_DIR/dist/assets $APP_DIR/"
+                        echo "    📁 Not: dist/assets klasörü mevcut, sadece kopyalanması gerekiyor"
+                    else
+                        echo "    ⚠️  dist/assets klasörü de eksik - build gerekli"
+                    fi
+                fi
             done
         fi
         return 1
     else
         log "✅ Tüm gerekli dosyalar ve klasörler mevcut"
+
+        # Assets klasörü mevcut ama içeriği kontrol et
+        if [ -d "$APP_DIR/assets" ]; then
+            local asset_count=$(find "$APP_DIR/assets" -type f 2>/dev/null | wc -l)
+            if [ "$asset_count" -eq 0 ]; then
+                log "⚠️  Assets klasörü boş!"
+            else
+                log "✅ Assets klasörü mevcut ($asset_count dosya)"
+            fi
+        fi
     fi
 
     # Dizin izinleri
@@ -171,8 +224,12 @@ main(){
         echo ""
         log "Sorun giderme önerileri:"
         log "  1. .env dosyasındaki API anahtarlarını kontrol edin"
-        log "  2. Servisi yeniden başlatın: sudo systemctl restart storyapp"
-        log "  3. Logları kontrol edin: sudo journalctl -u storyapp -n 20"
+        log "  2. Eksik assets klasörü varsa:"
+        log "     cd $APP_DIR && npm run build && cp -r dist/assets $APP_DIR/"
+        log "  3. MIME type sorunu varsa servisi yeniden başlatın:"
+        log "     sudo systemctl restart storyapp"
+        log "  4. Frontend MIME hatası için browser'ı yenileyin (Ctrl+F5)"
+        log "  5. Logları kontrol edin: sudo journalctl -u storyapp -n 20"
         echo ""
         exit 1
     fi

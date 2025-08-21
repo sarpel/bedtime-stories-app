@@ -47,10 +47,35 @@ build_frontend(){
 
         # Static dosyaları root'a kopyala (Express static serving için)
         log "Static dosyalar root klasöre kopyalanıyor..."
-        cp "$APP_DIR/dist/index.html" "$APP_DIR/"
+
+        # index.html'yi kopyala
+        cp "$APP_DIR/dist/index.html" "$APP_DIR/" || log "UYARI: index.html kopyalanamadı"
+
+        # Assets klasörünü güvenli şekilde kopyala
         if [ -d "$APP_DIR/dist/assets" ]; then
-            cp -r "$APP_DIR/dist/assets" "$APP_DIR/"
-            log "✅ Static dosyalar kopyalandı (index.html, assets/)"
+            # Eski assets klasörünü sil (eğer varsa)
+            [ -d "$APP_DIR/assets" ] && rm -rf "$APP_DIR/assets"
+
+            # Yeni assets'i kopyala
+            cp -r "$APP_DIR/dist/assets" "$APP_DIR/" || {
+                log "HATA: Assets klasörü kopyalanamadı"
+                return 1
+            }
+
+            # İzinleri düzelt
+            chown -R root:root "$APP_DIR/assets" 2>/dev/null || true
+            find "$APP_DIR/assets" -type f -exec chmod 644 {} \; 2>/dev/null || true
+            find "$APP_DIR/assets" -type d -exec chmod 755 {} \; 2>/dev/null || true
+
+            # Kopyalanan dosyaları doğrula
+            local asset_files=$(find "$APP_DIR/assets" -type f | wc -l)
+            log "✅ Static dosyalar kopyalandı (index.html, assets/ - $asset_files dosya)"
+
+            # Assets içeriğini listele (debugging için)
+            log "Assets klasörü içeriği:"
+            ls -la "$APP_DIR/assets" 2>/dev/null | head -10
+        else
+            log "UYARI: dist/assets klasörü bulunamadı - assets olmadan devam ediliyor"
         fi
 
         # Build klasörünü temizle (opsiyonel, disk tasarrufu)
