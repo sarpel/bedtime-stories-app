@@ -57,7 +57,7 @@ export default [
     languageOptions: {
       ecmaVersion: 2020,
       sourceType: 'module',
-      globals: { 
+      globals: {
         ...globals.browser,
         ...globals.jest,
         ...globals.node,

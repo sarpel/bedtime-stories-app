@@ -377,7 +377,7 @@ describe('getRecentErrors and getStabilityReport', () => {
 
     const report = stabilityMonitor.getStabilityReport()
     expect(report.performanceIssues).toHaveLength(3)
-    expect(report.performanceIssues.map(i => i.value)).toEqual([3,4,5])
+    expect(report.performanceIssues.map(i => i.value)).toEqual([3, 4, 5])
     expect(report.isHealthy).toBe(true)
 
     stabilityMonitor.errorCount = 3
@@ -434,7 +434,7 @@ describe('global event handlers wiring', () => {
     rejHandler({ reason: { message: 'bad promise' } })
     expect(stabilityMonitor.getRecentErrors()[0].message).toBe('bad promise')
 
-    rejHandler({ }) // no reason provided
+    rejHandler({}) // no reason provided
     expect(stabilityMonitor.getRecentErrors()[1].message).toBe('Promise rejected')
   })
 })
