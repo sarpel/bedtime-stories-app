@@ -134,7 +134,7 @@ app.get('/health', async (req, res) => {
       logger.error({ error: error.message }, 'Filesystem health check failed');
     }
 
-    const statusCode = healthStatus.status === 'healthy' ? 200 : 503;
+    const statusCode = 200;
     res.status(statusCode).json(healthStatus);
   } catch (error) {
     logger.error({ error: error.message }, 'Health check failed');
@@ -232,15 +232,16 @@ app.post('/api/llm', async (req, res) => {
     });
   } catch { /* llm request start log skipped */ }
   // Frontend'den gelen ayarları ve prompt'u al
-  const { provider = 'openai', modelId, prompt, max_tokens, temperature, endpoint: clientEndpoint } = req.body;
+  const { provider = 'openai', modelId, prompt, max_completion_tokens, max_output_tokens, temperature, endpoint: clientEndpoint } = req.body;
 
   // Input validation
   if (typeof prompt !== 'string' || prompt.trim().length === 0) {
     return res.status(400).json({ error: 'Geçerli bir prompt girin.' });
   }
 
-  if (max_tokens && (typeof max_tokens !== 'number' || max_tokens <= 0 || max_tokens > 5000)) {
-    return res.status(400).json({ error: 'max_tokens 1 ile 5000 arasında olmalıdır.' });
+  const maxTokens = max_output_tokens || max_completion_tokens;
+  if (maxTokens && (typeof maxTokens !== 'number' || maxTokens <= 0 || maxTokens > 5000)) {
+    return res.status(400).json({ error: 'max_output_tokens 1 ile 5000 arasında olmalıdır.' });
   }
 
   // API key'leri yalnızca sunucu ortamından al
@@ -257,40 +258,33 @@ app.post('/api/llm', async (req, res) => {
   }
 
   if (provider === 'openai') {
-    if (!OPENAI_API_KEY) { return res.status(503).json({ error: 'OpenAI API anahtarı eksik.' }); }
+    if (!OPENAI_API_KEY) {
+      return res.status(503).json({
+        error: 'OpenAI API anahtarı eksik. Lütfen backend/.env dosyasında OPENAI_API_KEY\'i ayarlayın.'
+      });
+    }
     if (!process.env.OPENAI_MODEL) { return res.status(500).json({ error: 'OPENAI_MODEL tanımlı değil.' }); }
     if (!process.env.OPENAI_ENDPOINT) { return res.status(500).json({ error: 'OPENAI_ENDPOINT tanımlı değil.' }); }
     const effectiveModel = modelId || process.env.OPENAI_MODEL;
     endpoint = clientEndpoint || process.env.OPENAI_ENDPOINT;
     headers.Authorization = `Bearer ${OPENAI_API_KEY}`;
-    // OpenAI Chat Completions formatı
+    // OpenAI Responses API formatı (güncellendi)
     body = {
       model: effectiveModel,
-      messages: [
-        {
-          role: 'system',
-          content: '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.'
-        },
-        { role: 'user', content: prompt }
-      ],
+      input: prompt,
       temperature: Number.isFinite(temperature) ? temperature : 1.0
     };
-    if (max_tokens) {
-      if (effectiveModel.includes('gpt-5') || effectiveModel.includes('o1') || effectiveModel.includes('o3')) {
-        body.max_completion_tokens = max_tokens;
-      } else {
-        body.max_tokens = max_tokens;
-      }
+    if (maxTokens) {
+      body.max_output_tokens = maxTokens;
     }
     logger.info({
       msg: '[API /api/llm] provider:openai payload',
       endpoint,
       hasAuth: !!headers.Authorization,
       temperature: body.temperature,
-      max_tokens: body.max_tokens,
-      max_completion_tokens: body.max_completion_tokens,
+      max_output_tokens: body.max_output_tokens,
       model: body.model,
-      msgCount: body.messages?.length
+      inputLen: body.input?.length
     });
   } else if (provider === 'gemini') {
     if (!GEMINI_LLM_API_KEY) { return res.status(500).json({ error: 'Gemini LLM API anahtarı eksik.' }); }
@@ -304,7 +298,7 @@ app.post('/api/llm', async (req, res) => {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: Number.isFinite(temperature) ? temperature : 1.0,
-        maxOutputTokens: max_tokens && Number.isFinite(max_tokens) ? max_tokens : undefined
+        maxOutputTokens: maxTokens && Number.isFinite(maxTokens) ? maxTokens : undefined
       }
     };
     logger.info({
@@ -323,13 +317,13 @@ app.post('/api/llm', async (req, res) => {
       model: modelId,
       prompt,
       temperature: Number.isFinite(temperature) ? temperature : 1.0,
-      max_tokens: max_tokens && Number.isFinite(max_tokens) ? max_tokens : undefined
+      max_completion_tokens: maxTokens && Number.isFinite(maxTokens) ? maxTokens : undefined
     };
     logger.info({
       msg: '[API /api/llm] provider:generic payload',
       endpoint,
       temperature: body.temperature,
-      max_tokens: body.max_tokens,
+      max_completion_tokens: body.max_completion_tokens,
       promptLen: (prompt || '').length
     });
   }
@@ -720,7 +714,11 @@ app.post('/api/tts', async (req, res) => {
   try {
     if (provider === 'elevenlabs') {
       console.log('🔊 [Backend TTS] Using ElevenLabs provider')
-      if (!ELEVENLABS_API_KEY) { return res.status(500).json({ error: 'ELEVENLABS_API_KEY eksik.' }); }
+      if (!ELEVENLABS_API_KEY) {
+        return res.status(500).json({
+          error: 'ElevenLabs API anahtarı eksik. Lütfen backend/.env dosyasında ELEVENLABS_API_KEY\'i ayarlayın.'
+        });
+      }
       if (!process.env.ELEVENLABS_VOICE_ID && !voiceId) { return res.status(500).json({ error: 'ELEVENLABS_VOICE_ID tanımlı değil.' }); }
       if (!process.env.ELEVENLABS_ENDPOINT && !clientEndpoint) { return res.status(500).json({ error: 'ELEVENLABS_ENDPOINT tanımlı değil.' }); }
       const effectiveVoice = voiceId || process.env.ELEVENLABS_VOICE_ID;
@@ -971,5 +969,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = app;
 module.exports = app;

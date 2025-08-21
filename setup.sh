@@ -34,11 +34,58 @@ clone_or_update(){
 }
 
 build_frontend(){
-    log "Frontend build"; (cd "$APP_DIR" && npm install --omit=dev >>"$LOG_FILE" 2>&1 && npm run build >>"$LOG_FILE" 2>&1 || log "Frontend build failed but continuing with deployment" )
+    log "Frontend build";
+    (cd "$APP_DIR" && NODE_ENV=production npm install --omit=dev >>"$LOG_FILE" 2>&1 && NODE_ENV=production npm run build >>"$LOG_FILE" 2>&1) || {
+        log "Frontend build hatası - log kontrol et: $LOG_FILE"
+        # Build hatalı olursa devam et ama uyar
+        return 0
+    }
+
+    # Build başarılı mı kontrol et
+    if [ -d "$APP_DIR/dist" ] && [ -f "$APP_DIR/dist/index.html" ]; then
+        log "Frontend build başarılı - dist klasörü oluşturuldu"
+    else
+        log "UYARI: Frontend build tamamlandı ama dist klasörü eksik"
+    fi
 }
 
 install_backend(){
     log "Backend bağımlılıkları"; (cd "$APP_DIR/backend" && npm install --omit=dev >>"$LOG_FILE" 2>&1) || err "Backend npm hatası";
+
+    # .env dosyası oluştur (eğer yoksa)
+    if [ ! -f "$APP_DIR/backend/.env" ]; then
+        log "Backend .env dosyası oluşturuluyor"
+        cat > "$APP_DIR/backend/.env" <<EOF
+# OpenAI Configuration
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-5-mini
+OPENAI_ENDPOINT=https://api.openai.com/v1/responses
+
+# ElevenLabs Configuration
+ELEVENLABS_API_KEY=
+ELEVENLABS_VOICE_ID=xsGHrtxT5AdDzYXTQT0d
+ELEVENLABS_MODEL=eleven_turbo_v2_5
+ELEVENLABS_ENDPOINT=https://api.elevenlabs.io/v1/text-to-speech
+
+# Gemini Configuration (Optional)
+GEMINI_LLM_API_KEY=
+GEMINI_TTS_API_KEY=
+GEMINI_LLM_MODEL=gemini-2.5-flash-lite
+GEMINI_TTS_MODEL=gemini-2.5-flash-preview-tts
+GEMINI_TTS_VOICE_ID=Despina
+GEMINI_LLM_ENDPOINT=https://generativelanguage.googleapis.com/v1beta/models
+GEMINI_TTS_ENDPOINT=https://generativelanguage.googleapis.com/v1beta/models
+
+# Database
+DATABASE_PATH=./database/stories.db
+
+# Server Configuration
+NODE_ENV=production
+PORT=${APP_PORT}
+LOG_LEVEL=info
+EOF
+        log ".env dosyası oluşturuldu - API anahtarlarını düzenleyin!"
+    fi
 }
 
 write_service(){
@@ -80,7 +127,20 @@ summary(){
     echo "========================================="
     echo "Kurulum tamam (v$SCRIPT_VERSION)"
     echo "Uygulama: http://$IP:$APP_PORT"
-    echo "ENV dosyası: backend/.env (anahtarlar boşsa LLM/TTS çalışmaz)"
+    echo "========================================="
+    echo "⚠️  ÖNEMLİ: API anahtarlarınızı ayarlayın!"
+    echo "Dosya: $APP_DIR/backend/.env"
+    echo ""
+    echo "Gerekli anahtarlar:"
+    echo "  OPENAI_API_KEY=your_openai_key_here"
+    echo "  ELEVENLABS_API_KEY=your_elevenlabs_key_here"
+    echo ""
+    echo "Anahtarları ayarladıktan sonra servisi yeniden başlatın:"
+    echo "  sudo systemctl restart storyapp"
+    echo ""
+    echo "Kurulum kontrolü için:"
+    echo "  cd $APP_DIR && bash check-setup.sh"
+    echo ""
     echo "Servis log: journalctl -u storyapp -f"
     echo "Gerekirse reboot önerilir (audio için)"
     echo "========================================="

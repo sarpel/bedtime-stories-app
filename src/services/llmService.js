@@ -121,7 +121,7 @@ export class LLMService {
         provider: this.provider,
         modelId: this.modelId,
         prompt: prompt,
-        max_tokens: this.getMaxTokens(),
+        max_output_tokens: this.getMaxTokens(),
         temperature: this.temperature
       }
       console.log('[LLMService:request:start]', {
@@ -129,7 +129,7 @@ export class LLMService {
         provider: this.provider,
         modelId: this.modelId,
         promptLen: prompt.length,
-        max_tokens: payload.max_tokens,
+        max_output_tokens: payload.max_output_tokens,
         temperature: payload.temperature
       })
       const t0 = Date.now()
@@ -192,7 +192,17 @@ export class LLMService {
 
   // Prepare request body for different LLM providers
   prepareRequestBody(prompt) {
-    // OpenAI/Compatible format
+    // OpenAI Responses API format (güncellendi)
+    if (this.endpoint.includes('responses') || this.endpoint.includes('/api/llm')) {
+      return {
+        model: this.modelId,
+        input: prompt,
+        max_output_tokens: this.getMaxTokens(),
+        temperature: this.temperature
+      }
+    }
+
+    // Legacy OpenAI Chat format (backward compatibility)
     if (this.endpoint.includes('chat/completions') || this.endpoint.includes('v1/chat')) {
       return {
         model: this.modelId,
@@ -206,7 +216,7 @@ export class LLMService {
             content: prompt
           }
         ],
-        max_tokens: this.getMaxTokens(),
+        max_completion_tokens: this.getMaxTokens(),
         temperature: this.temperature,
         top_p: 0.9
       }
@@ -216,7 +226,7 @@ export class LLMService {
     if (this.endpoint.includes('anthropic') || this.endpoint.includes('claude')) {
       return {
         model: this.modelId,
-        max_tokens: this.getMaxTokens(),
+        max_completion_tokens: this.getMaxTokens(),
         messages: [
           {
             role: 'user',
@@ -231,7 +241,7 @@ export class LLMService {
     return {
       model: this.modelId,
       prompt: prompt,
-      max_tokens: this.getMaxTokens(),
+      max_completion_tokens: this.getMaxTokens(),
       temperature: 0.9,
       top_p: 0.9
     }
@@ -244,6 +254,23 @@ export class LLMService {
 
   // Extract story from different response formats
   extractStoryFromResponse(data) {
+    // OpenAI Responses API format (yeni) - output bir array olabilir
+    if (data?.output) {
+      if (Array.isArray(data.output) && data.output.length > 0) {
+        // output array'inde text content'i ara
+        const textContent = data.output.find(item =>
+          item?.type === 'text' || typeof item === 'string' || item?.content
+        );
+        if (textContent) {
+          return (textContent.content || textContent.text || textContent || '').toString().trim();
+        }
+        // Fallback: ilk elemanı string olarak al
+        return (data.output[0]?.content || data.output[0]?.text || data.output[0] || '').toString().trim();
+      } else if (typeof data.output === 'string') {
+        return data.output.trim();
+      }
+    }
+
     // Gemini format (candidates[].content.parts[].text)
     if (data && Array.isArray(data.candidates) && data.candidates.length > 0) {
       const first = data.candidates[0]
@@ -261,7 +288,7 @@ export class LLMService {
       }
     }
 
-    // OpenAI format
+    // Legacy OpenAI Chat format
     if (data?.choices?.[0]?.message) {
       return data.choices[0].message.content.trim()
     }

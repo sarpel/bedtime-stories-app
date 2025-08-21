@@ -323,12 +323,12 @@ function App() {
       // Show user-friendly error message
       let errorMessage = 'Masal oluşturulurken bir hata oluştu.'
 
-      if (error.message.includes('OpenAI ayarları eksik')) {
-        errorMessage = 'OpenAI API anahtarı eksik. Lütfen .env dosyasını kontrol edin.'
-      } else if (error.message.includes('API hatası')) {
-        errorMessage = 'OpenAI API\'sine bağlanırken hata oluştu. Lütfen internet bağlantınızı ve API anahtarınızı kontrol edin.'
+      if (error.message.includes('OpenAI ayarları eksik') || error.message.includes('API anahtarı eksik')) {
+        errorMessage = 'Sunucu konfigürasyonu eksik. Lütfen sistem yöneticisine başvurun.'
+      } else if (error.message.includes('API hatası') || error.message.includes('backend/.env')) {
+        errorMessage = 'Sunucu ayarları eksik. Lütfen .env dosyasındaki API anahtarlarını kontrol edin.'
       } else if (error.message.includes('yanıtından masal metni çıkarılamadı')) {
-        errorMessage = 'OpenAI yanıtı işlenirken hata oluştu. Lütfen tekrar deneyin.'
+        errorMessage = 'API yanıtı işlenirken hata oluştu. Lütfen tekrar deneyin.'
       }
 
       setError(errorMessage)
@@ -402,12 +402,12 @@ function App() {
       // Show user-friendly error message
       let errorMessage = 'Ses oluşturulurken bir hata oluştu.'
 
-      if (error.message.includes('ElevenLabs ayarları eksik') || error.message.includes('API anahtarı eksik')) {
-        errorMessage = 'ElevenLabs API anahtarı eksik. Lütfen .env dosyasında ELEVENLABS_API_KEY değerini ayarlayın.'
+      if (error.message.includes('ElevenLabs ayarları eksik') || error.message.includes('API anahtarı eksik') || error.message.includes('backend/.env')) {
+        errorMessage = 'Sunucu konfigürasyonu eksik. Lütfen sistem yöneticisine başvurun.'
       } else if (error.message.includes('API hatası') || error.message.includes('401')) {
-        errorMessage = 'ElevenLabs API anahtarı geçersiz. Lütfen ElevenLabs hesabınızdan doğru API anahtarını alın.'
+        errorMessage = 'TTS servisi yanıt vermiyor. Lütfen daha sonra tekrar deneyin.'
       } else if (error.message.includes('ses dosyası çıkarılamadı')) {
-        errorMessage = 'ElevenLabs yanıtı işlenirken hata oluştu. Lütfen tekrar deneyin.'
+        errorMessage = 'Ses dosyası işlenirken hata oluştu. Lütfen tekrar deneyin.'
       }
 
       setError(errorMessage)
@@ -458,12 +458,12 @@ function App() {
       // Show user-friendly error message
       let errorMessage = 'Ses oluşturulurken bir hata oluştu.'
 
-      if (error.message.includes('ElevenLabs ayarları eksik') || error.message.includes('API anahtarı eksik')) {
-        errorMessage = 'ElevenLabs API anahtarı eksik. Lütfen .env dosyasında ELEVENLABS_API_KEY değerini ayarlayın.'
+      if (error.message.includes('ElevenLabs ayarları eksik') || error.message.includes('API anahtarı eksik') || error.message.includes('backend/.env')) {
+        errorMessage = 'Sunucu konfigürasyonu eksik. Lütfen sistem yöneticisine başvurun.'
       } else if (error.message.includes('API hatası') || error.message.includes('401')) {
-        errorMessage = 'ElevenLabs API anahtarı geçersiz. Lütfen ElevenLabs hesabınızdan doğru API anahtarını alın.'
+        errorMessage = 'TTS servisi yanıt vermiyor. Lütfen daha sonra tekrar deneyin.'
       } else if (error.message.includes('ses dosyası çıkarılamadı')) {
-        errorMessage = 'ElevenLabs yanıtı işlenirken hata oluştu. Lütfen tekrar deneyin.'
+        errorMessage = 'Ses dosyası işlenirken hata oluştu. Lütfen tekrar deneyin.'
       }
 
       setError(errorMessage)

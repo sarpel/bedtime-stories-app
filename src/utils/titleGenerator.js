@@ -77,10 +77,10 @@ export async function generateTitleWithLLM(storyText, fetcher) {
   if (!storyText) return ''
   const prompt = `Aşağıdaki çocuk masalı için 3-5 kelimelik, kısa ve akılda kalıcı, 5 yaşındaki Türk bir kız çocuğuna uygun bir TÜRKÇE başlık üret. SADECE başlık metnini döndür.\n\nMasal:\n${storyText}`
   try {
-  const res = await fetcher('/api/llm', {
+    const res = await fetcher('/api/llm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider: 'openai', modelId: 'gpt-4o-mini', prompt, max_tokens: 24 })
+      body: JSON.stringify({ provider: 'openai', modelId: 'gpt-5-mini', prompt, max_output_tokens: 24 })
     })
     if (!res.ok) return ''
     const data = await res.json()

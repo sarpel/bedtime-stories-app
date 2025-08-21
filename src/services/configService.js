@@ -1,52 +1,58 @@
 // Configuration service for environment variables and fixed models
 
+// Production modunda backend proxy kullanılır - API anahtarları frontend'de tutulmaz
+const isProduction = import.meta.env.PROD || import.meta.env.MODE === 'production'
+
 export const config = {
-  // OpenAI Configuration
+  // OpenAI Configuration - Production'da backend proxy kullan
   openai: {
-    apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-    model: import.meta.env.VITE_OPENAI_MODEL || 'gpt-4o-mini',
-    endpoint: import.meta.env.VITE_OPENAI_ENDPOINT || 'https://api.openai.com/v1/chat/completions'
+    apiKey: isProduction ? '' : (import.meta.env.VITE_OPENAI_API_KEY || ''),
+    model: import.meta.env.VITE_OPENAI_MODEL || 'gpt-5-mini',
+    endpoint: isProduction ? '/api/llm' : (import.meta.env.VITE_OPENAI_ENDPOINT || '/api/llm')
   },
 
-  // ElevenLabs Configuration
+  // ElevenLabs Configuration - Production'da backend proxy kullan
   elevenlabs: {
-    apiKey: import.meta.env.VITE_ELEVENLABS_API_KEY,
+    apiKey: isProduction ? '' : (import.meta.env.VITE_ELEVENLABS_API_KEY || ''),
     voiceId: import.meta.env.VITE_ELEVENLABS_VOICE_ID || 'xsGHrtxT5AdDzYXTQT0d',
     model: import.meta.env.VITE_ELEVENLABS_MODEL || 'eleven_turbo_v2_5',
-    endpoint: import.meta.env.VITE_ELEVENLABS_ENDPOINT || 'https://api.elevenlabs.io/v1/text-to-speech'
+    endpoint: isProduction ? '/api/tts' : (import.meta.env.VITE_ELEVENLABS_ENDPOINT || '/api/tts')
   },
 
-  // Gemini LLM Configuration
+  // Gemini LLM Configuration - Production'da backend proxy kullan
   geminiLLM: {
-    apiKey: import.meta.env.VITE_GEMINI_LLM_API_KEY,
-    model: import.meta.env.VITE_GEMINI_LLM_MODEL || 'gemini-2.0-flash-thinking-exp-1219',
-    endpoint: import.meta.env.VITE_GEMINI_LLM_ENDPOINT || 'https://generativelanguage.googleapis.com/v1beta/models'
+    apiKey: isProduction ? '' : (import.meta.env.VITE_GEMINI_LLM_API_KEY || ''),
+    model: import.meta.env.VITE_GEMINI_LLM_MODEL || 'gemini-2.5-flash-lite',
+    endpoint: isProduction ? '/api/llm' : (import.meta.env.VITE_GEMINI_LLM_ENDPOINT || '/api/llm')
   },
 
-  // Gemini TTS Configuration
+  // Gemini TTS Configuration - Production'da backend proxy kullan
   geminiTTS: {
-    apiKey: import.meta.env.VITE_GEMINI_TTS_API_KEY,
-    model: import.meta.env.VITE_GEMINI_TTS_MODEL || 'gemini-2.0-flash-thinking-exp-1219',
-    voiceId: import.meta.env.VITE_GEMINI_TTS_VOICE_ID || 'Puck',
-    endpoint: import.meta.env.VITE_GEMINI_TTS_ENDPOINT || 'https://generativelanguage.googleapis.com/v1beta/models'
+    apiKey: isProduction ? '' : (import.meta.env.VITE_GEMINI_TTS_API_KEY || ''),
+    model: import.meta.env.VITE_GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts',
+    voiceId: import.meta.env.VITE_GEMINI_TTS_VOICE_ID || 'Despina',
+    endpoint: isProduction ? '/api/tts' : (import.meta.env.VITE_GEMINI_TTS_ENDPOINT || '/api/tts')
   },
 
   // Backend Configuration
   backend: {
-  url: import.meta.env.VITE_BACKEND_URL || ''
+    url: import.meta.env.VITE_BACKEND_URL || ''
   }
 }
 
-// Validate required environment variables
+// Validate required environment variables - Production'da backend kontrol eder
 export const validateConfig = () => {
   const errors = []
 
-  if (!config.openai.apiKey) {
-    errors.push('OpenAI API anahtarı eksik (.env dosyasında VITE_OPENAI_API_KEY)')
-  }
+  // Production'da API anahtarları backend'de tutuluyor
+  if (!isProduction) {
+    if (!config.openai.apiKey) {
+      errors.push('OpenAI API anahtarı eksik (.env dosyasında VITE_OPENAI_API_KEY)')
+    }
 
-  if (!config.elevenlabs.apiKey) {
-    errors.push('ElevenLabs API anahtarı eksik (.env dosyasında VITE_ELEVENLABS_API_KEY)')
+    if (!config.elevenlabs.apiKey) {
+      errors.push('ElevenLabs API anahtarı eksik (.env dosyasında VITE_ELEVENLABS_API_KEY)')
+    }
   }
 
   return {
@@ -107,7 +113,7 @@ export const getDefaultSettings = () => ({
   // User Configurable Settings
   customPrompt: '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.',
   customInstructions: '',
-  storyLength: 'medium',
+  storyLength: 'short',
   voiceSettings: {
     speed: 0.9,
     pitch: 1.0,
@@ -117,12 +123,17 @@ export const getDefaultSettings = () => ({
   },
   llmSettings: {
     temperature: 0.9,
-  maxTokens: 5000
+    maxTokens: 5000
   }
 })
 
-// Check if configuration is ready
+// Check if configuration is ready - Production'da backend kontrol eder
 export const isConfigReady = () => {
+  // Production'da her zaman true döndür - backend kontrol edecek
+  if (isProduction) {
+    return true
+  }
+
   const validation = validateConfig()
   return validation.isValid
 }
