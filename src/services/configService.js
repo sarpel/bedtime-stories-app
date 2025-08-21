@@ -2,12 +2,27 @@
 
 // Production modunda backend proxy kullanılır - API anahtarları frontend'de tutulmaz
 const isProduction = import.meta.env.PROD || import.meta.env.MODE === 'production'
+const isDevelopment = import.meta.env.DEV || import.meta.env.MODE === 'development'
+
+// Environment detection and logging
+console.log(`[ConfigService] Environment: ${isProduction ? 'Production' : 'Development'}`, {
+  PROD: import.meta.env.PROD,
+  MODE: import.meta.env.MODE,
+  isProduction,
+  isDevelopment
+})
 
 export const config = {
+  // Environment info
+  environment: {
+    isProduction,
+    isDevelopment,
+    mode: import.meta.env.MODE || 'development'
+  },
   // OpenAI Configuration - Production'da backend proxy kullan
   openai: {
     apiKey: isProduction ? '' : (import.meta.env.VITE_OPENAI_API_KEY || ''),
-    model: import.meta.env.VITE_OPENAI_MODEL || 'gpt-5-mini',
+    model: import.meta.env.VITE_OPENAI_MODEL || 'gpt-4o-mini',
     endpoint: isProduction ? '/api/llm' : (import.meta.env.VITE_OPENAI_ENDPOINT || '/api/llm')
   },
 
@@ -22,15 +37,15 @@ export const config = {
   // Gemini LLM Configuration - Production'da backend proxy kullan
   geminiLLM: {
     apiKey: isProduction ? '' : (import.meta.env.VITE_GEMINI_LLM_API_KEY || ''),
-    model: import.meta.env.VITE_GEMINI_LLM_MODEL || 'gemini-2.5-flash-lite',
+    model: import.meta.env.VITE_GEMINI_LLM_MODEL || 'gemini-2.0-flash-thinking-exp-1219',
     endpoint: isProduction ? '/api/llm' : (import.meta.env.VITE_GEMINI_LLM_ENDPOINT || '/api/llm')
   },
 
   // Gemini TTS Configuration - Production'da backend proxy kullan
   geminiTTS: {
     apiKey: isProduction ? '' : (import.meta.env.VITE_GEMINI_TTS_API_KEY || ''),
-    model: import.meta.env.VITE_GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts',
-    voiceId: import.meta.env.VITE_GEMINI_TTS_VOICE_ID || 'Despina',
+    model: import.meta.env.VITE_GEMINI_TTS_MODEL || 'gemini-2.0-flash-thinking-exp-1219',
+    voiceId: import.meta.env.VITE_GEMINI_TTS_VOICE_ID || 'Puck',
     endpoint: isProduction ? '/api/tts' : (import.meta.env.VITE_GEMINI_TTS_ENDPOINT || '/api/tts')
   },
 

@@ -178,7 +178,7 @@ app.get('/health', async (req, res) => {
 
     // Check database connection
     try {
-      const testResults = storyDb.getAllStories(1); // Try to get one story
+      storyDb.getAllStories(1); // Try to get one story to test connection
       healthStatus.services.database = 'healthy';
       healthStatus.services.database_info = {
         totalStories: storyDb.getAllStories().length,
@@ -224,7 +224,7 @@ app.get('/health', async (req, res) => {
 
     // Check disk space (basic)
     try {
-      const stats = fs.statSync(__dirname);
+      fs.statSync(__dirname); // Basic filesystem check
       healthStatus.services.filesystem_info = {
         ...healthStatus.services.filesystem_info,
         diskCheck: 'completed'
