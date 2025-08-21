@@ -6,6 +6,7 @@
   "scripts": {
     "postinstall": "cd backend && npm install",
     "build": "vite build --mode production",
+    "build:production": "vite build --mode production",
     "start": "node backend/server.js",
     "test": "node tests/run-tests.cjs",
     "lint": "eslint . --ext .js,.jsx --max-warnings=0",
