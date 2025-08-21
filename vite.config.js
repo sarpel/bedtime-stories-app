@@ -84,8 +84,7 @@ export default defineConfig(({ mode }) => {
             ],
             'app-audio': [
               './src/hooks/useAudioPlayer',
-              './src/hooks/useAudioPreloader',
-              './src/utils/audioCodecMonitor'
+              './src/hooks/useAudioPreloader'
             ],
             'app-utils': [
               './src/utils/cache',
@@ -97,7 +96,6 @@ export default defineConfig(({ mode }) => {
             ],
             'app-monitoring': [
               './src/utils/stabilityMonitor',
-              './src/utils/memoryPressureMonitor',
               './src/components/PerformanceMonitor'
             ]
           },

@@ -23,8 +23,6 @@ import safeLocalStorage from './utils/safeLocalStorage.js'
 // Pi Zero optimizations
 import { logger } from './utils/logger.js'
 import stabilityMonitor from './utils/stabilityMonitor.js'
-import audioCodecMonitor from './utils/audioCodecMonitor.js'
-import memoryPressureMonitor from './utils/memoryPressureMonitor.js'
 import './App.css'
 
 function App() {
@@ -187,16 +185,12 @@ function App() {
   useEffect(() => {
     // Start monitoring systems optimized for Pi Zero 2W
     stabilityMonitor.startMonitoring()
-    memoryPressureMonitor.startMonitoring()
-    audioCodecMonitor.startMonitoring()
 
     logger.info('Pi Zero 2W monitoring systems initialized')
 
     // Cleanup on unmount
     return () => {
       stabilityMonitor.stopMonitoring()
-      memoryPressureMonitor.stopMonitoring()
-      audioCodecMonitor.stopMonitoring()
       logger.info('Pi Zero 2W monitoring systems cleaned up')
     }
   }, [])
