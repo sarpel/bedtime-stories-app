@@ -146,12 +146,31 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Üretimde frontend'i backend'den servis etmek için (../dist klasörü varsa)
+// Üretimde frontend'i backend'den servis etmek için
 try {
+  // Önce root klasördeki static dosyaları dene (production setup)
+  const rootPath = path.join(__dirname, '..');
   const distPath = path.join(__dirname, '..', 'dist');
-  if (fs.existsSync(distPath)) {
+  
+  let staticPath = null;
+  let indexPath = null;
+  
+  // Production setup: static dosyalar root'ta
+  if (fs.existsSync(path.join(rootPath, 'index.html'))) {
+    staticPath = rootPath;
+    indexPath = path.join(rootPath, 'index.html');
+    logger.info('Serving static files from root directory (production setup)');
+  }
+  // Development setup: static dosyalar dist/'te  
+  else if (fs.existsSync(distPath) && fs.existsSync(path.join(distPath, 'index.html'))) {
+    staticPath = distPath;
+    indexPath = path.join(distPath, 'index.html');
+    logger.info('Serving static files from dist directory (development setup)');
+  }
+  
+  if (staticPath && indexPath) {
     // Serve static files with proper caching
-    app.use(express.static(distPath, {
+    app.use(express.static(staticPath, {
       maxAge: isProduction ? '1y' : '0',
       etag: true,
       lastModified: true,
@@ -165,7 +184,6 @@ try {
     // Catch-all handler for SPA routing (only for non-API routes)
     app.get(/^(?!\/api|\/audio|\/health).*/, (req, res, next) => {
       // Send index.html for all other routes (SPA)
-      const indexPath = path.join(distPath, 'index.html');
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
       } else {
@@ -173,7 +191,7 @@ try {
       }
     });
   } else if (isProduction) {
-    logger.warn('Production mode but no dist folder found');
+    logger.warn('Production mode but no static files found in root or dist folder');
   }
 } catch (error) {
   logger.error({ error: error.message }, 'Error setting up static file serving');

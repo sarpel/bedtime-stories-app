@@ -44,6 +44,17 @@ build_frontend(){
     # Build başarılı mı kontrol et
     if [ -d "$APP_DIR/dist" ] && [ -f "$APP_DIR/dist/index.html" ]; then
         log "Frontend build başarılı - dist klasörü oluşturuldu"
+        
+        # Static dosyaları root'a kopyala (Express static serving için)
+        log "Static dosyalar root klasöre kopyalanıyor..."
+        cp "$APP_DIR/dist/index.html" "$APP_DIR/"
+        if [ -d "$APP_DIR/dist/assets" ]; then
+            cp -r "$APP_DIR/dist/assets" "$APP_DIR/"
+            log "✅ Static dosyalar kopyalandı (index.html, assets/)"
+        fi
+        
+        # Build klasörünü temizle (opsiyonel, disk tasarrufu)
+        # rm -rf "$APP_DIR/dist"
     else
         log "UYARI: Frontend build tamamlandı ama dist klasörü eksik"
     fi
@@ -82,7 +93,7 @@ DATABASE_PATH=./database/stories.db
 # Server Configuration
 NODE_ENV=production
 PORT=${APP_PORT}
-LOG_LEVEL=info
+LOG_LEVEL=warn
 EOF
         log ".env dosyası oluşturuldu - API anahtarlarını düzenleyin!"
     fi

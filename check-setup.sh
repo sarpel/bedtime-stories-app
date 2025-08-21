@@ -87,7 +87,13 @@ check_files(){
     local required_files=(
         "$APP_DIR/backend/server.js"
         "$APP_DIR/backend/package.json"
-        "$APP_DIR/dist/index.html"
+        "$APP_DIR/index.html"
+    )
+
+    local required_dirs=(
+        "$APP_DIR/backend/database"
+        "$APP_DIR/backend/audio"
+        "$APP_DIR/assets"
     )
 
     local missing_files=()
@@ -97,14 +103,29 @@ check_files(){
         fi
     done
 
-    if [ ${#missing_files[@]} -gt 0 ]; then
-        log "❌ Eksik dosyalar:"
-        for file in "${missing_files[@]}"; do
-            echo "  - $file"
-        done
+    local missing_dirs=()
+    for dir in "${required_dirs[@]}"; do
+        if [ ! -d "$dir" ]; then
+            missing_dirs+=("$dir")
+        fi
+    done
+
+    if [ ${#missing_files[@]} -gt 0 ] || [ ${#missing_dirs[@]} -gt 0 ]; then
+        if [ ${#missing_files[@]} -gt 0 ]; then
+            log "❌ Eksik dosyalar:"
+            for file in "${missing_files[@]}"; do
+                echo "  - $file"
+            done
+        fi
+        if [ ${#missing_dirs[@]} -gt 0 ]; then
+            log "❌ Eksik klasörler:"
+            for dir in "${missing_dirs[@]}"; do
+                echo "  - $dir"
+            done
+        fi
         return 1
     else
-        log "✅ Tüm gerekli dosyalar mevcut"
+        log "✅ Tüm gerekli dosyalar ve klasörler mevcut"
     fi
 
     # Dizin izinleri
