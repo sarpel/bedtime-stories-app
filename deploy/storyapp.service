@@ -1,14 +1,11 @@
-## Minimal production systemd unit (simplified) ##
-[Unit]
-Description=Bedtime Stories App
-## Minimal production systemd unit (final simplified version) ##
+# Minimal production systemd unit for Pi Zero 2W
 [Unit]
 Description=Bedtime Stories App
 After=network.target
 
 [Service]
 Type=simple
-User=root
+User=pi
 WorkingDirectory=/opt/storyapp/backend
 Environment=NODE_ENV=production
 Environment=PORT=8080
@@ -19,4 +16,3 @@ RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
-# with comprehensive security, resource management, and monitoring capabilities.
