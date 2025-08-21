@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import process from 'process'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -10,6 +11,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export default defineConfig(({ mode }) => {
   const isDev = mode === 'development'
   const isProd = mode === 'production'
+
+  // Set NODE_ENV for production builds
+  if (isProd) {
+    process.env.NODE_ENV = 'production'
+  }
 
   return {
     plugins: [
