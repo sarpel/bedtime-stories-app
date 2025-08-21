@@ -1,6 +1,5 @@
 // Tests for /health endpoint basic behavior (without hitting external APIs)
 const http = require('http');
-const path = require('path');
 
 // Provide minimal env so server starts
 process.env.OPENAI_API_KEY = 'x';

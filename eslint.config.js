@@ -41,6 +41,22 @@ export default [
     },
   },
   {
+    files: ['**/*.test.js', '**/*.test.jsx', 'src/**/*.test.js', 'src/**/*.test.jsx'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: { ...globals.browser, ...globals.jest, ...globals.node },
+      parserOptions: {
+        ecmaVersion: 'latest',
+        ecmaFeatures: { jsx: true },
+        sourceType: 'module',
+      },
+    },
+    plugins: {},
+    rules: {
+      ...js.configs.recommended.rules,
+    }
+  },
+  {
     files: ['backend/**/*.js'],
     languageOptions: {
       ecmaVersion: 2020,

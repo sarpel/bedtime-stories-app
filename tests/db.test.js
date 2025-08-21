@@ -7,9 +7,15 @@ process.env.STORIES_DB_PATH = path.join(__dirname, 'test-stories.db');
 process.env.AUDIO_DIR_PATH = path.join(__dirname, 'audio-test');
 
 // Clean leftovers
-try { fs.unlinkSync(process.env.STORIES_DB_PATH); } catch { }
-try { fs.unlinkSync(process.env.STORIES_DB_PATH + '-shm'); } catch { }
-try { fs.unlinkSync(process.env.STORIES_DB_PATH + '-wal'); } catch { }
+try { fs.unlinkSync(process.env.STORIES_DB_PATH); } catch {
+  // Database file may not exist
+}
+try { fs.unlinkSync(process.env.STORIES_DB_PATH + '-shm'); } catch {
+  // WAL shared memory file may not exist
+}
+try { fs.unlinkSync(process.env.STORIES_DB_PATH + '-wal'); } catch {
+  // WAL log file may not exist
+}
 fs.mkdirSync(process.env.AUDIO_DIR_PATH, { recursive: true });
 
 const storyDb = require('../backend/database/db');
@@ -104,8 +110,8 @@ exports.unshare_story = () => {
 };
 
 exports.list_all_stories = () => {
-    const id1 = storyDb.createStory('L1', 'list', null);
-    const id2 = storyDb.createStory('L2', 'list', null);
+    storyDb.createStory('L1', 'list', null);
+    storyDb.createStory('L2', 'list', null);
     const all = storyDb.getAllStories();
     assert(all.length >= 2, 'En az 2 hikaye');
     const subset = storyDb.getStoriesByType('list');
