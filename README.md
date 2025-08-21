@@ -127,13 +127,15 @@ npm run build
 
 # Preview production build locally
 npm run preview
+```bash
+sudo systemctl restart storyapp
 ```
 
 ---
 
 ## 📁 Project Structure
 
-```
+```text
 bedtime-stories-app/
 ├── src/                    # Frontend React application
 │   ├── components/         # UI components
@@ -257,7 +259,7 @@ npm start
 
 ### Common Issues
 
-**1. Service won't start**
+### 1. Service won't start
 
 ```bash
 # Check service status
@@ -270,7 +272,7 @@ sudo journalctl -u storyapp -f
 sudo nano /opt/storyapp/backend/.env
 ```
 
-**2. Memory issues on Pi Zero 2W**
+### 2. Memory issues on Pi Zero 2W
 
 ```bash
 # Check memory usage
@@ -283,7 +285,7 @@ sudo systemctl restart storyapp
 swapon --show
 ```
 
-**3. Audio not working**
+### 3. Audio not working
 
 ```bash
 # Test audio output
@@ -296,7 +298,7 @@ aplay -l
 sudo systemctl restart alsa-state
 ```
 
-**4. Build failures**
+### 4. Build failures
 
 ```bash
 # Clear npm cache
