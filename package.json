@@ -8,7 +8,13 @@
     "build": "vite build --mode production",
     "start": "node backend/server.js",
     "test": "node tests/run-tests.cjs",
-    "lint": "eslint . --ext .js,.jsx --max-warnings=0"
+    "lint": "eslint . --ext .js,.jsx --max-warnings=0",
+    "security:audit": "npm audit && cd backend && npm audit",
+    "security:fix": "npm audit fix && cd backend && npm audit fix",
+    "security:report": "npm audit --json > security-audit-frontend.json && cd backend && npm audit --json > ../security-audit-backend.json",
+    "security:check": "npm run security:audit && npm run lint",
+    "dev": "vite",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
