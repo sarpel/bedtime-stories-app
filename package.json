@@ -7,7 +7,7 @@
     "build": "vite build --mode production",
     "build:production": "vite build --mode production",
     "start": "node backend/server.js",
-    "test": "node tests/run-tests.cjs",
+  "test": "npm run test --workspace backend && node tests/run-tests.cjs",
     "lint": "eslint . --ext .js,.jsx --max-warnings=0",
     "security:audit": "npm audit && cd backend && npm audit",
     "security:fix": "npm audit fix && cd backend && npm audit fix",

@@ -8,7 +8,7 @@ set -euo pipefail
 SCRIPT_VERSION="1.0.0"
 APP_REPO="${APP_REPO:-https://github.com/sarpel/bedtime-stories-app.git}"
 APP_DIR="${APP_DIR:-/opt/storyapp}"
-APP_PORT="${APP_PORT:-8080}"
+APP_PORT="${APP_PORT:-3001}"
 LOG_DIR="/var/log/storyapp"
 mkdir -p "$LOG_DIR" || true
 LOG_FILE="$LOG_DIR/setup-$(date +%Y%m%d-%H%M%S).log"
@@ -22,7 +22,29 @@ install_packages(){
     log "Paketler kuruluyor";
     apt-get update -y >>"$LOG_FILE" 2>&1;
     # better-sqlite3 derlemesi için build-essential, python3 (node-gyp), make ve g++ şart
-    apt-get install -y curl git nodejs npm sqlite3 alsa-utils build-essential python3 make g++ >>"$LOG_FILE" 2>&1 || err "apt kurulum hatası";
+    apt-get install -y curl git sqlite3 alsa-utils build-essential python3 make g++ >>"$LOG_FILE" 2>&1 || err "apt kurulum hatası";
+}
+
+ensure_node(){
+    log "Node.js sürümü kontrol ediliyor";
+    local cur_major=0
+    if command -v node >/dev/null 2>&1; then
+        cur_major=$(node -p "process.versions.node.split('.')[0]") || cur_major=0
+    fi
+    if [ "$cur_major" -lt 20 ]; then
+        log "Node.js <20 (mevcut: ${cur_major:-yok}) → Node 20 kurulacak";
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >>"$LOG_FILE" 2>&1 || err "NodeSource repo eklenemedi";
+        apt-get install -y nodejs >>"$LOG_FILE" 2>&1 || err "Node 20 kurulamadı";
+    else
+        log "Node.js $cur_major >=20 (güncel)";
+    fi
+    if command -v npm >/dev/null 2>&1; then
+        local npm_major; npm_major=$(npm -v 2>/dev/null | cut -d. -f1 || echo 0)
+        if [ "$npm_major" -lt 10 ]; then
+            log "npm <10 (güncelleniyor)";
+            npm install -g npm@^10 >>"$LOG_FILE" 2>&1 || log "UYARI: npm güncelleme başarısız";
+        fi
+    fi
 }
 
 clone_or_update(){
@@ -190,6 +212,7 @@ summary(){
 
 main(){
     require_root
+    ensure_node
     install_packages
     mkdir -p "$APP_DIR" "$LOG_DIR"
     clone_or_update

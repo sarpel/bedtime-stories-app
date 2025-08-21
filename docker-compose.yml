@@ -1,0 +1,26 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    image: bedtime-stories:latest
+    container_name: bedtime-stories-app
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: warn
+      OPENAI_ENDPOINT: ${OPENAI_ENDPOINT:-https://api.openai.com/v1/responses}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      GEMINI_LLM_ENDPOINT: ${GEMINI_LLM_ENDPOINT:-https://generativelanguage.googleapis.com/v1/models}
+      GEMINI_LLM_MODEL: ${GEMINI_LLM_MODEL:-gemini-pro}
+    volumes:
+      - audio_data:/app/backend/audio
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3001/health').then(r=>{if(r.ok)process.exit(0);process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+volumes:
+  audio_data:

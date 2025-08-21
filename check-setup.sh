@@ -5,7 +5,7 @@
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/storyapp}"
-APP_PORT="${APP_PORT:-8080}"
+APP_PORT="${APP_PORT:-3001}"
 
 log(){ echo "[$(date '+%H:%M:%S')] $*"; }
 err(){ echo "[ERROR] $*" >&2; exit 1; }
@@ -124,7 +124,6 @@ check_files(){
     local required_dirs=(
         "$APP_DIR/backend/database"
         "$APP_DIR/backend/audio"
-        "$APP_DIR/assets"
     )
 
     local missing_files=()
@@ -140,6 +139,11 @@ check_files(){
             missing_dirs+=("$dir")
         fi
     done
+
+    # assets klasörü: ya root/assets ya dist/assets'ten biri yeterli
+    if [ ! -d "$APP_DIR/assets" ] && [ ! -d "$APP_DIR/dist/assets" ]; then
+        missing_dirs+=("$APP_DIR/assets")
+    fi
 
     if [ ${#missing_files[@]} -gt 0 ] || [ ${#missing_dirs[@]} -gt 0 ]; then
         if [ ${#missing_files[@]} -gt 0 ]; then
@@ -157,10 +161,8 @@ check_files(){
                     echo "    ℹ️  Assets klasörü production için gerekli (JS/CSS build dosyaları)"
                     echo "    🔧 Düzeltmek için:"
                     echo "       cd $APP_DIR && npm run build"
-                    if [ -d "$APP_DIR/dist/assets" ]; then
-                        echo "       cp -r $APP_DIR/dist/assets $APP_DIR/"
-                        echo "    📁 Not: dist/assets klasörü mevcut, sadece kopyalanması gerekiyor"
-                    else
+                    echo "       # dist/assets fallback otomatik servis edilecek (kopyalamak isteğe bağlı)"
+                    if [ ! -d "$APP_DIR/dist/assets" ]; then
                         echo "    ⚠️  dist/assets klasörü de eksik - build gerekli"
                     fi
                 fi

@@ -1,17 +1,24 @@
-# Uyku Masalları Uygulaması - Turkish Bedtime Stories
+# Uyku Masalları (Basit Uzak Oynatma Odaklı)
 
-## 🎯 Overview
+## 🎯 Amaç
 
-Turkish bedtime stories application optimized for **Raspberry Pi Zero 2 W** deployment. The system generates custom bedtime stories using AI and converts them to high-quality Turkish speech, designed specifically for a 5-year-old Turkish girl.
+Bu proje artık sadece şunu yapar:
 
-### ✨ Key Features
+1. Anne uzaktan web arayüzünden (aynı ağ veya VPN) masal seçer / oluşturur.
+2. Tek tıkla masalı sunucu (Raspberry Pi Zero 2 W) üzerinde MP3 olarak hoparlörden çaldırır.
+3. Fazla güvenlik, karmaşık optimizasyonlar, fazla ayar yok. Çalışsın yeter.
 
-- **🤖 AI Story Generation**: Custom Turkish bedtime stories using OpenAI, Gemini, or other LLM providers
-- **🎙️ High-Quality TTS**: Turkish voice synthesis via ElevenLabs or Gemini TTS
-- **💾 Hybrid Data Storage**: SQLite database with localStorage migration
-- **🎵 Audio Support**: Built-in audio player with preloading and caching
-- **⚡ Production Ready**: Automatic deployment, systemd services, health monitoring
-- **📱 Responsive UI**: Works on mobile and desktop devices
+Eklenen yeni özellik: Sunucu üzerinde "Cihazda Çal" fonksiyonu. MP3 dosyası varsa `/api/play/:id` ile Pi üzerinde mpg123 kullanılarak çalınır.
+
+### ✨ Temel Özellikler (Sade)
+
+- Masal oluştur (LLM / fallback)
+- Seslendir (TTS)
+- Kayıtlı masalı listeden seç
+- Tarayıcıda oynat veya Cihazda Çal (hoparlör)
+- Favori işaretle (isteğe bağlı)
+
+Gereksiz olan (şu an odak değil): aşırı analitik, karmaşık güvenlik, çoklu provider ince ayar ekranları.
 
 ---
 
@@ -60,7 +67,7 @@ sudo bash setup.sh
    - Local: `http://PI_IP_ADDRESS:8080`
    - Find your Pi's IP: `hostname -I`
 
-### Verification
+### Doğrulama
 
 ```bash
 # Check service status
@@ -71,6 +78,7 @@ sudo journalctl -u storyapp -f
 
 # Run health check
 bash /opt/storyapp/check-setup.sh
+curl -X POST http://PI_IP_ADDRESS:8080/api/play/1   # ID 1 masalını hoparlörden çal (mp3 varsa)
 ```
 
 ---
@@ -154,7 +162,7 @@ bedtime-stories-app/
 
 ---
 
-## 🔧 Configuration
+## 🔧 Konfigürasyon (Minimum)
 
 ### API Keys Setup
 
@@ -175,7 +183,7 @@ The application requires API keys for AI services:
 - Get API key from [Google AI Studio](https://makersuite.google.com/)
 - Supports both LLM and TTS capabilities
 
-### Environment Variables
+### Environment Variables (Örnek)
 
 Backend `.env` file:
 
@@ -202,7 +210,7 @@ LOG_LEVEL=info
 
 ---
 
-## 🚀 Deployment Options
+## 🚀 Dağıtım
 
 ### Option 1: Pi Zero 2W (Recommended)
 
@@ -312,7 +320,7 @@ npm install
 df -h
 ```
 
-### Performance Monitoring
+### Performans (Önemli Değil)
 
 ```bash
 # Check system resources
@@ -330,7 +338,7 @@ du -h /opt/storyapp/backend/database/
 
 ---
 
-## 📊 Features & Usage
+## 📊 Kullanım
 
 ### Story Generation
 
@@ -339,7 +347,23 @@ du -h /opt/storyapp/backend/database/
 - Custom topics and themes
 - Moral lessons integrated naturally
 
-### Voice Synthesis
+### Seslendirme / Cihazda Çal
+
+1. Önce masalı oluştur ve Seslendir (TTS) tıkla → MP3 `backend/audio/` altına kaydolur.
+2. Playlist bölümünde masal satırındaki anten (radyo) ikonuna bas → Pi hoparlöründe çalar.
+3. Üst çubuktaki aynı ikon genel durumu gösterir (mavi = çalıyor).
+
+Arka plan servisleri: `mpg123` komutu varsayılan. Değiştirmek için backend ortam değişkeni:
+
+```
+export AUDIO_PLAYER_COMMAND="mpg123"
+```
+
+Deneme amaçlı gerçek çalmayı kapatmak için:
+
+```
+export DRY_RUN_AUDIO_PLAYBACK=true
+```
 
 - High-quality Turkish TTS
 - Multiple voice options
@@ -362,7 +386,7 @@ du -h /opt/storyapp/backend/database/
 
 ---
 
-## 🤝 Contributing
+## 🤝 Katkı
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
@@ -396,7 +420,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 🆘 Support
+## 🆘 Not
+
+Odak: Sadece uzaktan masal çaldırma. Gereksiz karmaşıklık eklemeyin.
 
 - **Issues**: [GitHub Issues](https://github.com/sarpel/bedtime-stories-app/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/sarpel/bedtime-stories-app/discussions)

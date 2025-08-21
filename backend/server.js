@@ -64,6 +64,25 @@ app.use(pinoHttp({ logger }));
 
 // Veritabanı modülü
 const storyDb = require('./database/db');
+// Sunucu tarafı ses çalma (Pi üzerinde hoparlörden) için child_process
+const { spawn } = require('child_process');
+
+// Tek seferde yalnızca bir oynatma süreci tutulur
+let currentPlayback = {
+  process: null,
+  storyId: null,
+  startedAt: null,
+  file: null
+};
+
+function stopCurrentPlayback(reason = 'stopped') {
+  if (currentPlayback.process && !currentPlayback.process.killed) {
+    try { currentPlayback.process.kill('SIGTERM'); } catch { /* kill fail ignore */ }
+  }
+  const info = { storyId: currentPlayback.storyId, file: currentPlayback.file, startedAt: currentPlayback.startedAt, reason };
+  currentPlayback = { process: null, storyId: null, startedAt: null, file: null };
+  return info;
+}
 
 // Sıkıştırma ve ek güvenlik katmanları kullanılmıyor (kişisel/lokal kullanım)
 // CORS: Production tek cihaz kullanım senaryosu; genişletilmiş serbestiyet.
@@ -176,6 +195,8 @@ try {
   // Önce root klasördeki static dosyaları dene (production setup)
   const rootPath = path.join(__dirname, '..');
   const distPath = path.join(__dirname, '..', 'dist');
+  const rootAssetsPath = path.join(rootPath, 'assets');
+  const distAssetsPath = path.join(distPath, 'assets');
 
   let staticPath = null;
   let indexPath = null;
@@ -233,6 +254,22 @@ try {
         next();
       }
     });
+
+    // /assets fallback: root/assets yoksa dist/assets mount et
+    if (!fs.existsSync(rootAssetsPath) && fs.existsSync(distAssetsPath)) {
+      logger.info('Mounting /assets from dist/assets (fallback)');
+      app.use('/assets', express.static(distAssetsPath, {
+        maxAge: isProduction ? '1y' : '0',
+        etag: true,
+        lastModified: true,
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith('.js')) {
+            res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+          }
+          res.setHeader('X-Content-Type-Options', 'nosniff');
+        }
+      }));
+    }
   } else if (isProduction) {
     logger.warn('Production mode but no static files found in root or dist folder');
   }
@@ -267,6 +304,81 @@ app.get('/api/shared/:shareId/audio', (req, res) => {
   } catch (error) {
     console.error('Paylaşılan ses dosyası servisi hatası:', error);
     res.status(500).json({ error: 'Ses dosyası servis edilirken hata oluştu.' });
+  }
+});
+
+// --- UZAKTAN (SUNUCU ÜZERİNDE) SES ÇALMA ENDPOINT'LERİ ---
+// Amaç: Anne uzaktan web arayüzünden "Cihazda Çal" dediğinde Pi Zero üzerindeki hoparlörden masal sesi çıksın.
+// Varsayılan oynatıcı: mpg123 (MP3). Kurulum: sudo apt-get install -y mpg123
+// ENV ile override: AUDIO_PLAYER_COMMAND (örn: "ffplay -nodisp -autoexit" veya "aplay" (wav için))
+
+const AUDIO_PLAYER_CMD = (process.env.AUDIO_PLAYER_COMMAND || 'mpg123').trim();
+const DRY_RUN_AUDIO = process.env.DRY_RUN_AUDIO_PLAYBACK === 'true';
+
+app.get('/api/play/status', (req, res) => {
+  if (!currentPlayback.process) {
+    return res.json({ playing: false });
+  }
+  return res.json({
+    playing: true,
+    storyId: currentPlayback.storyId,
+    file: currentPlayback.file,
+    startedAt: currentPlayback.startedAt
+  });
+});
+
+app.post('/api/play/stop', (req, res) => {
+  if (!currentPlayback.process) {
+    return res.json({ success: true, stopped: false, message: 'Aktif oynatma yok' });
+  }
+  const info = stopCurrentPlayback('manual-stop');
+  res.json({ success: true, stopped: true, info });
+});
+
+app.post('/api/play/:id', (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      return res.status(400).json({ error: 'Geçersiz masal ID' });
+    }
+    const story = storyDb.getStoryWithAudio(id);
+    if (!story || !story.audio || !story.audio.file_name) {
+      return res.status(404).json({ error: 'Masalın kayıtlı bir ses dosyası yok.' });
+    }
+    const audioPath = path.join(storyDb.getAudioDir(), story.audio.file_name);
+    if (!fs.existsSync(audioPath)) {
+      return res.status(404).json({ error: 'Ses dosyası bulunamadı (diskte yok).' });
+    }
+
+    // Mevcut oynatma varsa durdur
+    if (currentPlayback.process) {
+      stopCurrentPlayback('replaced');
+    }
+
+    if (DRY_RUN_AUDIO) {
+      currentPlayback = { process: { killed: false, pid: 0 }, storyId: id, startedAt: new Date().toISOString(), file: audioPath };
+      return res.json({ success: true, dryRun: true, message: 'DRY_RUN modunda oynatma simüle edildi', storyId: id });
+    }
+
+    // Komutu argümanlara parçala (örn: "ffplay -nodisp -autoexit")
+    const parts = AUDIO_PLAYER_CMD.split(/\s+/).filter(Boolean);
+    const bin = parts.shift();
+    const args = [...parts, audioPath];
+
+    const child = spawn(bin, args, { stdio: 'ignore' });
+    currentPlayback = { process: child, storyId: id, startedAt: new Date().toISOString(), file: audioPath };
+
+    child.on('exit', (code, signal) => {
+      // Normal bitiş veya öldürülme: state temizle
+      if (currentPlayback.process === child) {
+        stopCurrentPlayback(signal === 'SIGTERM' ? 'stopped' : 'ended');
+      }
+    });
+
+    res.json({ success: true, playing: true, storyId: id, command: AUDIO_PLAYER_CMD });
+  } catch (error) {
+    logger.error({ msg: 'Sunucu oynatma hatası', error: error?.message });
+    res.status(500).json({ error: 'Sunucu oynatma başlatılamadı.' });
   }
 });
 

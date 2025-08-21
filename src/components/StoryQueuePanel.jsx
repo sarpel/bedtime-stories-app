@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Separator } from '@/components/ui/separator.jsx'
-import { BookOpen, Heart, X, GripVertical, Settings, Volume2, Play, Pause, Square, SkipForward, SkipBack, Shuffle, Repeat2, Plus, Edit, Trash2 } from 'lucide-react'
+import { BookOpen, Heart, X, GripVertical, Settings, Volume2, Play, Pause, Square, SkipForward, SkipBack, Shuffle, Repeat2, Plus, Edit, Trash2, Radio } from 'lucide-react'
 import AudioControls from './AudioControls.jsx'
 import { getStoryTypeLabel } from '@/utils/storyTypes.js'
 import { getStoryTitle } from '@/utils/titleGenerator.js'
@@ -18,16 +18,8 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
-import {
-  useSortable,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
+// CSS util kullanılmıyor, kaldırıldı
 import { queueService } from '@/services/queueService.js'
 import { getBestTitle } from '@/services/titleService.js'
 
@@ -56,7 +48,9 @@ function SortableStoryItem({
   setVolumeLevel,
   setPlaybackSpeed,
   seekTo,
-  getDbAudioUrl
+  getDbAudioUrl,
+  onRemotePlay,
+  remoteStatus
 }) {
   const {
     attributes,
@@ -185,6 +179,22 @@ function SortableStoryItem({
             />
           </div>
         )}
+        {/* Sunucu (cihaz) hoparlöründe çal */}
+        {(story.audio || story.audioUrl) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onRemotePlay?.(story.id);
+            }}
+            className={`h-5 w-5 p-0 ${remoteStatus.playing && remoteStatus.storyId === story.id ? 'text-primary' : ''}`}
+            title="Cihaz hoparlöründe çal"
+          >
+            <Radio className="h-2.5 w-2.5" />
+          </Button>
+        )}
 
         {/* Generate Audio Button for stories without audio */}
         {!(story.audio || story.audioUrl) && onGenerateAudio && (
@@ -289,6 +299,40 @@ export default function StoryQueuePanel({
   const [shuffle, setShuffle] = useState(false)
   const [repeatAll, setRepeatAll] = useState(true)
   const [titles, setTitles] = useState({})
+  const [remoteStatus, setRemoteStatus] = useState({ playing: false })
+  const [remoteLoading, setRemoteLoading] = useState(false)
+
+  async function refreshRemote() {
+    try {
+      const r = await fetch('/api/play/status')
+      if (r.ok) {
+        setRemoteStatus(await r.json())
+      }
+    } catch { /* ignore */ }
+  }
+
+  useEffect(() => {
+    refreshRemote()
+    const id = setInterval(refreshRemote, 5000)
+    return () => clearInterval(id)
+  }, [])
+
+  async function remotePlayToggle(storyId) {
+    if (!storyId) return
+    setRemoteLoading(true)
+    try {
+      if (remoteStatus.playing && remoteStatus.storyId === storyId) {
+        await fetch('/api/play/stop', { method: 'POST' })
+      } else {
+        await fetch(`/api/play/${storyId}`, { method: 'POST' })
+      }
+      await refreshRemote()
+    } catch (e) {
+      console.error('Uzaktan oynatma', e)
+    } finally {
+      setRemoteLoading(false)
+    }
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -552,6 +596,18 @@ export default function StoryQueuePanel({
             <Button variant="outline" size="sm" onClick={prev} title="Önceki"><SkipBack className="h-3 w-3" /></Button>
             <Button variant="outline" size="sm" onClick={next} title="Sonraki"><SkipForward className="h-3 w-3" /></Button>
             <Button variant="outline" size="sm" onClick={stopAudio} title="Durdur"><Square className="h-3 w-3" /></Button>
+            <Button
+              variant={remoteStatus.playing ? 'default' : 'outline'}
+              size="sm"
+              disabled={remoteLoading || queue.length === 0}
+              onClick={() => {
+                const activeId = currentIndex === -1 ? queue[0]?.id : queue[currentIndex]?.id
+                if (activeId) remotePlayToggle(activeId)
+              }}
+              title="Cihazda Çal / Durdur"
+            >
+              <Radio className="h-3 w-3" />
+            </Button>
             <Separator className="h-6 hidden sm:block" orientation="vertical" />
             <Button variant={shuffle ? 'default' : 'outline'} size="sm" onClick={() => setShuffle(!shuffle)} title="Karıştır"><Shuffle className="h-3 w-3" /></Button>
             <Button variant={repeatAll ? 'default' : 'outline'} size="sm" onClick={() => setRepeatAll(!repeatAll)} title="Tekrar (Tümü)"><Repeat2 className="h-3 w-3" /></Button>
@@ -615,6 +671,8 @@ export default function StoryQueuePanel({
                       setPlaybackSpeed={setPlaybackSpeed}
                       seekTo={seekTo}
                       getDbAudioUrl={getDbAudioUrl}
+                      remoteStatus={remoteStatus}
+                      onRemotePlay={remotePlayToggle}
                     />
                   ))}
                 </div>
