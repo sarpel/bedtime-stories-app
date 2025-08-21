@@ -1,18 +1,31 @@
 // server.js
 
-// .env dosyasındaki gizli bilgileri process.env'ye yükler
-require('dotenv').config({
-  path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env'
-});
-
-// Gerekli paketleri import et
-const express = require('express');
-const axios = require('axios');
-const Joi = require('joi');
-const pino = require('pino');
-const pinoHttp = require('pino-http');
+// Gerekli paketleri import et (env yükleme fallback mantığı için fs/path önce)
 const fs = require('fs');
 const path = require('path');
+const express = require('express');
+const axios = require('axios');
+const pino = require('pino');
+const pinoHttp = require('pino-http');
+
+// Üretimde fallback istemiyoruz: sadece backend/.env (veya .env.production) okunur; yoksa hata.
+(() => {
+  try {
+    const backendDir = __dirname;
+    const prodFile = path.join(backendDir, '.env.production');
+    const mainFile = path.join(backendDir, '.env');
+    if (fs.existsSync(prodFile)) {
+      require('dotenv').config({ path: prodFile });
+    } else if (fs.existsSync(mainFile)) {
+      require('dotenv').config({ path: mainFile });
+    } else {
+      // Hiçbiri yoksa erken, basit stderr uyarısı (logger henüz yok)
+      console.error('ENV dosyası bulunamadı (backend/.env). Çevresel değişkenler set edilmiş olmalı.');
+    }
+  } catch (e) {
+    console.error('ENV yüklenemedi:', e.message);
+  }
+})();
 
 // Production vs Development konfigürasyonu
 const isProduction = process.env.NODE_ENV === 'production';
@@ -28,6 +41,18 @@ const logger = pino({
   }
 });
 
+// Env anahtarlarının varlık durumunu başlangıçta logla (içerikleri değil)
+try {
+  logger.info({
+    msg: 'API key presence check',
+    nodeEnv: process.env.NODE_ENV,
+    hasOpenAI: !!process.env.OPENAI_API_KEY,
+    hasElevenLabs: !!process.env.ELEVENLABS_API_KEY,
+    hasGeminiLLM: !!process.env.GEMINI_LLM_API_KEY,
+    hasGeminiTTS: !!process.env.GEMINI_TTS_API_KEY
+  });
+} catch { /* initial presence log skipped */ }
+
 // Express uygulamasını oluştur
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
@@ -41,20 +66,24 @@ app.use(pinoHttp({ logger }));
 const storyDb = require('./database/db');
 
 // Sıkıştırma ve ek güvenlik katmanları kullanılmıyor (kişisel/lokal kullanım)
-// CORS yok; geliştirmede Vite proxy ile aynı-origin akış sağlanır
+// CORS: Production tek cihaz kullanım senaryosu; genişletilmiş serbestiyet.
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
 
 // Frontend'den gelen JSON verilerini okuyabilmek için middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Static dosyalar için middleware (ses dosyalarını serve etmek için)
-// Local network'te basit static serving
-app.use('/audio', express.static(path.join(__dirname, 'audio'), {
-  maxAge: process.env.CACHE_MAX_AGE || 86400000, // 24 hours
-  etag: true,
-  lastModified: true,
-  acceptRanges: true
-}));
+// Static dosyalar (ses) - frontend build için tekil konsolide blok aşağıda (çift mount kaldırıldı)
+app.use('/audio', express.static(path.join(__dirname, 'audio'), { etag: true, lastModified: true }));
+// distDir burada tanımlanmıyor; aşağıdaki kapsamlı blokta yerel olarak hesaplanacak
 
 // Rate limiting uygulanmıyor (kişisel kurulum)
 
@@ -64,15 +93,25 @@ app.get('/health', async (req, res) => {
     const healthStatus = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      version: process.env.npm_package_version || '1.5.0',
+      version: process.env.npm_package_version || '1.0.0',
       environment: process.env.NODE_ENV || 'development',
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       services: {
         database: 'checking...',
-        filesystem: 'checking...'
+        filesystem: 'checking...',
+        apiKeys: {
+          openai: !!process.env.OPENAI_API_KEY,
+          elevenlabs: !!process.env.ELEVENLABS_API_KEY,
+          gemini: !!(process.env.GEMINI_LLM_API_KEY || process.env.GEMINI_TTS_API_KEY)
+        }
       }
     };
+
+    // Kritik API anahtarlarından en az biri yoksa status'u degraded yap
+    if (!healthStatus.services.apiKeys.openai || !healthStatus.services.apiKeys.elevenlabs) {
+      healthStatus.status = healthStatus.status === 'healthy' ? 'degraded' : healthStatus.status;
+    }
 
     // Check database connection
     try {
@@ -95,7 +134,7 @@ app.get('/health', async (req, res) => {
       logger.error({ error: error.message }, 'Filesystem health check failed');
     }
 
-    const statusCode = healthStatus.status === 'healthy' ? 200 : 503;
+    const statusCode = 200;
     res.status(statusCode).json(healthStatus);
   } catch (error) {
     logger.error({ error: error.message }, 'Health check failed');
@@ -140,14 +179,7 @@ try {
   logger.error({ error: error.message }, 'Error setting up static file serving');
 }
 
-// Legacy health check endpoint (for compatibility)
-app.get('/healthz', (req, res) => {
-  try {
-    res.status(200).json({ status: 'ok' });
-  } catch {
-    res.status(500).json({ status: 'error' });
-  }
-});
+// /healthz kaldırıldı (tekil /health endpoint'i kullanılacak)
 
 // Paylaşılan masalların ses dosyalarına erişim (public endpoint)
 app.get('/api/shared/:shareId/audio', (req, res) => {
@@ -198,21 +230,18 @@ app.post('/api/llm', async (req, res) => {
       headers: { 'content-type': req.headers['content-type'] },
       bodyKeys: Object.keys(req.body || {})
     });
-  } catch { }
+  } catch { /* llm request start log skipped */ }
   // Frontend'den gelen ayarları ve prompt'u al
-  const { provider = 'openai', modelId, prompt, max_tokens, temperature, endpoint: clientEndpoint } = req.body;
+  const { provider = 'openai', modelId, prompt, max_completion_tokens, max_output_tokens, temperature, endpoint: clientEndpoint } = req.body;
 
   // Input validation
-  if (!modelId || !prompt) {
-    return res.status(400).json({ error: 'Model ID ve prompt gereklidir.' });
-  }
-
   if (typeof prompt !== 'string' || prompt.trim().length === 0) {
     return res.status(400).json({ error: 'Geçerli bir prompt girin.' });
   }
 
-  if (max_tokens && (typeof max_tokens !== 'number' || max_tokens <= 0 || max_tokens > 5000)) {
-    return res.status(400).json({ error: 'max_tokens 1 ile 5000 arasında olmalıdır.' });
+  const maxTokens = max_output_tokens || max_completion_tokens;
+  if (maxTokens && (typeof maxTokens !== 'number' || maxTokens <= 0 || maxTokens > 5000)) {
+    return res.status(400).json({ error: 'max_output_tokens 1 ile 5000 arasında olmalıdır.' });
   }
 
   // API key'leri yalnızca sunucu ortamından al
@@ -230,54 +259,46 @@ app.post('/api/llm', async (req, res) => {
 
   if (provider === 'openai') {
     if (!OPENAI_API_KEY) {
-      return res.status(500).json({ error: 'OpenAI API anahtarı sunucuda tanımlı değil.' });
+      return res.status(503).json({
+        error: 'OpenAI API anahtarı eksik. Lütfen backend/.env dosyasında OPENAI_API_KEY\'i ayarlayın.'
+      });
     }
-    if (!endpoint) {
-      endpoint = 'https://api.openai.com/v1/chat/completions';
-    }
+    if (!process.env.OPENAI_MODEL) { return res.status(500).json({ error: 'OPENAI_MODEL tanımlı değil.' }); }
+    if (!process.env.OPENAI_ENDPOINT) { return res.status(500).json({ error: 'OPENAI_ENDPOINT tanımlı değil.' }); }
+    const effectiveModel = modelId || process.env.OPENAI_MODEL;
+    endpoint = clientEndpoint || process.env.OPENAI_ENDPOINT;
     headers.Authorization = `Bearer ${OPENAI_API_KEY}`;
-    // OpenAI Chat Completions formatı
+    // OpenAI Responses API formatı (güncellendi)
     body = {
-      model: modelId,
-      messages: [
-        {
-          role: 'system',
-          content: '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.'
-        },
-        { role: 'user', content: prompt }
-      ],
+      model: effectiveModel,
+      input: prompt,
       temperature: Number.isFinite(temperature) ? temperature : 1.0
     };
-    if (max_tokens) {
-      if (modelId.includes('gpt-5') || modelId.includes('o1') || modelId.includes('o3')) {
-        body.max_completion_tokens = max_tokens;
-      } else {
-        body.max_tokens = max_tokens;
-      }
+    if (maxTokens) {
+      body.max_output_tokens = maxTokens;
     }
     logger.info({
       msg: '[API /api/llm] provider:openai payload',
       endpoint,
       hasAuth: !!headers.Authorization,
       temperature: body.temperature,
-      max_tokens: body.max_tokens,
-      max_completion_tokens: body.max_completion_tokens,
+      max_output_tokens: body.max_output_tokens,
       model: body.model,
-      msgCount: body.messages?.length
+      inputLen: body.input?.length
     });
   } else if (provider === 'gemini') {
-    if (!GEMINI_LLM_API_KEY) {
-      return res.status(500).json({ error: 'Gemini API anahtarı sunucuda tanımlı değil.' });
-    }
-    if (!endpoint) {
-      endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelId)}:generateContent?key=${encodeURIComponent(GEMINI_LLM_API_KEY)}`;
-    }
+    if (!GEMINI_LLM_API_KEY) { return res.status(500).json({ error: 'Gemini LLM API anahtarı eksik.' }); }
+    if (!process.env.GEMINI_LLM_MODEL) { return res.status(500).json({ error: 'GEMINI_LLM_MODEL tanımlı değil.' }); }
+    if (!process.env.GEMINI_LLM_ENDPOINT) { return res.status(500).json({ error: 'GEMINI_LLM_ENDPOINT tanımlı değil.' }); }
+    const effectiveModel = modelId || process.env.GEMINI_LLM_MODEL;
+    const geminiBase = process.env.GEMINI_LLM_ENDPOINT.replace(/\/$/, '');
+    endpoint = clientEndpoint || `${geminiBase}/${encodeURIComponent(effectiveModel)}:generateContent?key=${encodeURIComponent(GEMINI_LLM_API_KEY)}`;
     // Gemini generateContent formatı
     body = {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: Number.isFinite(temperature) ? temperature : 1.0,
-        maxOutputTokens: max_tokens && Number.isFinite(max_tokens) ? max_tokens : undefined
+        maxOutputTokens: maxTokens && Number.isFinite(maxTokens) ? maxTokens : undefined
       }
     };
     logger.info({
@@ -296,13 +317,13 @@ app.post('/api/llm', async (req, res) => {
       model: modelId,
       prompt,
       temperature: Number.isFinite(temperature) ? temperature : 1.0,
-      max_tokens: max_tokens && Number.isFinite(max_tokens) ? max_tokens : undefined
+      max_completion_tokens: maxTokens && Number.isFinite(maxTokens) ? maxTokens : undefined
     };
     logger.info({
       msg: '[API /api/llm] provider:generic payload',
       endpoint,
       temperature: body.temperature,
-      max_tokens: body.max_tokens,
+      max_completion_tokens: body.max_completion_tokens,
       promptLen: (prompt || '').length
     });
   }
@@ -338,7 +359,7 @@ app.post('/api/llm', async (req, res) => {
     }
     res.status(error.response?.status || 500).json({ error: errorMessage });
   }
-  try { logger.info({ msg: '[API /api/llm] request:end', totalMs: Date.now() - tStart }); } catch { }
+  try { logger.info({ msg: '[API /api/llm] request:end', totalMs: Date.now() - tStart }); } catch { /* llm request end log skipped */ }
 });
 
 // --- QUEUE API ---
@@ -667,8 +688,17 @@ app.post('/api/tts', async (req, res) => {
   }
 
   // Varsayılan endpointler (override edilebilir)
-  const ELEVEN_BASE = 'https://api.elevenlabs.io/v1/text-to-speech';
-  const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+  if (process.env.MAX_CONCURRENT_TTS && process.env.MAX_CONCURRENT_TTS !== '1') {
+    // Politika gereği zorla 1 yap (env yanlış ayarlansa da)
+    process.env.MAX_CONCURRENT_TTS = '1';
+    if (process.env.MAX_CONCURRENT_TTS && process.env.MAX_CONCURRENT_TTS !== '1') {
+      // Politika gereği: sadece 1 izin verilir, env yanlışsa uyarı ver
+      console.warn(`[Config] MAX_CONCURRENT_TTS env '${process.env.MAX_CONCURRENT_TTS}' olarak ayarlanmış, ancak sadece '1' destekleniyor. Uygulama '1' ile devam edecek.`);
+    }
+  }
+  // İleride maxConcurrentTTS kullanılacaksa, buradan alınmalı
+  const ELEVEN_BASE = (process.env.ELEVENLABS_ENDPOINT || '').replace(/\/$/, '');
+  const GEMINI_BASE = (process.env.GEMINI_TTS_ENDPOINT || process.env.GEMINI_LLM_ENDPOINT || '').replace(/\/$/, '');
   const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
   const GEMINI_TTS_API_KEY = process.env.GEMINI_TTS_API_KEY || process.env.GEMINI_LLM_API_KEY;
 
@@ -685,16 +715,16 @@ app.post('/api/tts', async (req, res) => {
     if (provider === 'elevenlabs') {
       console.log('🔊 [Backend TTS] Using ElevenLabs provider')
       if (!ELEVENLABS_API_KEY) {
-        console.log('🔊 [Backend TTS] ElevenLabs API key missing!')
-        return res.status(500).json({ error: 'ElevenLabs API anahtarı sunucuda tanımlanmamış.' });
+        return res.status(500).json({
+          error: 'ElevenLabs API anahtarı eksik. Lütfen backend/.env dosyasında ELEVENLABS_API_KEY\'i ayarlayın.'
+        });
       }
-      if (!voiceId) {
-        console.log('🔊 [Backend TTS] Voice ID missing!')
-        return res.status(400).json({ error: 'ElevenLabs için voiceId gereklidir.' });
-      }
+      if (!process.env.ELEVENLABS_VOICE_ID && !voiceId) { return res.status(500).json({ error: 'ELEVENLABS_VOICE_ID tanımlı değil.' }); }
+      if (!process.env.ELEVENLABS_ENDPOINT && !clientEndpoint) { return res.status(500).json({ error: 'ELEVENLABS_ENDPOINT tanımlı değil.' }); }
+      const effectiveVoice = voiceId || process.env.ELEVENLABS_VOICE_ID;
 
       const audioFormat = 'mp3_44100_128';
-      endpoint = clientEndpoint || `${ELEVEN_BASE}/${encodeURIComponent(voiceId)}?output_format=${audioFormat}`;
+      endpoint = clientEndpoint || `${ELEVEN_BASE}/${encodeURIComponent(effectiveVoice)}?output_format=${audioFormat}`;
       headers = {
         'xi-api-key': ELEVENLABS_API_KEY,
         'Content-Type': 'application/json'
@@ -705,14 +735,13 @@ app.post('/api/tts', async (req, res) => {
         responseType: 'stream'
       });
     } else if (provider === 'gemini') {
-      if (!GEMINI_TTS_API_KEY) {
-        return res.status(500).json({ error: 'Gemini API anahtarı sunucuda tanımlanmamış.' });
-      }
-      if (!modelId) {
-        return res.status(400).json({ error: 'Gemini için modelId gereklidir.' });
-      }
-
-      endpoint = clientEndpoint || `${GEMINI_BASE}/${encodeURIComponent(modelId)}:generateContent?key=${encodeURIComponent(GEMINI_TTS_API_KEY)}`;
+      if (!GEMINI_TTS_API_KEY) { return res.status(500).json({ error: 'Gemini TTS API anahtarı eksik.' }); }
+      if (!process.env.GEMINI_TTS_MODEL && !process.env.GEMINI_LLM_MODEL && !modelId) { return res.status(500).json({ error: 'GEMINI_TTS_MODEL tanımlı değil.' }); }
+      if (!process.env.GEMINI_TTS_ENDPOINT && !process.env.GEMINI_LLM_ENDPOINT && !clientEndpoint) { return res.status(500).json({ error: 'GEMINI_TTS_ENDPOINT tanımlı değil.' }); }
+      const effectiveModel = modelId || process.env.GEMINI_TTS_MODEL || process.env.GEMINI_LLM_MODEL;
+      const base = GEMINI_BASE || '';
+      if (!base && !clientEndpoint) { return res.status(500).json({ error: 'Gemini base endpoint yok.' }); }
+      endpoint = clientEndpoint || `${base}/${encodeURIComponent(effectiveModel)}:generateContent?key=${encodeURIComponent(GEMINI_TTS_API_KEY)}`;
       headers = { 'Content-Type': 'application/json' };
       response = await axios.post(endpoint, requestBody, { headers });
 

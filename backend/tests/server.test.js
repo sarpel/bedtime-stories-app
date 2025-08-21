@@ -22,7 +22,7 @@ describe('API endpoints', () => {
       app = loadApp();
       const res = await request(app)
         .post('/api/llm')
-  .send({ provider: 'openai', modelId: 'gpt-4o-mini', prompt: 'p', max_tokens: 5 });
+        .send({ provider: 'openai', modelId: 'gpt-4o-mini', prompt: 'p', max_completion_tokens: 5 });
       expect(res.status).toBe(500);
     });
 
@@ -32,11 +32,11 @@ describe('API endpoints', () => {
       app = loadApp();
       const res = await request(app)
         .post('/api/llm')
-  .send({ provider: 'openai', modelId: 'gpt-4o-mini', prompt: 'p', max_tokens: 5 });
+        .send({ provider: 'openai', modelId: 'gpt-4o-mini', prompt: 'p', max_completion_tokens: 5 });
       expect(axios.post).toHaveBeenCalled();
       expect(res.status).toBe(200);
-  // Sunucu ham yanıtı olduğu gibi iletir
-  expect(res.body.ok).toBe(true);
+      // Sunucu ham yanıtı olduğu gibi iletir
+      expect(res.body.ok).toBe(true);
     });
 
     test('allows custom provider with client-provided endpoint', async () => {
@@ -57,7 +57,7 @@ describe('API endpoints', () => {
       app = loadApp();
       const res = await request(app)
         .post('/api/tts')
-  .send({ provider: 'elevenlabs', voiceId: 'test', requestBody: { text: 'merhaba' } });
+        .send({ provider: 'elevenlabs', voiceId: 'test', requestBody: { text: 'merhaba' } });
       expect(res.status).toBe(500);
     });
 
@@ -68,7 +68,7 @@ describe('API endpoints', () => {
       app = loadApp();
       const res = await request(app)
         .post('/api/tts')
-  .send({ provider: 'elevenlabs', voiceId: 'test', requestBody: { text: 'merhaba' } });
+        .send({ provider: 'elevenlabs', voiceId: 'test', requestBody: { text: 'merhaba' } });
       expect(axios.post).toHaveBeenCalled();
       expect(res.status).toBe(200);
       expect(res.headers['content-type']).toBe('audio/mpeg');
