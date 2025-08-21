@@ -4,7 +4,10 @@
   "description": "Backend API for Bedtime Stories App",
   "main": "server.js",
   "scripts": {
-    "start": "NODE_ENV=production node server.js"
+    "start": "NODE_ENV=production node server.js",
+    "audit": "npm audit",
+    "audit:fix": "npm audit fix",
+    "audit:report": "npm audit --json > security-audit-backend.json"
   },
   "keywords": [],
   "author": "",
