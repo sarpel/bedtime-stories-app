@@ -51,5 +51,23 @@ export default [
     rules: {
       ...js.configs.recommended.rules
     }
+  },
+  {
+    files: ['**/*.test.js', '**/*.spec.js', 'tests/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      sourceType: 'module',
+      globals: { 
+        ...globals.browser,
+        ...globals.jest,
+        ...globals.node,
+        global: 'readonly'
+      }
+    },
+    plugins: {},
+    rules: {
+      ...js.configs.recommended.rules,
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]|Mock$' }]
+    }
   }
 ]
