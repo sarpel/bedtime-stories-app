@@ -68,7 +68,10 @@ export default defineConfig(({ mode }) => {
               '@radix-ui/react-separator',
               '@radix-ui/react-slider',
               '@radix-ui/react-slot',
-              '@radix-ui/react-tabs'
+              '@radix-ui/react-tabs',
+              '@radix-ui/react-toggle',
+              '@radix-ui/react-toggle-group',
+              '@radix-ui/react-tooltip'
             ],
 
             // Application chunks
@@ -182,6 +185,17 @@ export default defineConfig(({ mode }) => {
         'lucide-react',
         '@radix-ui/react-alert-dialog',
         '@radix-ui/react-dialog',
+        '@radix-ui/react-label',
+        '@radix-ui/react-progress',
+        '@radix-ui/react-radio-group',
+        '@radix-ui/react-select',
+        '@radix-ui/react-separator',
+        '@radix-ui/react-slider',
+        '@radix-ui/react-slot',
+        '@radix-ui/react-tabs',
+        '@radix-ui/react-toggle',
+        '@radix-ui/react-toggle-group',
+        '@radix-ui/react-tooltip',
         'clsx',
         'tailwind-merge'
       ],

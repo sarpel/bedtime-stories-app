@@ -21,7 +21,8 @@ require_root(){ [ "$EUID" -eq 0 ] || err "root (sudo) ile çalıştır"; }
 install_packages(){
     log "Paketler kuruluyor";
     apt-get update -y >>"$LOG_FILE" 2>&1;
-    apt-get install -y curl git nodejs npm sqlite3 alsa-utils >>"$LOG_FILE" 2>&1 || err "apt kurulum hatası";
+    # better-sqlite3 derlemesi için build-essential, python3 (node-gyp), make ve g++ şart
+    apt-get install -y curl git nodejs npm sqlite3 alsa-utils build-essential python3 make g++ >>"$LOG_FILE" 2>&1 || err "apt kurulum hatası";
 }
 
 clone_or_update(){
@@ -34,8 +35,9 @@ clone_or_update(){
 }
 
 build_frontend(){
-    log "Frontend build";
-    (cd "$APP_DIR" && NODE_ENV=production npm install --omit=dev >>"$LOG_FILE" 2>&1 && NODE_ENV=production npm run build >>"$LOG_FILE" 2>&1) || {
+    log "Frontend build (workspaces)";
+    # Çekirdek bağımlılıkları production modunda kur (root + backend workspace). better-sqlite3 native rebuild gerekirse rebuild:sqlite kullanılabilir.
+    (cd "$APP_DIR" && NODE_ENV=production npm ci --omit=dev >>"$LOG_FILE" 2>&1 || npm install --omit=dev >>"$LOG_FILE" 2>&1; NODE_ENV=production npm run build >>"$LOG_FILE" 2>&1) || {
         log "Frontend build hatası - log kontrol et: $LOG_FILE"
         # Build hatalı olursa devam et ama uyar
         return 0
@@ -86,7 +88,11 @@ build_frontend(){
 }
 
 install_backend(){
-    log "Backend bağımlılıkları"; (cd "$APP_DIR/backend" && npm install --omit=dev >>"$LOG_FILE" 2>&1) || err "Backend npm hatası";
+    log "Backend bağımlılıkları (workspace içinde zaten kuruldu, yine de doğrulama)"; (cd "$APP_DIR/backend" && npm ls --omit=dev >/dev/null 2>>"$LOG_FILE" || npm install --omit=dev >>"$LOG_FILE" 2>&1) || err "Backend npm hatası";
+    # Native modül test
+    (cd "$APP_DIR/backend" && node -e "require('better-sqlite3'); console.log('better-sqlite3 yüklü')" >>"$LOG_FILE" 2>&1) || {
+        log "better-sqlite3 yeniden derleniyor"; (cd "$APP_DIR" && npm run rebuild:sqlite >>"$LOG_FILE" 2>&1) || log "UYARI: better-sqlite3 rebuild başarısız";
+    }
 
     # .env dosyası oluştur (eğer yoksa)
     if [ ! -f "$APP_DIR/backend/.env" ]; then

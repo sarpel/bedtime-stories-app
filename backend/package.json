@@ -8,7 +8,8 @@
     "test": "node tests/smoke-prod.test.js && node tests/server.test.js",
     "audit": "npm audit",
     "audit:fix": "npm audit fix",
-    "audit:report": "npm audit --json > security-audit-backend.json"
+  "audit:report": "npm audit --json > security-audit-backend.json",
+  "rebuild:sqlite": "npm rebuild better-sqlite3 --build-from-source"
   },
   "keywords": [],
   "author": "",
@@ -28,7 +29,7 @@
     "supertest": "^7.1.4"
   },
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=8.0.0"
+  "node": ">=20.0.0",
+  "npm": ">=10.0.0"
   }
 }
