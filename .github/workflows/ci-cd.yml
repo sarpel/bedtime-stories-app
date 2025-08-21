@@ -17,7 +17,7 @@ env:
 jobs:
   test:
     name: Test & Lint
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
     - uses: actions/checkout@v4
@@ -44,7 +44,7 @@ jobs:
 
   build:
     name: Build Application
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: test
 
     steps:
@@ -71,7 +71,7 @@ jobs:
 
   security-scan:
     name: Security Scan
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: test
     permissions:
       contents: read
@@ -98,7 +98,7 @@ jobs:
 
   docker-build:
     name: Build Docker Image
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [test, build]
     if: github.ref == 'refs/heads/main'
 
@@ -133,7 +133,7 @@ jobs:
 
   deploy:
     name: Deploy to Production
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [docker-build]
     if: github.ref == 'refs/heads/main'
     environment:
