@@ -17,7 +17,8 @@
  * The module under test exports a singleton. We reset state between tests.
  */
 
-import { jest } from '@jest/globals' // Vitest also aliases jest.*; adjust if necessary
+import { jest, describe, it, beforeEach, expect } from '@jest/globals'
+
 // Mock dependencies before importing the module under test
 const infoMock = jest.fn()
 const warnMock = jest.fn()
@@ -263,16 +264,16 @@ describe('checkNetworkConnectivity', () => {
     resetEnvironment()
   })
 
-  it('logs and returns if navigator is offline', async () => {
+  it('logs and returns if navigator is offline', () => {
     navigator.onLine = false
-    await stabilityMonitor.checkNetworkConnectivity()
+    stabilityMonitor.checkNetworkConnectivity()
     expect(warnMock).toHaveBeenCalledWith('Network is offline')
     navigator.onLine = true
   })
 
   it('logs debug on successful HEAD /health', async () => {
     fetchResolve = true
-    await stabilityMonitor.checkNetworkConnectivity()
+    stabilityMonitor.checkNetworkConnectivity()
     // Allow microtask queue to resolve promises
     await Promise.resolve()
     expect(debugMock).toHaveBeenCalledWith('Network connectivity confirmed')
@@ -280,7 +281,7 @@ describe('checkNetworkConnectivity', () => {
 
   it('logs warn on fetch failure', async () => {
     fetchResolve = false
-    await stabilityMonitor.checkNetworkConnectivity()
+    stabilityMonitor.checkNetworkConnectivity()
     await Promise.resolve()
     expect(warnMock).toHaveBeenCalledWith('Network connectivity issues detected')
   })
@@ -376,7 +377,7 @@ describe('getRecentErrors and getStabilityReport', () => {
 
     const report = stabilityMonitor.getStabilityReport()
     expect(report.performanceIssues).toHaveLength(3)
-    expect(report.performanceIssues.map(i => i.value)).toEqual([3,4,5])
+    expect(report.performanceIssues.map(i => i.value)).toEqual([3, 4, 5])
     expect(report.isHealthy).toBe(true)
 
     stabilityMonitor.errorCount = 3
@@ -433,7 +434,7 @@ describe('global event handlers wiring', () => {
     rejHandler({ reason: { message: 'bad promise' } })
     expect(stabilityMonitor.getRecentErrors()[0].message).toBe('bad promise')
 
-    rejHandler({ }) // no reason provided
+    rejHandler({}) // no reason provided
     expect(stabilityMonitor.getRecentErrors()[1].message).toBe('Promise rejected')
   })
 })
