@@ -44,7 +44,7 @@ build_frontend(){
     # Build başarılı mı kontrol et
     if [ -d "$APP_DIR/dist" ] && [ -f "$APP_DIR/dist/index.html" ]; then
         log "Frontend build başarılı - dist klasörü oluşturuldu"
-        
+
         # Static dosyaları root'a kopyala (Express static serving için)
         log "Static dosyalar root klasöre kopyalanıyor..."
         cp "$APP_DIR/dist/index.html" "$APP_DIR/"
@@ -52,7 +52,7 @@ build_frontend(){
             cp -r "$APP_DIR/dist/assets" "$APP_DIR/"
             log "✅ Static dosyalar kopyalandı (index.html, assets/)"
         fi
-        
+
         # Build klasörünü temizle (opsiyonel, disk tasarrufu)
         # rm -rf "$APP_DIR/dist"
     else

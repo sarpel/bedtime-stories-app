@@ -151,23 +151,23 @@ try {
   // Önce root klasördeki static dosyaları dene (production setup)
   const rootPath = path.join(__dirname, '..');
   const distPath = path.join(__dirname, '..', 'dist');
-  
+
   let staticPath = null;
   let indexPath = null;
-  
+
   // Production setup: static dosyalar root'ta
   if (fs.existsSync(path.join(rootPath, 'index.html'))) {
     staticPath = rootPath;
     indexPath = path.join(rootPath, 'index.html');
     logger.info('Serving static files from root directory (production setup)');
   }
-  // Development setup: static dosyalar dist/'te  
+  // Development setup: static dosyalar dist/'te
   else if (fs.existsSync(distPath) && fs.existsSync(path.join(distPath, 'index.html'))) {
     staticPath = distPath;
     indexPath = path.join(distPath, 'index.html');
     logger.info('Serving static files from dist directory (development setup)');
   }
-  
+
   if (staticPath && indexPath) {
     // Serve static files with proper caching
     app.use(express.static(staticPath, {
