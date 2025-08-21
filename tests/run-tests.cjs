@@ -34,12 +34,24 @@ async function run() {
       total++;
       const started = Date.now();
       try {
-        const r = fn.length === 1 ? await new Promise((res, rej) => {
-          let doneCalled = false;
-          const done = (err) => { if (doneCalled) return; doneCalled = true; err ? rej(err) : res(); };
-          try { fn(done); } catch (e) { rej(e); }
-          setTimeout(() => done(new Error('Timeout after 5000ms')), 5000);
-        }) : await fn();
+        if (fn.length === 1) {
+          await new Promise((res, rej) => {
+            let doneCalled = false;
+            const done = (err) => { 
+              if (doneCalled) return; 
+              doneCalled = true; 
+              if (err) {
+                rej(err);
+              } else {
+                res();
+              }
+            };
+            try { fn(done); } catch (e) { rej(e); }
+            setTimeout(() => done(new Error('Timeout after 5000ms')), 5000);
+          });
+        } else {
+          await fn();
+        }
         passed++;
         logResult(true, `${file}:${name}`, Date.now() - started);
       } catch (err) {
