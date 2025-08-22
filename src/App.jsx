@@ -24,6 +24,9 @@ import safeLocalStorage from './utils/safeLocalStorage.js'
 import { logger } from './utils/logger.js'
 import stabilityMonitor from './utils/stabilityMonitor.js'
 import './App.css'
+import { Toaster } from '@/components/ui/sonner.jsx'
+import { toast } from 'sonner'
+import { Play, Pause, Square, ListMusic, X } from 'lucide-react'
 
 function App() {
   const isMobile = useIsMobile()
@@ -43,6 +46,10 @@ function App() {
   const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false)
   // Son oluşturulan masalın geçmiş ID'si
   const [currentStoryId, setCurrentStoryId] = useState(null)
+  // Remote playback state (StoryQueuePanel'den bubble up)
+  const [remotePlayback, setRemotePlayback] = useState({ playing: false })
+  const [remoteProgressPct, setRemoteProgressPct] = useState(0) // bilinmiyorsa animasyonlu placeholder
+  const [showMiniPlayer, setShowMiniPlayer] = useState(false)
 
   const [settings, setSettings] = useState(() => {
     // localStorage'dan ayarları güvenli şekilde yükle
@@ -341,6 +348,7 @@ function App() {
       setIsGenerating(false)
       setProgress(0)
       console.log('[App] generateStory:end', { totalMs: Date.now() - startTime })
+      toast.success('Masal oluşturma tamamlandı', { description: 'Yeni masal hazır.' })
     }
   }
 
@@ -408,6 +416,7 @@ function App() {
     } finally {
       setIsGeneratingAudio(false)
       setProgress(0)
+      toast.success('Ses oluşturma tamamlandı', { description: 'Ses dosyası kaydedildi.' })
     }
   }
 
@@ -464,6 +473,7 @@ function App() {
     } finally {
       setIsGeneratingAudio(false)
       setProgress(0)
+      toast.error('Ses oluşturma hatası', { description: 'Ses oluşturulamadı.' })
     }
   }
 
@@ -507,6 +517,7 @@ function App() {
 
       // Kaydetme işlemi tamamlandı, ana menüye dön
       clearStory()
+      toast.success('Masal kaydedildi')
 
     } catch (dbError) {
       console.error('Manuel kaydetme hatası:', dbError)
@@ -526,6 +537,7 @@ function App() {
 
         // Kaydetme başarılı, ana menüye dön
         clearStory()
+        toast.success('Masal localStorage\'a kaydedildi')
 
       } catch (fallbackError) {
         console.error('localStorage fallback hatası:', fallbackError)
@@ -535,6 +547,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <Toaster richColors position="top-right" closeButton duration={4000} />
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-2 sm:px-4 py-3 sm:py-4 flex items-center justify-between">
@@ -810,6 +823,16 @@ function App() {
             seekTo={seekTo}
             getDbAudioUrl={getDbAudioUrl}
             setOnEnded={setOnEnded}
+            onRemoteStatusChange={(st) => {
+              setRemotePlayback(st)
+              // Mini player görünürlüğü kontrolü
+              if (st.playing) {
+                setShowMiniPlayer(true)
+              } else {
+                setShowMiniPlayer(false)
+                setRemoteProgressPct(0)
+              }
+            }}
           />
         )}
       </main>
@@ -826,6 +849,66 @@ function App() {
 
       {/* Hidden Audio Element */}
       {/* useAudioPlayer kendi Audio nesnesini yönettiği için ekstra <audio> elemanı gerekmiyor */}
+
+      {/* Remote Mini Player (uzaktan oynatma tetiklendiğinde) */}
+      {showMiniPlayer && (
+        <div className="fixed bottom-4 right-4 z-50 w-72 sm:w-80 bg-card/95 backdrop-blur border border-border rounded-lg shadow-lg p-3 animate-in fade-in slide-in-from-bottom">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <ListMusic className="h-5 w-5 text-primary" />
+              <div className="text-sm font-medium">
+                {remotePlayback.playing ? 'Cihazda Oynatılıyor' : 'Oynatma Durdu'}
+                <div className="text-xs text-muted-foreground">
+                  {remotePlayback.file ? remotePlayback.file.split('/').pop() : remotePlayback.playing ? 'Masal çalıyor...' : 'Hazır'}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowMiniPlayer(false)}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              title="Kapat"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="mt-3">
+            <div className="h-2 w-full bg-muted rounded overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-500"
+                style={{ width: remotePlayback.playing ? `${remoteProgressPct}%` : '0%' }}
+              />
+            </div>
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  // Basit toggle: aynı endpoint
+                  try {
+                    if (remotePlayback.playing) {
+                      await fetch('/api/play/stop', { method: 'POST' })
+                    }
+                  } finally {
+                    // Status update manuel; StoryQueuePanel periyodik olarak zaten yenileyecek
+                  }
+                }}
+                title={remotePlayback.playing ? 'Durdur' : 'Durdu'}
+                disabled={!remotePlayback.playing}
+              >
+                {remotePlayback.playing ? <Square className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowMiniPlayer(false)}
+              >Gizle</Button>
+            </div>
+            <span className="text-[10px] text-muted-foreground">Uzaktan oynatma</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
