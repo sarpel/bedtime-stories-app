@@ -441,10 +441,13 @@ app.post('/api/llm', async (req, res) => {
     const effectiveModel = modelId || process.env.OPENAI_MODEL;
     endpoint = clientEndpoint || process.env.OPENAI_ENDPOINT;
     headers.Authorization = `Bearer ${OPENAI_API_KEY}`;
-    // OpenAI Responses API formatı (güncellendi)
+    // OpenAI Responses API formatı
+    const systemPrompt = '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.';
+    const fullPrompt = `${systemPrompt}\n\n${prompt}`;
+
     body = {
       model: effectiveModel,
-      input: prompt,
+      input: fullPrompt,
       temperature: Number.isFinite(temperature) ? temperature : 1.0
     };
     if (maxTokens) {
@@ -506,17 +509,80 @@ app.post('/api/llm', async (req, res) => {
   try {
     logger.info({ msg: '[API /api/llm] forwarding:start', endpoint });
     const t0 = Date.now();
-    const response = await axios.post(endpoint, body, { headers });
+    const response = await axios.post(endpoint, body, {
+      headers,
+      timeout: 120000, // 2 minutes
+      validateStatus: function (status) {
+        return status < 500; // Accept any status code less than 500
+      }
+    });
     const duration = Date.now() - t0;
     const data = response.data;
+
+    // Debug logging for Responses API (can be removed in production)
+    if (provider === 'openai') {
+      logger.info({
+        msg: '[API /api/llm] OpenAI response received',
+        status: response.status,
+        hasOutput: !!data.output,
+        hasChoices: !!data.choices
+      });
+    }
+
+    // Transform response format to expected format
+    let transformedData = data;
+
+    // OpenAI Responses API format - actual content is in the 'output' field
+    if (provider === 'openai' && data.output && Array.isArray(data.output)) {
+      // Find the message object with content in the output array
+      let storyContent = '';
+      for (const item of data.output) {
+        if (item.type === 'message' && item.content && Array.isArray(item.content)) {
+          // Look for output_text type in the content array
+          for (const contentItem of item.content) {
+            if (contentItem.type === 'output_text' && contentItem.text) {
+              storyContent = contentItem.text;
+              break;
+            }
+          }
+          if (storyContent) break;
+        }
+      }
+
+      // If no content found, stringify the whole output for debugging
+      if (!storyContent) {
+        storyContent = JSON.stringify(data.output, null, 2);
+        logger.warn({
+          msg: '[API /api/llm] No story content found in OpenAI Responses API output',
+          outputLength: data.output.length
+        });
+      }
+
+      transformedData = {
+        text: storyContent,
+        usage: data.usage,
+        model: data.model,
+        id: data.id
+      };
+    }
+    // Legacy Chat Completions format (fallback)
+    else if (provider === 'openai' && data.choices && data.choices[0] && data.choices[0].message) {
+      transformedData = {
+        text: data.choices[0].message.content,
+        usage: data.usage,
+        model: data.model,
+        id: data.id
+      };
+    }
+
     logger.info({
       msg: '[API /api/llm] forwarding:success',
       status: response.status,
       durationMs: duration,
-      keys: Object.keys(data || {}),
-      textLen: typeof data?.text === 'string' ? data.text.length : undefined
+      keys: Object.keys(transformedData || {}),
+      textLen: typeof transformedData?.text === 'string' ? transformedData.text.length : undefined
     });
-    res.json(data);
+    res.json(transformedData);
   } catch (error) {
     logger.error({
       msg: 'LLM API Hatası',

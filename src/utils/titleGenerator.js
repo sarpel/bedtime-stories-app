@@ -84,7 +84,7 @@ export async function generateTitleWithLLM(storyText, fetcher) {
     })
     if (!res.ok) return ''
     const data = await res.json()
-    const text = data?.choices?.[0]?.message?.content || data?.text || data?.response
+    const text = data?.text || data?.choices?.[0]?.message?.content || data?.response
     return (text || '').trim().split('\n')[0].slice(0, 60)
   } catch {
     return ''

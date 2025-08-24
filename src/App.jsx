@@ -266,18 +266,9 @@ function App() {
       }, storyTypeToUse, topicToUse)
       console.log('[App] response:received', { length: story?.length || 0 })
 
-      // LLM bazen boş/kısa yanıt döndürebilir; kullanıcı deneyimini korumak için fallback üret
-      if (!story || (typeof story === 'string' && story.trim().length < 300)) {
-        console.warn('LLM kısa/boş yanıt döndürdü, fallback masal üretilecek.')
-        console.log('[App] fallback:triggered', { length: story?.length || 0 })
-        try {
-          story = llmService.generateFallbackStory()
-          console.log('[App] fallback:generated', { length: story?.length || 0 })
-        } catch {
-          // generateFallbackStory başarısız olursa minimum metin kullan
-          story = 'Bir zamanlar, çok uzak diyarlarda, iyi kalpli bir çocuk yaşarmış. Her gece yıldızlara bakar ve güzel rüyalar görürmüş. İyi geceler, tatlı rüyalar.'
-          console.log('[App] fallback:mintext')
-        }
+      // Validate story response
+      if (!story || (typeof story === 'string' && story.trim().length < 50)) {
+        throw new Error('LLM yanıtı çok kısa veya boş. API ayarlarını kontrol edin.')
       }
 
       setStory(story)
@@ -300,14 +291,10 @@ function App() {
         console.error('Veritabanına kaydetme hatası:', dbError)
         console.log('[App] db:createStory:error', { message: dbError?.message })
 
-        // Fallback olarak localStorage kullan
-        const id = addToHistory({
-          story,
-          storyType: storyTypeToUse,
-          customTopic: topicToUse
+        // Show error to user
+        toast.error('Veritabanına kaydetme başarısız', {
+          description: 'Masal oluşturuldu ancak kaydedilemedi.'
         })
-        setCurrentStoryId(id)
-        console.log('[App] history:add', { id })
       }
 
     } catch (error) {
@@ -334,16 +321,8 @@ function App() {
 
       setError(errorMessage)
 
-      // Try to generate a fallback story
-      try {
-        const llmService = new LLMService(settings)
-        const fallbackStory = llmService.generateFallbackStory()
-        setStory(fallbackStory)
-        console.log('[App] error:fallback:generated', { length: fallbackStory?.length || 0 })
-      } catch {
-        setStory('')
-        console.log('[App] error:fallback:failed')
-      }
+      // Clear story on error
+      setStory('')
     } finally {
       setIsGenerating(false)
       setProgress(0)
@@ -525,23 +504,10 @@ function App() {
       // Show user-friendly error
       setError('Masal kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.')
 
-      // Fallback olarak localStorage kullan
-      try {
-        const id = addToHistory({
-          story,
-          storyType: selectedStoryType,
-          customTopic
-        })
-        setCurrentStoryId(id)
-        console.log('Masal localStorage\'a kaydedildi:', id)
-
-        // Kaydetme başarılı, ana menüye dön
-        clearStory()
-        toast.success('Masal localStorage\'a kaydedildi')
-
-      } catch (fallbackError) {
-        console.error('localStorage fallback hatası:', fallbackError)
-      }
+      // Show error to user
+      toast.error('Masal kaydedilemedi', {
+        description: 'Lütfen tekrar deneyin.'
+      })
     }
   }
 
