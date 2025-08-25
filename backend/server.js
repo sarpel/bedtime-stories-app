@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const axios = require('axios');
+const { PassThrough, pipeline } = require('stream');
 const pino = require('pino');
 const pinoHttp = require('pino-http');
 
@@ -88,16 +89,7 @@ function stopCurrentPlayback(reason = 'stopped') {
 }
 
 // Sıkıştırma ve ek güvenlik katmanları kullanılmıyor (kişisel/lokal kullanım)
-// CORS: Production tek cihaz kullanım senaryosu; genişletilmiş serbestiyet.
-app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(204);
-  }
-  next();
-});
+// CORS removed - using same-origin via Vite dev proxy as per guidelines
 
 // Frontend'den gelen JSON verilerini okuyabilmek için middleware
 app.use(express.json({ limit: '10mb' }));
@@ -518,10 +510,7 @@ app.post('/api/llm', async (req, res) => {
     const t0 = Date.now();
     const response = await axios.post(endpoint, body, {
       headers,
-      timeout: LLM_REQUEST_TIMEOUT_MS,
-      validateStatus: function (status) {
-        return status < 500; // Accept any status code less than 500
-      }
+      timeout: LLM_REQUEST_TIMEOUT_MS
     });
     const duration = Date.now() - t0;
     const data = response.data;
@@ -918,19 +907,20 @@ app.get('/api/stories/type/:storyType', (req, res) => {
 
 // --- TTS İSTEKLERİ İÇİN ENDPOINT (GÜNCELLENMİŞ) ---
 app.post('/api/tts', async (req, res) => {
-  console.log('🔊 [Backend TTS] Request received:', {
+  logger.info({
+    msg: '[Backend TTS] Request received',
     provider: req.body.provider,
     voiceId: req.body.voiceId,
     hasRequestBody: !!req.body.requestBody,
     requestBodyKeys: req.body.requestBody ? Object.keys(req.body.requestBody) : []
-  })
+  });
 
   // Frontend'den gelen ayarları ve metni al
   const { provider, modelId, voiceId, requestBody, storyId, endpoint: clientEndpoint } = req.body;
 
   // Input validation
   if (!provider || !requestBody) {
-    console.log('🔊 [Backend TTS] Validation failed:', { provider, hasRequestBody: !!requestBody })
+    logger.warn({ msg: '[Backend TTS] Validation failed', provider, hasRequestBody: !!requestBody });
     return res.status(400).json({ error: 'Provider ve request body gereklidir.' });
   }
   // Provider kısıtlaması kaldırıldı: generic sağlayıcılar için endpoint gereklidir
@@ -1055,36 +1045,44 @@ app.post('/api/tts', async (req, res) => {
         const fileName = `story-${sanitizedStoryId}-${Date.now()}.mp3`;
         const filePath = path.join(storyDb.getAudioDir(), fileName);
 
+        // Use PassThrough streams to tee the incoming stream
+        const tee1 = new PassThrough();
+        const tee2 = new PassThrough();
+
+        // Tee the incoming stream
+        response.data.pipe(tee1);
+        response.data.pipe(tee2);
+
         // Ses dosyasını kaydet
         const writeStream = fs.createWriteStream(filePath);
-        response.data.pipe(writeStream);
+        pipeline(tee1, writeStream, (err) => {
+          if (err) {
+            logger.error({ msg: 'File pipeline error', error: err?.message });
+          } else {
+            logger.info({ msg: 'Audio file saved', filePath });
+            // Veritabanına ses dosyası bilgisini kaydet
+            try {
+              // Voice ID'yi provider'a göre çıkar
+              let usedVoiceId = 'unknown';
+              if (provider === 'elevenlabs') {
+                usedVoiceId = voiceId || 'unknown';
+              } else if (provider === 'gemini') {
+                usedVoiceId = requestBody.generationConfig?.speechConfig?.voiceConfig?.name || 'unknown';
+              }
 
-        writeStream.on('finish', () => {
-          logger.info({ msg: 'Audio file saved', filePath });
-          // Veritabanına ses dosyası bilgisini kaydet
-          try {
-            // Voice ID'yi provider'a göre çıkar
-            let usedVoiceId = 'unknown';
-            if (provider === 'elevenlabs') {
-              usedVoiceId = voiceId || 'unknown';
-            } else if (provider === 'gemini') {
-              usedVoiceId = requestBody.generationConfig?.speechConfig?.voiceConfig?.name || 'unknown';
+              storyDb.saveAudio(sanitizedStoryId, fileName, filePath, usedVoiceId, requestBody);
+              logger.info({ msg: 'Audio info saved to database', storyId: sanitizedStoryId });
+            } catch (dbError) {
+              logger.error({ msg: 'Database save error', error: dbError?.message });
             }
-
-            storyDb.saveAudio(sanitizedStoryId, fileName, filePath, usedVoiceId, requestBody);
-            logger.info({ msg: 'Audio info saved to database', storyId: sanitizedStoryId });
-          } catch (dbError) {
-            logger.error({ msg: 'Database save error', error: dbError?.message });
           }
-        });
-
-        writeStream.on('error', (error) => {
-          logger.error({ msg: 'File write error', error: error?.message });
         });
 
         // Aynı zamanda client'a da stream gönder
         res.setHeader('Content-Type', 'audio/mpeg');
-        response.data.pipe(res);
+        pipeline(tee2, res, (err) => {
+          if (err) logger.error({ msg: 'Client stream pipeline error', error: err?.message });
+        });
 
       } catch (fileError) {
         logger.error({ msg: 'File handling error', error: fileError?.message });

@@ -321,9 +321,13 @@ export default function StoryQueuePanel({
   }, [onRemoteStatusChange])
 
   useEffect(() => {
-    refreshRemote()
-    const id = setInterval(refreshRemote, 5000)
-    return () => clearInterval(id)
+    let id;
+    const start = () => { refreshRemote(); id = setInterval(refreshRemote, 5000); };
+    const stop = () => { if (id) clearInterval(id); id = null; };
+    const onVis = () => (document.hidden ? stop() : start());
+    onVis();
+    document.addEventListener('visibilitychange', onVis);
+    return () => { stop(); document.removeEventListener('visibilitychange', onVis); };
   }, [refreshRemote])
 
   async function remotePlayToggle(storyId) {
@@ -352,6 +356,7 @@ export default function StoryQueuePanel({
 
   function handleDragEnd(event) {
     const { active, over } = event
+    if (!over) return
 
     if (active.id !== over.id) {
       const oldIndex = queue.findIndex((story) => story.id === active.id)
@@ -362,7 +367,7 @@ export default function StoryQueuePanel({
       persistQueue(newQueue)
       // DB senkron
       try { queueService.setQueueIds(newQueue.map(s => s.id)) } catch { /* queue sync optional */ }
-      console.log('Kuyruk sırası güncellendi:', newQueue.map(s => s.id))
+      if (import.meta.env?.DEV) console.log('Kuyruk sırası güncellendi:', newQueue.map(s => s.id))
     }
   }
 
@@ -591,11 +596,20 @@ export default function StoryQueuePanel({
               size="sm"
               onClick={() => {
                 const activeId = currentIndex === -1 ? queue[0]?.id : queue[currentIndex]?.id
-                if (activeId) {
+                const candidate = currentIndex === -1 ? queue[0] : queue[currentIndex]
+                const hasAudio = !!(candidate && (candidate.audio || candidate.audioUrl))
+                if (activeId && hasAudio) {
                   remotePlayToggle(activeId)
                 }
               }}
-              disabled={remoteLoading || queue.length === 0 || (currentIndex >= 0 && currentIndex < queue.length && !queue[currentIndex]?.audio && !queue[currentIndex]?.audioUrl)}
+              disabled={
+                remoteLoading ||
+                queue.length === 0 ||
+                (() => {
+                  const c = currentIndex === -1 ? queue[0] : queue[currentIndex]
+                  return !(c && (c.audio || c.audioUrl))
+                })()
+              }
               title={remoteStatus.playing ? 'Uzaktan Durdur' : 'Uzaktan Oynat'}
             >
               {remoteStatus.playing ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
@@ -607,8 +621,12 @@ export default function StoryQueuePanel({
               onClick={() => {
                 // Sadece queue index değiştirip otomatik remote play
                 if (!queue.length) return
-                let target = currentIndex - 1
-                if (target < 0) target = queue.length - 1
+                let target = currentIndex
+                for (let i = 0; i < queue.length; i++) {
+                  target = (target - 1 + queue.length) % queue.length
+                  const it = queue[target]
+                  if (it && (it.audio || it.audioUrl)) break
+                }
                 setCurrentIndex(target)
                 const item = queue[target]
                 if (item) remotePlayToggle(item.id)
@@ -621,8 +639,12 @@ export default function StoryQueuePanel({
               size="sm"
               onClick={() => {
                 if (!queue.length) return
-                let target = currentIndex + 1
-                if (target >= queue.length) target = 0
+                let target = currentIndex
+                for (let i = 0; i < queue.length; i++) {
+                  target = (target + 1) % queue.length
+                  const it = queue[target]
+                  if (it && (it.audio || it.audioUrl)) break
+                }
                 setCurrentIndex(target)
                 const item = queue[target]
                 if (item) remotePlayToggle(item.id)

@@ -240,7 +240,7 @@ function App() {
       return
     }
 
-    console.log('[App] generateStory:start', {
+    if (import.meta.env?.DEV) console.log('[App] generateStory:start', {
       selectedStoryType,
       customTopicLen: customTopic.length
     })
@@ -253,18 +253,18 @@ function App() {
 
     try {
       const llmService = new LLMService(settings)
-      console.log('[App] LLMService:created')
+      if (import.meta.env?.DEV) console.log('[App] LLMService:created')
 
       // Eğer customTopic varsa onu kullan, yoksa selectedStoryType kullan
       const storyTypeToUse = customTopic.trim() ? 'custom' : selectedStoryType
       const topicToUse = customTopic.trim() || ''
-      console.log('[App] request:prepared', { storyTypeToUse, topicToUseLen: topicToUse.length })
+      if (import.meta.env?.DEV) console.log('[App] request:prepared', { storyTypeToUse, topicToUseLen: topicToUse.length })
 
       let story = await llmService.generateStory((progressValue) => {
         setProgress(progressValue)
-        console.log('[App] progress:', progressValue)
+        if (import.meta.env?.DEV) console.log('[App] progress:', progressValue)
       }, storyTypeToUse, topicToUse)
-      console.log('[App] response:received', { length: story?.length || 0 })
+      if (import.meta.env?.DEV) console.log('[App] response:received', { length: story?.length || 0 })
 
       // Validate story response
       if (!story || (typeof story === 'string' && story.trim().length < 50)) {
@@ -272,12 +272,12 @@ function App() {
       }
 
       setStory(story)
-      console.log('[App] story:set', { length: story?.length || 0 })
+      if (import.meta.env?.DEV) console.log('[App] story:set', { length: story?.length || 0 })
 
       // Analytics: Track successful story generation
       const duration = Date.now() - startTime
       analyticsService.trackStoryGeneration(storyTypeToUse, topicToUse, true, duration)
-      console.log('[App] analytics:storyGeneration:success', { duration })
+      if (import.meta.env?.DEV) console.log('[App] analytics:storyGeneration:success', { duration })
 
       // Veritabanına kaydet
       try {
@@ -832,7 +832,16 @@ function App() {
               <div className="text-sm font-medium">
                 {remotePlayback.playing ? 'Cihazda Oynatılıyor' : 'Oynatma Durdu'}
                 <div className="text-xs text-muted-foreground">
-                  {remotePlayback.file ? remotePlayback.file.split('/').pop() : remotePlayback.playing ? 'Masal çalıyor...' : 'Hazır'}
+                  {(() => {
+                    if (remotePlayback.storyId && dbStories.length > 0) {
+                      const story = dbStories.find(s => s.id === remotePlayback.storyId)
+                      if (story) {
+                        const title = story.custom_topic || story.story_type || 'Masal'
+                        return title.length > 30 ? title.substring(0, 30) + '...' : title
+                      }
+                    }
+                    return remotePlayback.file ? remotePlayback.file.split('/').pop() : remotePlayback.playing ? 'Masal çalıyor...' : 'Hazır'
+                  })()}
                 </div>
               </div>
             </div>
