@@ -41,6 +41,9 @@ const logger = pino({
   }
 });
 
+// Constants
+const LLM_REQUEST_TIMEOUT_MS = 120000; // 2 minutes
+
 // Env anahtarlarının varlık durumunu başlangıçta logla (içerikleri değil)
 try {
   logger.info({
@@ -442,7 +445,8 @@ app.post('/api/llm', async (req, res) => {
     endpoint = clientEndpoint || process.env.OPENAI_ENDPOINT;
     headers.Authorization = `Bearer ${OPENAI_API_KEY}`;
     // OpenAI Responses API formatı
-    const systemPrompt = '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.';
+    const defaultSystemPrompt = '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.';
+    const systemPrompt = (process.env.SYSTEM_PROMPT_TURKISH || defaultSystemPrompt).trim();
     const fullPrompt = `${systemPrompt}\n\n${prompt}`;
 
     body = {
@@ -511,7 +515,7 @@ app.post('/api/llm', async (req, res) => {
     const t0 = Date.now();
     const response = await axios.post(endpoint, body, {
       headers,
-      timeout: 120000, // 2 minutes
+      timeout: LLM_REQUEST_TIMEOUT_MS,
       validateStatus: function (status) {
         return status < 500; // Accept any status code less than 500
       }
@@ -573,6 +577,26 @@ app.post('/api/llm', async (req, res) => {
         model: data.model,
         id: data.id
       };
+    }
+
+    // Validate story response more robustly
+    const story = transformedData?.text;
+    if (!story || (typeof story === 'string' && story.trim().length < 50)) {
+      logger.warn({ msg: 'LLM response too short or empty', textLength: story?.length || 0 });
+      throw new Error('LLM yanıtı çok kısa veya boş. API ayarlarını kontrol edin.');
+    }
+
+    // Additional validation to ensure it's actual story content
+    if (typeof story === 'string') {
+      // Check if response looks like JSON or error message
+      if (story.trim().startsWith('{') || story.trim().startsWith('[')) {
+        logger.warn({ msg: 'LLM returned JSON instead of story text', preview: story.substring(0, 100) });
+        throw new Error('LLM yanıtı beklenen formatta değil. API ayarlarını kontrol edin.');
+      }
+      if (story.toLowerCase().includes('error') || story.toLowerCase().includes('invalid')) {
+        logger.warn({ msg: 'LLM response contains error keywords', preview: story.substring(0, 100) });
+        throw new Error('LLM bir hata mesajı döndürdü. API ayarlarını kontrol edin.');
+      }
     }
 
     logger.info({
@@ -1205,6 +1229,17 @@ if (require.main === module) {
     console.log(
       `Backend proxy sunucusu http://localhost:${PORT} adresinde çalışıyor`
     );
+
+    // Log system prompt configuration
+    const defaultSystemPrompt = '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.';
+    const systemPrompt = (process.env.SYSTEM_PROMPT_TURKISH || defaultSystemPrompt).trim();
+    const isCustomPrompt = !!process.env.SYSTEM_PROMPT_TURKISH;
+    logger.info({
+      msg: 'System prompt configuration',
+      isCustomPrompt,
+      promptLength: systemPrompt.length,
+      promptPreview: systemPrompt.substring(0, 100) + (systemPrompt.length > 100 ? '...' : '')
+    });
   });
 }
 

@@ -310,7 +310,11 @@ export default function StoryQueuePanel({
         const data = await r.json()
         setRemoteStatus(data)
         if (onRemoteStatusChange) {
-          try { onRemoteStatusChange(data) } catch { /* ignore cb */ }
+          try {
+            onRemoteStatusChange(data)
+          } catch (e) {
+            console.warn('Remote status callback error:', e)
+          }
         }
       }
     } catch { /* ignore */ }
@@ -591,7 +595,7 @@ export default function StoryQueuePanel({
                   remotePlayToggle(activeId)
                 }
               }}
-              disabled={remoteLoading || queue.length === 0}
+              disabled={remoteLoading || queue.length === 0 || (currentIndex >= 0 && currentIndex < queue.length && !queue[currentIndex]?.audio && !queue[currentIndex]?.audioUrl)}
               title={remoteStatus.playing ? 'Uzaktan Durdur' : 'Uzaktan Oynat'}
             >
               {remoteStatus.playing ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}

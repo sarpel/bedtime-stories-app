@@ -12,7 +12,7 @@ const PREFIX_PATTERNS = [
 
 function toTitleCaseTR(str = '') {
   return String(str)
-    .toLowerCase()
+    .toLocaleLowerCase('tr-TR')
     .split(/\s+/)
     .map(w => w ? w.charAt(0).toLocaleUpperCase('tr-TR') + w.slice(1) : w)
     .join(' ')

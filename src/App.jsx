@@ -286,6 +286,9 @@ function App() {
         console.log('Masal veritabanına kaydedildi:', dbStory.id)
         console.log('[App] db:createStory:success', { id: dbStory.id })
 
+        // Show success toast after successful story creation and database save
+        toast.success('Masal oluşturma tamamlandı', { description: 'Yeni masal hazır.' })
+
         // Yeni story eklenmesi favorileri etkilemez, gereksiz refresh yok
       } catch (dbError) {
         console.error('Veritabanına kaydetme hatası:', dbError)
@@ -327,7 +330,6 @@ function App() {
       setIsGenerating(false)
       setProgress(0)
       console.log('[App] generateStory:end', { totalMs: Date.now() - startTime })
-      toast.success('Masal oluşturma tamamlandı', { description: 'Yeni masal hazır.' })
     }
   }
 
@@ -372,6 +374,9 @@ function App() {
       // Hikayeleri yeniden yükle ki yeni audio bilgisi görünsün
       await loadStories()
 
+      // Show success toast after successful audio generation
+      toast.success('Ses oluşturma tamamlandı', { description: 'Ses dosyası kaydedildi.' })
+
     } catch (error) {
       console.error('Audio generation failed for story:', storyId, error)
 
@@ -395,7 +400,6 @@ function App() {
     } finally {
       setIsGeneratingAudio(false)
       setProgress(0)
-      toast.success('Ses oluşturma tamamlandı', { description: 'Ses dosyası kaydedildi.' })
     }
   }
 
@@ -429,6 +433,9 @@ function App() {
 
       // Ses dosyası eklenmesi favorileri etkilemez, gereksiz refresh yok
 
+      // Show success toast after successful audio generation
+      toast.success('Ses oluşturma tamamlandı', { description: 'Ses dosyası kaydedildi.' })
+
     } catch (error) {
       console.error('Audio generation failed:', error)
 
@@ -449,10 +456,10 @@ function App() {
       }
 
       setError(errorMessage)
+      toast.error('Ses oluşturma hatası', { description: 'Ses oluşturulamadı.' })
     } finally {
       setIsGeneratingAudio(false)
       setProgress(0)
-      toast.error('Ses oluşturma hatası', { description: 'Ses oluşturulamadı.' })
     }
   }
 
