@@ -111,6 +111,9 @@ app.use((req, res, next) => {
     case '.js':
       res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
       break;
+    case '.jsx':
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      break;
     case '.mjs':
       res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
       break;
@@ -230,7 +233,7 @@ try {
         }
 
         // Fix MIME types for JavaScript modules
-        if (filePath.endsWith('.js')) {
+        if (filePath.endsWith('.js') || filePath.endsWith('.jsx')) {
           res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
         }
 
@@ -266,7 +269,7 @@ try {
         etag: true,
         lastModified: true,
         setHeaders: (res, filePath) => {
-          if (filePath.endsWith('.js')) {
+          if (filePath.endsWith('.js') || filePath.endsWith('.jsx')) {
             res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
           }
           res.setHeader('X-Content-Type-Options', 'nosniff');
