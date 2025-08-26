@@ -11,7 +11,7 @@ pnpm-debug.log*
 dist/
 build/
 .augment/
-
+.github/prompts
 # Environment variables
 .env
 .env.local
