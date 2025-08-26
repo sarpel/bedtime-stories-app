@@ -2,11 +2,19 @@ import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog.jsx'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogDescription
+} from '@/components/ui/dialog.jsx'
 import { Input } from '@/components/ui/input.jsx'
 import { Label } from '@/components/ui/label.jsx'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
-import { User, Plus, Edit, Trash2, Check } from 'lucide-react'
+import { User, Plus, Edit, Trash2, Check, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import useProfiles from '../hooks/useProfiles.js'
 
@@ -23,6 +31,10 @@ const ProfileSelector = ({ onProfileSelect, selectedProfileId }) => {
 
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [pendingProfileId, setPendingProfileId] = useState(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   const [editingProfile, setEditingProfile] = useState(null)
   const [formData, setFormData] = useState({
     name: '',
@@ -70,9 +82,24 @@ const ProfileSelector = ({ onProfileSelect, selectedProfileId }) => {
     }
   }
 
-  const handleDeleteProfile = async (profileId) => {
-    if (window.confirm('Bu profili silmek istediğinizden emin misiniz?')) {
-      await deleteProfile(profileId)
+  const requestDeleteProfile = (profileId) => {
+    setPendingProfileId(profileId)
+    setConfirmOpen(true)
+  }
+
+  const confirmDeleteProfile = async () => {
+    if (!pendingProfileId) return
+    setIsDeleting(true)
+    try {
+      await deleteProfile(pendingProfileId)
+      toast.success('Profil başarıyla silindi')
+      setConfirmOpen(false)
+      setPendingProfileId(null)
+    } catch (error) {
+      toast.error('Profil silinirken bir hata oluştu')
+      console.error('Profil silme hatası:', error)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -242,7 +269,7 @@ const ProfileSelector = ({ onProfileSelect, selectedProfileId }) => {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleDeleteProfile(profile.id)}
+                      onClick={() => requestDeleteProfile(profile.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -275,6 +302,35 @@ const ProfileSelector = ({ onProfileSelect, selectedProfileId }) => {
               setFormData({ name: '', age: '', gender: '', customPrompt: '' })
             }}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Profili Sil</DialogTitle>
+            <DialogDescription>
+              Bu profili silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmOpen(false)}
+              disabled={isDeleting}
+            >
+              İptal
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteProfile}
+              disabled={isDeleting}
+            >
+              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Sil
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Card>

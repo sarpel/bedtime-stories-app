@@ -62,22 +62,34 @@ export class LLMService {
     return lengthMap[this.storyLength] || lengthMap.medium
   }
 
+  // Get audience info based on active profile
+  getAudience() {
+    if (!this.activeProfile) {
+      return {
+        audienceLine: 'bir çocuk için uygun',
+        profileInfo: '',
+        systemPrompt: 'bir çocuk için uyku vaktinde okunmak üzere, uyku getirici ve temel erdemleri ders niteliğinde anlatan masallar yaz. Masallar eğitici, sevgi dolu ve rahatlatıcı olsun.'
+      }
+    }
+
+    const { name, age, gender, custom_prompt } = this.activeProfile
+    const genderText = gender === 'girl' ? 'kız' : gender === 'boy' ? 'erkek' : 'çocuk'
+    const audienceLine = `${age} yaşındaki bir ${genderText} çocuğu için uygun`
+
+    let profileInfo = `\nBu masal ${name} adlı ${age} yaşındaki ${genderText} için yazılıyor.`
+    if (custom_prompt) {
+      profileInfo += `\nÖzel istekler: ${custom_prompt}`
+    }
+
+    const systemPrompt = `${age} yaşındaki bir ${genderText} çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.`
+
+    return { audienceLine, profileInfo, systemPrompt }
+  }
+
   // Build the complete prompt
   buildPrompt(storyType = null, customTopic = '') {
     const lengthInstruction = this.getStoryLengthInstruction()
-
-    // Aktif profil bilgisini ekle
-    let profileInfo = ''
-    if (this.activeProfile) {
-      const { name, age, gender } = this.activeProfile
-      const genderText = gender === 'girl' ? 'kız' : gender === 'boy' ? 'erkek' : 'çocuk'
-      profileInfo = `\nBu masal ${name} adlı ${age} yaşındaki ${genderText} çocuğu için yazılıyor.`
-
-      // Özel prompt varsa ekle
-      if (this.activeProfile.custom_prompt) {
-        profileInfo += `\nÖzel istekler: ${this.activeProfile.custom_prompt}`
-      }
-    }
+    const { audienceLine, profileInfo } = this.getAudience()
 
     // Masal türü bilgisini ekle
     let storyTypeText = ''
@@ -93,7 +105,7 @@ export class LLMService {
       ? `\n\nEk talimatlar:\n${this.customInstructions.trim()}`
       : ''
 
-    const prompt = `${this.customPrompt}${profileInfo}${storyTypeText}\n\n${lengthInstruction}\n\nMasal Türkçe olmalı ve şu özellikleri içermeli:\n- 5 yaşındaki bir kız çocuğu için uygun\n- Eğitici ve pozitif değerler içeren\n- Uyku vakti için rahatlatıcı\n- Hayal gücünü geliştiren${extraInstructions}\n\nMasalı şimdi yaz:`
+    const prompt = `${this.customPrompt}${profileInfo}${storyTypeText}\n\n${lengthInstruction}\n\nMasal Türkçe olmalı ve şu özellikleri içermeli:\n- ${audienceLine}\n- Eğitici ve pozitif değerler içeren\n- Uyku vakti için rahatlatıcı\n- Hayal gücünü geliştiren${extraInstructions}\n\nMasalı şimdi yaz:`
     console.log('[LLMService:buildPrompt]', {
       storyType,
       customTopic,
@@ -222,12 +234,13 @@ export class LLMService {
 
     // Legacy OpenAI Chat format (backward compatibility)
     if (this.endpoint.includes('chat/completions') || this.endpoint.includes('v1/chat')) {
+      const { systemPrompt } = this.getAudience()
       return {
         model: this.modelId,
         messages: [
           {
             role: 'system',
-            content: '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.'
+            content: systemPrompt
           },
           {
             role: 'user',
