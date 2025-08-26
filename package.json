@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently --names \"FRONTEND,BACKEND\" --prefix-colors \"cyan,magenta\" \"vite\" \"node backend/server.js\"",
+    "dev:frontend": "vite",
+    "dev:backend": "node backend/server.js",
     "build": "vite build --mode production",
     "start": "node backend/server.js",
     "test": "npm run test --workspace backend && node tests/run-tests.cjs",

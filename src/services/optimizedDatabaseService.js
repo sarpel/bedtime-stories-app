@@ -158,7 +158,7 @@ class OptimizedDatabaseService {
   }
 
   // Create story with cache invalidation
-  async createStory(storyText, storyType, customTopic = null) {
+  async createStory(storyText, storyType, customTopic = null, categories = []) {
     console.log('OptimizedDatabaseService.createStory called with:');
     console.log('storyText:', typeof storyText, storyText ? storyText.substring(0, 100) + '...' : 'null/undefined');
     console.log('storyType:', typeof storyType, storyType);
@@ -167,7 +167,8 @@ class OptimizedDatabaseService {
     const requestBody = {
       storyText: storyText,
       storyType: storyType,
-      customTopic: customTopic
+      customTopic: customTopic,
+      categories: Array.isArray(categories) ? categories.slice(0, 10) : []
     };
 
     console.log('Request body to send:', JSON.stringify(requestBody, null, 2));

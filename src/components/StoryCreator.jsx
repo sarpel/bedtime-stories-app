@@ -54,6 +54,8 @@ export default function StoryCreator({
   const [showShareMenu, setShowShareMenu] = useState(false)
   const [_shareUrl, setShareUrl] = useState('')
   const [isSharing, setIsSharing] = useState(false)
+  const [categoryInput, setCategoryInput] = useState('')
+  const [categories, setCategories] = useState([])
   const shareMenuRef = useRef(null)
 
   // Click outside handler için
@@ -145,6 +147,22 @@ export default function StoryCreator({
     }
   }
 
+  const handleAddCategories = () => {
+    if (!categoryInput.trim()) return
+    const parts = categoryInput.split(',').map(c => c.trim()).filter(c => c.length >= 2 && c.length <= 24)
+    if (parts.length === 0) return
+    const merged = [...categories]
+    parts.forEach(p => {
+      if (!merged.includes(p) && merged.length < 10) merged.push(p)
+    })
+    setCategories(merged)
+    setCategoryInput('')
+  }
+
+  const handleRemoveCategory = (cat) => {
+    setCategories(categories.filter(c => c !== cat))
+  }
+
   const handleDownload = () => {
     if (!story) return
     downloadStory(story, selectedType)
@@ -201,6 +219,11 @@ export default function StoryCreator({
                   <Clock className="h-3 w-3" />
                   {getReadingTime(story)} dk okuma
                 </Badge>
+                {categories.map(cat => (
+                  <Badge key={cat} variant="outline" className="flex items-center gap-1 text-xs cursor-pointer" onClick={() => handleRemoveCategory(cat)} title="Kaldır">
+                    #{cat}
+                  </Badge>
+                ))}
               </div>
             ) : (
               <CardDescription className="text-sm">
@@ -415,6 +438,30 @@ export default function StoryCreator({
 
         {/* Ana Metin Kutusu */}
         <div className="space-y-3">
+          {!story && (
+            <div className="space-y-2">
+              <Label htmlFor="categories" className="text-xs font-medium">Kategoriler (virgülle ayır) - örn: macera, uyku</Label>
+              <div className="flex gap-2">
+                <input
+                  id="categories"
+                  type="text"
+                  value={categoryInput}
+                  onChange={(e) => setCategoryInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCategories(); } }}
+                  className="flex-1 border rounded px-2 py-1 text-xs"
+                  placeholder="macera, uyku"
+                />
+                <Button type="button" variant="outline" size="sm" onClick={handleAddCategories} className="text-xs">Ekle</Button>
+              </div>
+              {categories.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {categories.map(cat => (
+                    <Badge key={cat} variant="outline" className="text-xs cursor-pointer" onClick={() => handleRemoveCategory(cat)} title="Kaldır">#{cat}</Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
             <div className="flex-1 w-full">
               {!story && (
@@ -452,7 +499,7 @@ export default function StoryCreator({
             {!story && (
               <div className="flex flex-col gap-2 w-full sm:min-w-[120px] sm:w-auto">
                 <Button 
-                  onClick={onGenerateStory}
+                  onClick={() => onGenerateStory(categories)}
                   disabled={isGenerating || (!selectedType && !customTopic.trim())}
                   className="flex items-center gap-2 w-full"
                   size="default"

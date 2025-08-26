@@ -678,6 +678,63 @@ app.delete('/api/queue/:id', (req, res) => {
 
 // --- VERİTABANI API ENDPOINT'LERİ ---
 
+// Masal arama endpoint'i (MUST be before /:id route)
+app.get('/api/stories/search', (req, res) => {
+  try {
+    const { q: query, limit, type, useFTS } = req.query;
+
+    // Input validation
+    if (!query || typeof query !== 'string' || query.trim().length === 0) {
+      return res.status(400).json({ error: 'Arama sorgusu gereklidir.' });
+    }
+
+    // Parse options
+    const searchOptions = {
+      limit: limit ? Math.min(parseInt(limit) || 20, 100) : 20,
+      useFTS: useFTS !== 'false' // Default true unless explicitly disabled
+    };
+
+    // Minimum query length validation moved here
+    if (query.trim().length < 2) {
+      return res.status(400).json({ error: 'Arama sorgusu en az 2 karakter olmalıdır.' });
+    }
+
+    let results;
+
+    // Different search types
+    switch (type) {
+      case 'title':
+        results = storyDb.searchStoriesByTitle(query, searchOptions.limit);
+        break;
+      case 'content':
+        results = storyDb.searchStoriesByContent(query, searchOptions.limit);
+        break;
+      default:
+        results = storyDb.searchStories(query, searchOptions);
+    }
+
+    logger.info({
+      msg: 'Arama tamamlandı',
+      query: query.substring(0, 50),
+      type: type || 'all',
+      resultCount: results.length,
+      useFTS: searchOptions.useFTS
+    });
+
+    res.json({
+      query,
+      type: type || 'all',
+      results,
+      count: results.length,
+      usedFTS: searchOptions.useFTS
+    });
+
+  } catch (error) {
+    logger.error({ msg: 'Arama hatası', error: error?.message, query: req.query.q });
+    res.status(500).json({ error: 'Arama yapılırken hata oluştu.' });
+  }
+});
+
 // Tüm masalları getir
 app.get('/api/stories', (req, res) => {
   try {
@@ -716,7 +773,7 @@ app.get('/api/stories/:id', (req, res) => {
 app.post('/api/stories', (req, res) => {
   try {
     logger.info({ msg: 'POST /api/stories - request', bodyKeys: Object.keys(req.body || {}) })
-    const { storyText, storyType, customTopic } = req.body;
+    const { storyText, storyType, customTopic, categories } = req.body;
 
     // Input validation
     if (!storyText || !storyType) {
@@ -740,8 +797,21 @@ app.post('/api/stories', (req, res) => {
       return res.status(400).json({ error: 'Özel konu 200 karakterden uzun olamaz.' });
     }
 
-    const storyId = storyDb.createStory(storyText.trim(), storyType, customTopic?.trim());
+    // Kategoriler işleme (en fazla 10 kısa etiket, 2-24 char)
+    let catArray = [];
+    if (Array.isArray(categories)) {
+      catArray = categories
+        .filter(c => typeof c === 'string')
+        .map(c => c.trim())
+        .filter(c => c.length >= 2 && c.length <= 24)
+        .slice(0, 10);
+    }
+
+    const storyId = storyDb.createStory(storyText.trim(), storyType, customTopic?.trim(), catArray);
     const story = storyDb.getStory(storyId);
+    if (story) {
+      story.categories = catArray;
+    }
 
     res.status(201).json(story);
   } catch (error) {
@@ -760,7 +830,7 @@ app.put('/api/stories/:id', (req, res) => {
       return res.status(400).json({ error: 'Geçersiz masal ID\'si.' });
     }
 
-    const { storyText, storyType, customTopic } = req.body;
+  const { storyText, storyType, customTopic, categories } = req.body;
 
     // Input validation
     if (!storyText || !storyType) {
@@ -783,7 +853,8 @@ app.put('/api/stories/:id', (req, res) => {
       return res.status(400).json({ error: 'Özel konu 200 karakterden uzun olamaz.' });
     }
 
-    const updated = storyDb.updateStory(id, storyText.trim(), storyType, customTopic?.trim());
+  // Not: Şimdilik updateStory categories'i güncellemiyor; ileri aşamada migration yapılabilir.
+  const updated = storyDb.updateStory(id, storyText.trim(), storyType, customTopic?.trim());
 
     if (!updated) {
       return res.status(404).json({ error: 'Güncellenecek masal bulunamadı.' });
@@ -903,6 +974,8 @@ app.get('/api/stories/type/:storyType', (req, res) => {
     res.status(500).json({ error: 'Masallar getirilirken hata oluştu.' });
   }
 });
+
+
 
 
 // --- TTS İSTEKLERİ İÇİN ENDPOINT (GÜNCELLENMİŞ) ---

@@ -39,6 +39,7 @@ function initDatabase() {
       story_text TEXT NOT NULL,
       story_type TEXT NOT NULL,
       custom_topic TEXT,
+  categories TEXT, -- JSON array (örn: ["macera","uyku"])
       is_favorite INTEGER DEFAULT 0,
       is_shared INTEGER DEFAULT 0,
       share_id TEXT UNIQUE,
@@ -56,6 +57,16 @@ function initDatabase() {
     // Sütun zaten varsa hata verir, bu normaldir
     if (!error.message.includes('duplicate column name')) {
       console.log('is_favorite sütunu zaten mevcut');
+    }
+  }
+
+  // categories sütununu ekle (migration)
+  try {
+    db.exec(`ALTER TABLE stories ADD COLUMN categories TEXT`);
+    console.log('categories sütunu eklendi');
+  } catch (error) {
+    if (!error.message.includes('duplicate column name')) {
+      console.log('categories sütunu zaten mevcut');
     }
   }
 
@@ -127,10 +138,71 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_audio_story_id ON audio_files (story_id);
   `);
 
+  // FTS (Full Text Search) tablosu oluştur
+  try {
+    db.exec(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS stories_fts USING fts5(
+        story_text,
+        story_type,
+        custom_topic,
+        content='stories',
+        content_rowid='id'
+      );
+    `);
+    console.log('FTS tablosu oluşturuldu');
+  } catch (error) {
+    console.log('FTS tablosu zaten mevcut veya hata:', error.message);
+  }
+
+  // FTS tablosunu mevcut verilerle doldur (sadece tablo boşsa)
+  try {
+    const ftsCount = db.prepare('SELECT COUNT(*) as c FROM stories_fts').get();
+    if (ftsCount.c === 0) {
+      db.exec(`
+        INSERT OR REPLACE INTO stories_fts(rowid, story_text, story_type, custom_topic)
+        SELECT id, story_text, story_type, COALESCE(custom_topic, '') FROM stories;
+      `);
+      console.log('FTS tablosu ilk kez dolduruldu');
+    } else {
+      console.log('FTS tablosu zaten dolu, toplu doldurma atlandı');
+    }
+  } catch (error) {
+    console.log('FTS tablosu güncelleme hatası:', error.message);
+  }
+
   // Queue indeksleri
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_queue_story_id ON queue (story_id);
   `);
+
+  // FTS trigger'ları oluştur
+  try {
+    db.exec(`
+      CREATE TRIGGER IF NOT EXISTS stories_fts_insert AFTER INSERT ON stories BEGIN
+        INSERT INTO stories_fts(rowid, story_text, story_type, custom_topic)
+        VALUES (new.id, new.story_text, new.story_type, COALESCE(new.custom_topic, ''));
+      END;
+    `);
+
+    db.exec(`
+      CREATE TRIGGER IF NOT EXISTS stories_fts_update AFTER UPDATE ON stories BEGIN
+        UPDATE stories_fts SET
+          story_text = new.story_text,
+          story_type = new.story_type,
+          custom_topic = COALESCE(new.custom_topic, '')
+        WHERE rowid = new.id;
+      END;
+    `);
+
+    db.exec(`
+      CREATE TRIGGER IF NOT EXISTS stories_fts_delete AFTER DELETE ON stories BEGIN
+        DELETE FROM stories_fts WHERE rowid = old.id;
+      END;
+    `);
+    console.log('FTS trigger\'ları oluşturuldu');
+  } catch (error) {
+    console.log('FTS trigger\'ları zaten mevcut veya hata:', error.message);
+  }
 
   // Paylaşım sütunları ekledikten sonra indeksleri oluştur
   try {
@@ -173,8 +245,8 @@ initDatabase();
 const statements = {
   // Story operations
   insertStory: db.prepare(`
-    INSERT INTO stories (story_text, story_type, custom_topic)
-    VALUES (?, ?, ?)
+  INSERT INTO stories (story_text, story_type, custom_topic, categories)
+  VALUES (?, ?, ?, ?)
   `),
 
   getStoryById: db.prepare(`
@@ -234,6 +306,35 @@ const statements = {
     ORDER BY s.shared_at DESC
   `),
 
+  // Search operations
+  searchStoriesFTS: db.prepare(`
+    SELECT s.*, a.file_name, a.file_path, a.voice_id,
+           bm25(stories_fts) as rank
+    FROM stories_fts
+    JOIN stories s ON stories_fts.rowid = s.id
+    LEFT JOIN audio_files a ON s.id = a.story_id
+    WHERE stories_fts MATCH ?
+    ORDER BY rank, s.created_at DESC
+    LIMIT ?
+  `),
+
+  searchStoriesByTitle: db.prepare(`
+    SELECT s.*, a.file_name, a.file_path, a.voice_id
+    FROM stories s
+    LEFT JOIN audio_files a ON s.id = a.story_id
+    WHERE s.custom_topic LIKE ? OR s.story_type LIKE ?
+    ORDER BY s.created_at DESC
+    LIMIT ?
+  `),
+  searchStoriesByContent: db.prepare(`
+    SELECT s.*, a.file_name, a.file_path, a.voice_id
+    FROM stories s
+    LEFT JOIN audio_files a ON s.id = a.story_id
+    WHERE s.story_text LIKE ?
+    ORDER BY s.created_at DESC
+    LIMIT ?
+  `),
+
   // Audio operations
   insertAudio: db.prepare(`
     INSERT INTO audio_files (story_id, file_name, file_path, voice_id, voice_settings)
@@ -277,8 +378,28 @@ const statements = {
   `),
   getMaxQueuePos: db.prepare(`
     SELECT COALESCE(MAX(position), 0) as maxpos FROM queue
-  `)
+  `),
+
+  searchStoriesByTitle: db.prepare(`
+    SELECT s.*, a.file_name, a.file_path, a.voice_id
+    FROM stories s
+    LEFT JOIN audio_files a ON s.id = a.story_id
+    WHERE s.custom_topic LIKE ? OR s.story_type LIKE ?
+    ORDER BY s.created_at DESC
+    LIMIT ?
+  `),
+  searchStoriesByContent: db.prepare(`
+    SELECT s.*, a.file_name, a.file_path, a.voice_id
+    FROM stories s
+    LEFT JOIN audio_files a ON s.id = a.story_id
+    WHERE s.story_text LIKE ?
+    ORDER BY s.created_at DESC
+    LIMIT ?
+  `),
 };
+
+// Arama için maksimum limit sabiti
+const MAX_SEARCH_LIMIT = 50;
 
 // Utility function to generate unique share ID
 function generateShareId() {
@@ -288,9 +409,10 @@ function generateShareId() {
 // Database functions
 const storyDb = {
   // Story operations
-  createStory(storyText, storyType, customTopic = null) {
+  createStory(storyText, storyType, customTopic = null, categories = []) {
     try {
-      const result = statements.insertStory.run(storyText, storyType, customTopic);
+      const categoriesValue = Array.isArray(categories) ? JSON.stringify(categories) : (categories || null);
+      const result = statements.insertStory.run(storyText, storyType, customTopic, categoriesValue);
       return result.lastInsertRowid;
     } catch (error) {
       console.error('Masal oluşturma hatası:', error);
@@ -431,6 +553,7 @@ const storyDb = {
         story_text: row.story_text,
         story_type: row.story_type,
         custom_topic: row.custom_topic,
+  categories: row.categories ? JSON.parse(row.categories) : [],
         created_at: row.created_at,
         updated_at: row.updated_at,
         audio: row.audio_id ? {
@@ -543,6 +666,7 @@ const storyDb = {
         story_text: row.story_text,
         story_type: row.story_type,
         custom_topic: row.custom_topic,
+  categories: row.categories ? JSON.parse(row.categories) : [],
         is_favorite: row.is_favorite,
         is_shared: row.is_shared,
         share_id: row.share_id,
@@ -598,6 +722,90 @@ const storyDb = {
       console.error('Paylaşılan masalları getirme hatası:', error);
       throw error;
     }
+  },
+
+      if (useFTS) {
+        try {
+          // FTS5 query - escape special characters and use Unicode-safe handling
+          const ftsQuery = searchTerm
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+          if (ftsQuery.length > 0) {
+            const rows = statements.searchStoriesFTS.all(ftsQuery, limit);
+            return this.processStoryRows(rows);
+          }
+        } catch (ftsError) {
+          console.log('FTS search failed, falling back to basic search:', ftsError.message);
+        }
+      },
+
+  searchStoriesByTitle(query, limit = MAX_SEARCH_LIMIT) {
+    try {
+      if (!query || typeof query !== 'string' || query.trim().length === 0) {
+        return [];
+      }
+
+      // Title search is based on custom_topic and story_type
+      const likePattern = `%${query.trim()}%`;
+      const rows = statements.searchStoriesByTitle.all(likePattern, likePattern, Math.min(limit, MAX_SEARCH_LIMIT));
+
+      return this.processStoryRows(rows);
+    } catch (error) {
+      console.error('Başlık arama hatası:', error);
+      throw error;
+    }
+  },
+
+  searchStoriesByContent(query, limit = MAX_SEARCH_LIMIT) {
+    try {
+      if (!query || typeof query !== 'string' || query.trim().length === 0) {
+        return [];
+      }
+
+      const likePattern = `%${query.trim()}%`;
+      const rows = statements.searchStoriesByContent.all(likePattern, Math.min(limit, MAX_SEARCH_LIMIT));
+
+      return this.processStoryRows(rows);
+    } catch (error) {
+      console.error('İçerik arama hatası:', error);
+      throw error;
+    }
+  },
+
+  // Helper function to process story rows consistently
+  processStoryRows(rows) {
+    const storiesMap = new Map();
+
+    rows.forEach(row => {
+      if (!storiesMap.has(row.id)) {
+        storiesMap.set(row.id, {
+          id: row.id,
+          story_text: row.story_text,
+          story_type: row.story_type,
+          custom_topic: row.custom_topic,
+          categories: row.categories ? JSON.parse(row.categories) : [],
+          is_favorite: row.is_favorite,
+          is_shared: row.is_shared,
+          share_id: row.share_id,
+          shared_at: row.shared_at,
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+          audio: null,
+          rank: row.rank || null
+        });
+      }
+
+      if (row.file_name) {
+        storiesMap.get(row.id).audio = {
+          file_name: row.file_name,
+          file_path: row.file_path,
+          voice_id: row.voice_id
+        };
+      }
+    });
+
+    return Array.from(storiesMap.values());
   },
 
   // Utility functions
