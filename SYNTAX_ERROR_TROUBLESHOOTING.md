@@ -41,6 +41,10 @@ npm run dev
 - Try in incognito/private mode
 - Test in different browser (Chrome, Firefox, Edge)
 
+### **Step 3b: Unregister Service Workers**
+- Chrome/Edge: DevTools > Application > Service Workers > Unregister (and Clear storage > Clear site data)
+- Firefox: about:debugging#/runtime/this-firefox > Service Workers > Unregister
+- Then hard-reload the page
 ### **Step 4: Clear Node.js Cache**
 ```bash
 # Clear npm cache
