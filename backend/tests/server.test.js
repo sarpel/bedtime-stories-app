@@ -28,15 +28,29 @@ describe('API endpoints', () => {
 
     test('forwards successful response', async () => {
       process.env.OPENAI_API_KEY = 'key';
-      axios.post.mockResolvedValue({ data: { ok: true } });
+      // Mock OpenAI Responses API format
+      axios.post.mockResolvedValue({
+        data: {
+          output: [{
+            type: 'message',
+            content: [{
+              type: 'output_text',
+              text: 'This is a test bedtime story for a 5-year-old child.'
+            }]
+          }],
+          usage: { total_tokens: 50 },
+          model: 'gpt-4o-mini',
+          id: 'test-id'
+        }
+      });
       app = loadApp();
       const res = await request(app)
         .post('/api/llm')
         .send({ provider: 'openai', modelId: 'gpt-4o-mini', prompt: 'p', max_completion_tokens: 5 });
       expect(axios.post).toHaveBeenCalled();
       expect(res.status).toBe(200);
-      // Sunucu ham yanıtı olduğu gibi iletir
-      expect(res.body.ok).toBe(true);
+      // Check transformed response format
+      expect(res.body.text).toBe('This is a test bedtime story for a 5-year-old child.');
     });
 
     test('allows custom provider with client-provided endpoint', async () => {

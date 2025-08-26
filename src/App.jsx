@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent } from '@/components/ui/card.jsx'
-import { Moon, Settings, Heart, AlertCircle, BookOpen, BarChart3, Zap } from 'lucide-react'
+import { Moon, Settings, Heart, AlertCircle, BookOpen, BarChart3, Zap, Play, Square, ListMusic, X } from 'lucide-react'
 import SettingsPanel from './components/Settings.jsx'
 import StoryCreator from './components/StoryCreator.jsx'
 import FavoritesPanel from './components/FavoritesPanel.jsx'
@@ -26,7 +26,7 @@ import stabilityMonitor from './utils/stabilityMonitor.js'
 import './App.css'
 import { Toaster } from '@/components/ui/sonner.jsx'
 import { toast } from 'sonner'
-import { Play, Pause, Square, ListMusic, X } from 'lucide-react'
+
 
 function App() {
   const isMobile = useIsMobile()
@@ -112,7 +112,7 @@ function App() {
   } = useFavorites()
 
   // Masal geçmişi hook'u (localStorage için backward compatibility)
-  const { history, addToHistory, updateStoryAudio, updateStory, removeFromHistory, clearHistory } = useStoryHistory()
+  const { history, updateStoryAudio, updateStory, removeFromHistory, clearHistory } = useStoryHistory()
 
   // Veritabanı hook'u (yeni sistem)
   const {
