@@ -148,12 +148,11 @@ export default function StoryCreator({
   }
 
   const handleAddCategories = () => {
-    if (!categoryInput.trim()) return
-  const handleAddCategories = () => {
     // Don’t proceed if the input is empty or only whitespace
     if (!categoryInput.trim()) return
 
     // Split on commas, trim, lowercase, and dedupe within the input
+    // ...
     const parts = categoryInput
       .split(',')
       .map(c => c.trim().toLowerCase())
