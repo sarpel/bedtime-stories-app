@@ -117,6 +117,13 @@ const useProfiles = () => {
 
   // Aktif profil değiştir
   const setActiveProfileById = useCallback(async (id) => {
+    // Validate that the profile exists
+    const profileExists = profiles.some(p => p.id === id)
+    if (!profileExists) {
+      toast.error('Seçilen profil bulunamadı')
+      return false
+    }
+
     try {
       setIsLoading(true)
       const response = await fetch('/api/profiles/active', {
