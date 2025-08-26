@@ -5,13 +5,18 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-# Keep GitHub metadata tracked (Actions, templates, dependabot)
+
+# GitHub metadata (keep Actions, templates, dependabot tracked)
 # .github/
+
 # Production build
 dist/
 build/
 .augment/
+
+# GitHub prompts (development specific)
 .github/prompts
+
 # Environment variables
 .env
 .env.local
