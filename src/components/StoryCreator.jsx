@@ -241,10 +241,21 @@ export default function StoryCreator({
                   {getReadingTime(story)} dk okuma
                 </Badge>
                 {categories.map(cat => (
-                  <Badge key={cat} variant="outline" className="flex items-center gap-1 text-xs cursor-pointer" onClick={() => handleRemoveCategory(cat)} title="Kaldır">
-                    #{cat}
-                  </Badge>
-                ))}
+                  {categories.map(cat => (
+                    <Badge
+                      key={cat}
+                      variant="outline"
+                      className="flex items-center gap-1 text-xs cursor-pointer"
+                      onClick={() => handleRemoveCategory(cat)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleRemoveCategory(cat)}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`${cat} kategorisini kaldır`}
+                      title="Kaldır"
+                    >
+                      #{cat}
+                    </Badge>
+                  ))}
               </div>
             ) : (
               <CardDescription className="text-sm">
