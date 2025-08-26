@@ -773,6 +773,49 @@ const storyDb = {
     }
   },
 
+  // Ana arama metodu - FTS ve fallback LIKE araması
+  searchStories(query, options = {}) {
+    try {
+      if (!query || typeof query !== 'string' || query.trim().length === 0) {
+        return [];
+      }
+
+      const { limit = MAX_SEARCH_LIMIT, useFTS = true } = options;
+      const searchTerm = query.trim();
+      const effectiveLimit = Math.min(limit, MAX_SEARCH_LIMIT);
+
+      // FTS arama öncelikli
+      if (useFTS) {
+        try {
+          // FTS5 query - escape special characters and use Unicode-safe handling
+          const ftsQuery = searchTerm
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          if (ftsQuery.length > 0) {
+            const rows = statements.searchStoriesFTS.all(ftsQuery, effectiveLimit);
+            const results = this.processStoryRows(rows);
+            if (results.length > 0) {
+              return results;
+            }
+          }
+        } catch (ftsError) {
+          console.log('FTS search failed, falling back to basic search:', ftsError.message);
+        }
+      }
+
+      // Fallback: LIKE search on both title and content
+      const likePattern = `%${searchTerm}%`;
+      const rows = statements.searchStoriesByContent.all(likePattern, effectiveLimit);
+
+      return this.processStoryRows(rows);
+    } catch (error) {
+      console.error('Arama hatası:', error);
+      throw error;
+    }
+  },
+
   // Helper function to process story rows consistently
   processStoryRows(rows) {
     const storiesMap = new Map();

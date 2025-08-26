@@ -4,13 +4,13 @@ import { Button } from '@/components/ui/button.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Textarea } from '@/components/ui/textarea.jsx'
 import { Progress } from '@/components/ui/progress.jsx'
-import { 
-  Heart, 
-  Share2, 
-  Download, 
-  Copy, 
-  Volume2, 
-  Clock, 
+import {
+  Heart,
+  Share2,
+  Download,
+  Copy,
+  Volume2,
+  Clock,
   BookOpen,
   Sparkles,
   CheckCircle,
@@ -21,24 +21,28 @@ import {
 import { getStoryTypeName } from '@/utils/storyTypes.js'
 import { shareStory, shareToSocialMedia, downloadStory } from '@/utils/share.js'
 
-export default function StoryCard({ 
-  story, 
-  storyType, 
+export default function StoryCard({
+  story,
+  storyType,
   customTopic = '',
-  isGenerating, 
-  progress, 
-  audioUrl, 
-  isPlaying, 
+  isGenerating,
+  progress,
+  audioUrl,
+  isPlaying,
   audioProgress,
   audioDuration,
-  onPlayAudio, 
-  onPauseAudio, 
-  onStopAudio, 
-  onToggleMute, 
+  onPlayAudio,
+  onPauseAudio,
+  onStopAudio,
+  onToggleMute,
   isMuted,
   isFavorite,
   onToggleFavorite,
-  onClearStory
+  onClearStory,
+  compact = false,
+  showActions = false,
+  onSelect,
+  onDelete
 }) {
   const [copied, setCopied] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
@@ -80,10 +84,121 @@ export default function StoryCard({
   }
 
   const getReadingTime = (text) => {
+    if (!text || typeof text !== 'string') {
+      return 1 // varsayılan değer
+    }
     const wordsPerMinute = 150
     const words = text.trim().split(/\s+/).length
     const minutes = Math.ceil(words / wordsPerMinute)
     return minutes
+  }
+
+  // Compact mode için favoriler paneli tarzı render
+  if (compact) {
+    const storyText = story?.story_text || story?.story || '';
+    const storyTypeName = storyType || story?.story_type || story?.storyType || '';
+    const topicText = customTopic || story?.custom_topic || story?.customTopic || '';
+    const createdAt = story?.created_at || story?.createdAt || new Date().toISOString();
+
+    const formatDate = (dateStr) => {
+      try {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('tr-TR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: '2-digit'
+        });
+      } catch {
+        return 'Bilinmiyor';
+      }
+    };
+
+    return (
+      <div className="border rounded p-2 hover:bg-accent/50 transition-colors">
+        <div className="space-y-2">
+          {/* 1. Satır: Başlık, Tür, Tarih (Sol) + Aksiyon Butonları (Sağ) */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1 flex-1 min-w-0">
+              <h3 className="text-sm font-medium truncate">
+                {topicText || getStoryTypeName(storyTypeName) || 'Özel Masal'}
+              </h3>
+              <Badge variant="secondary" className="text-xs px-1 py-0 h-4 flex-shrink-0">
+                {getStoryTypeName(storyTypeName)}
+              </Badge>
+              <Badge variant="outline" className="text-xs px-1 py-0 h-4 flex-shrink-0">
+                <Clock className="h-2 w-2 mr-0.5" />
+                {formatDate(createdAt)}
+              </Badge>
+            </div>
+
+            {showActions && (
+              <div className="flex items-center gap-1">
+                {onSelect && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={onSelect}
+                    className="h-6 px-1.5 text-xs"
+                  >
+                    Seç
+                  </Button>
+                )}
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onToggleFavorite && onToggleFavorite()}
+                  className={`h-6 px-1.5 ${isFavorite ? 'text-red-500 hover:text-red-600' : ''}`}
+                >
+                  <Heart className={`h-3 w-3 ${isFavorite ? 'fill-current' : ''}`} />
+                </Button>
+
+                {onDelete && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={onDelete}
+                    className="text-destructive hover:text-destructive-foreground hover:bg-destructive h-6 px-1.5 text-xs"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 2. Satır: Masal metni önizleme */}
+          <div
+            className="text-xs text-muted-foreground"
+            style={{
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden'
+            }}
+          >
+            {storyText.substring(0, 150)}...
+          </div>
+
+          {/* 3. Satır: İstatistikler ve ses */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs px-1 py-0 h-4">
+                <Clock className="h-2 w-2 mr-0.5" />
+                {getReadingTime(storyText)} dk
+              </Badge>
+
+              {story?.audio?.file_name && (
+                <Badge variant="outline" className="text-xs px-1 py-0 h-4">
+                  <Volume2 className="h-2 w-2 mr-0.5" />
+                  Sesli
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -108,7 +223,7 @@ export default function StoryCard({
               </Badge>
               <Badge variant="outline" className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                {getReadingTime(story)} dk okuma
+                {getReadingTime(story?.story_text)} dk okuma
               </Badge>
             </div>
           </div>
@@ -122,37 +237,37 @@ export default function StoryCard({
               <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
             </Button>
             <div className="relative">
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setShowShareMenu(!showShareMenu)}
               >
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
-              
+
               {showShareMenu && (
                 <div className="absolute right-0 top-full mt-1 bg-background border rounded-lg shadow-lg p-2 z-10 min-w-[200px]">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="w-full justify-start"
                     onClick={handleShare}
                   >
                     <Share2 className="h-4 w-4 mr-2" />
                     Paylaş
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="w-full justify-start"
                     onClick={handleDownload}
                   >
                     <Download className="h-4 w-4 mr-2" />
                     İndir
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="w-full justify-start"
                     onClick={handleCopy}
                   >
@@ -163,17 +278,17 @@ export default function StoryCard({
                   <div className="text-xs text-muted-foreground px-2 py-1">
                     Sosyal Medya
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="w-full justify-start text-xs"
                     onClick={() => handleSocialShare('twitter')}
                   >
                     Twitter
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="w-full justify-start text-xs"
                     onClick={() => handleSocialShare('whatsapp')}
                   >
@@ -235,12 +350,12 @@ export default function StoryCard({
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            
+
             {/* Aksiyon Butonları */}
             <div className="flex flex-wrap gap-3 pt-4 border-t">
               {audioUrl && (
                 <div className="flex items-center gap-2">
-                  <Button 
+                  <Button
                     onClick={isPlaying ? onPauseAudio : onPlayAudio}
                     size="sm"
                     variant="outline"
