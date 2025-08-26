@@ -1,28 +1,104 @@
 #!/usr/bin/env bash
 # =============================================================================
-# MİNİMUM ÜRETİM KURULUM SCRIPTİ (Pi Zero 2 W)
-# Amaç: Repoyu /opt/storyapp altına klonla, build et, systemd servisini başlat.
-# Gereksiz tüm rollback/backup/test/monitoring adımları kaldırıldı.
+# BEDTIME STORIES APP - ONE-CLICK PRODUCTION INSTALLER
+# Optimized for Raspberry Pi Zero 2W (512MB RAM)
+#
+# This script provides a complete one-click installation experience:
+# - Automatic dependency detection and installation
+# - Pi Zero 2W specific optimizations
+# - Production-ready configuration
+# - Comprehensive error handling and logging
+# - Post-installation verification
 # =============================================================================
+
 set -euo pipefail
-SCRIPT_VERSION="1.0.0"
+
+# Script Configuration
+SCRIPT_VERSION="2.0.0"
 APP_REPO="${APP_REPO:-https://github.com/sarpel/bedtime-stories-app.git}"
 APP_DIR="${APP_DIR:-/opt/storyapp}"
 APP_PORT="${APP_PORT:-3001}"
 LOG_DIR="/var/log/storyapp"
-mkdir -p "$LOG_DIR" || true
+BACKUP_DIR="/opt/storyapp-backups"
+
+# Create directories
+mkdir -p "$LOG_DIR" "$BACKUP_DIR" || true
 LOG_FILE="$LOG_DIR/setup-$(date +%Y%m%d-%H%M%S).log"
 
-log(){ echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
-err(){ echo "[ERROR] $*" | tee -a "$LOG_FILE" >&2; exit 1; }
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
-require_root(){ [ "$EUID" -eq 0 ] || err "root (sudo) ile çalıştır"; }
+# Logging functions
+log() {
+    echo -e "${BLUE}[$(date '+%H:%M:%S')]${NC} $*" | tee -a "$LOG_FILE"
+}
+success() {
+    echo -e "${GREEN}[$(date '+%H:%M:%S')] ✅ $*${NC}" | tee -a "$LOG_FILE"
+}
+warn() {
+    echo -e "${YELLOW}[$(date '+%H:%M:%S')] ⚠️  $*${NC}" | tee -a "$LOG_FILE"
+}
+err() {
+    echo -e "${RED}[$(date '+%H:%M:%S')] ❌ ERROR: $*${NC}" | tee -a "$LOG_FILE" >&2
+    exit 1
+}
 
-install_packages(){
-    log "Paketler kuruluyor";
-    apt-get update -y >>"$LOG_FILE" 2>&1;
-    # better-sqlite3 derlemesi için build-essential, python3 (node-gyp), make ve g++ şart
-    apt-get install -y curl git sqlite3 alsa-utils build-essential python3 make g++ >>"$LOG_FILE" 2>&1 || err "apt kurulum hatası";
+# System checks
+require_root() {
+    [ "$EUID" -eq 0 ] || err "This script must be run as root. Use: sudo $0"
+}
+
+check_system() {
+    log "Checking system compatibility..."
+
+    # Check if running on Raspberry Pi
+    if ! grep -q "Raspberry Pi" /proc/cpuinfo 2>/dev/null; then
+        warn "Not running on Raspberry Pi - some optimizations may not apply"
+    fi
+
+    # Check available memory
+    local mem_mb=$(free -m | awk 'NR==2{printf "%.0f", $2}')
+    if [ "$mem_mb" -lt 400 ]; then
+        warn "Low memory detected (${mem_mb}MB). Pi Zero 2W has 512MB - consider checking system load"
+    fi
+
+    # Check available disk space
+    local disk_gb=$(df / | awk 'NR==2{printf "%.1f", $4/1024/1024}')
+    if (( $(echo "$disk_gb < 2.0" | bc -l) )); then
+        err "Insufficient disk space (${disk_gb}GB available). Need at least 2GB free space"
+    fi
+
+    success "System compatibility check passed"
+}
+
+install_packages() {
+    log "Installing system packages..."
+
+    # Update package list
+    apt-get update -y >>"$LOG_FILE" 2>&1 || err "Failed to update package list"
+
+    # Install required packages for Pi Zero 2W
+    local packages=(
+        "curl"              # For downloading files
+        "git"               # For repository cloning
+        "sqlite3"           # Database CLI tools
+        "alsa-utils"        # Audio system utilities
+        "build-essential"   # Compilation tools for native modules
+        "python3"           # Required for node-gyp
+        "make"              # Build system
+        "g++"               # C++ compiler
+        "mpg123"            # Audio player for remote playback
+        "bc"                # Calculator for system checks
+    )
+
+    log "Installing packages: ${packages[*]}"
+    apt-get install -y "${packages[@]}" >>"$LOG_FILE" 2>&1 || err "Package installation failed"
+
+    success "System packages installed successfully"
 }
 
 ensure_node(){
@@ -186,41 +262,85 @@ verify(){
     curl -s "http://localhost:$APP_PORT/health" >/dev/null 2>&1 && log "Health OK" || log "Health endpoint yanıt vermiyor"
 }
 
-summary(){
-    IP=$(hostname -I | awk '{print $1}')
+show_completion_summary() {
+    local IP=$(hostname -I | awk '{print $1}')
+
+    echo ""
     echo "========================================="
-    echo "Kurulum tamam (v$SCRIPT_VERSION)"
-    echo "Uygulama: http://$IP:$APP_PORT"
+    echo "🎉 INSTALLATION COMPLETED SUCCESSFULLY! 🎉"
     echo "========================================="
-    echo "⚠️  ÖNEMLİ: API anahtarlarınızı ayarlayın!"
-    echo "Dosya: $APP_DIR/backend/.env"
     echo ""
-    echo "Gerekli anahtarlar:"
-    echo "  OPENAI_API_KEY=your_openai_key_here"
-    echo "  ELEVENLABS_API_KEY=your_elevenlabs_key_here"
+    echo "📱 Application Access:"
+    echo "   Local:    http://localhost:$APP_PORT"
+    echo "   Network:  http://$IP:$APP_PORT"
     echo ""
-    echo "Anahtarları ayarladıktan sonra servisi yeniden başlatın:"
-    echo "  sudo systemctl restart storyapp"
+    echo "⚠️  IMPORTANT: Configure API Keys"
+    echo "   File: $APP_DIR/backend/.env"
     echo ""
-    echo "Kurulum kontrolü için:"
-    echo "  cd $APP_DIR && bash check-setup.sh"
+    echo "🔑 Required API Keys:"
+    echo "   OPENAI_API_KEY=your_openai_key_here"
+    echo "   ELEVENLABS_API_KEY=your_elevenlabs_key_here"
     echo ""
-    echo "Servis log: journalctl -u storyapp -f"
-    echo "Gerekirse reboot önerilir (audio için)"
+    echo "🔄 After adding API keys:"
+    echo "   sudo systemctl restart storyapp"
+    echo ""
+    echo "✅ Verify Installation:"
+    echo "   cd $APP_DIR && bash check-setup.sh"
+    echo ""
+    echo "📊 Monitor Service:"
+    echo "   sudo systemctl status storyapp"
+    echo "   sudo journalctl -u storyapp -f"
+    echo ""
+    echo "🔧 Troubleshooting:"
+    echo "   - Check logs: $LOG_FILE"
+    echo "   - Audio issues: sudo reboot (recommended)"
+    echo "   - Memory issues: free -h"
+    echo ""
+    echo "📚 Documentation:"
+    echo "   README: $APP_DIR/README.md"
+    echo "   Health: curl http://localhost:$APP_PORT/health"
+    echo ""
+    echo "========================================="
+    echo "🚀 Ready for Production Use!"
     echo "========================================="
 }
 
-main(){
+main() {
+    echo "🚀 Bedtime Stories App - One-Click Installer v$SCRIPT_VERSION"
+    echo "Optimized for Raspberry Pi Zero 2W"
+    echo ""
+
+    log "Starting installation process..."
+
+    # Pre-installation checks
     require_root
-    ensure_node
+    check_system
+
+    # Core installation steps
     install_packages
-    mkdir -p "$APP_DIR" "$LOG_DIR"
+    ensure_node
+
+    # Application setup
+    mkdir -p "$APP_DIR" "$LOG_DIR" "$BACKUP_DIR"
     clone_or_update
     build_frontend
     install_backend
+
+    # Service configuration
     write_service
+
+    # Post-installation verification
     verify
-    summary
+
+    # Show completion summary
+    show_completion_summary
+
+    success "Installation completed successfully!"
+    log "Installation log saved to: $LOG_FILE"
 }
 
+# Handle script interruption
+trap 'err "Installation interrupted by user"' INT TERM
+
+# Run main installation
 main "$@"
