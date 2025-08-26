@@ -87,15 +87,6 @@ function initDatabase() {
     }
   }
 
-  // profile_id sütununu ekle (migration)
-  try {
-    db.exec(`ALTER TABLE stories ADD COLUMN profile_id INTEGER REFERENCES profiles(id)`);
-    console.log('profile_id sütunu eklendi');
-  } catch (error) {
-    if (!error.message.includes('duplicate column name')) {
-      console.log('profile_id sütunu zaten mevcut');
-    }
-  }
 
   try {
     db.exec(`ALTER TABLE stories ADD COLUMN share_id TEXT`);
