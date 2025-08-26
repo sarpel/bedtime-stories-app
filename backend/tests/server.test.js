@@ -54,14 +54,15 @@ describe('API endpoints', () => {
     });
 
     test('allows custom provider with client-provided endpoint', async () => {
-      axios.post.mockResolvedValue({ data: { text: 'masal metni' } });
+      const longStoryText = 'Bu çok uzun bir masal metni. Bir varmış bir yokmuş, evvel zaman içinde kalbur saman içinde...';
+      axios.post.mockResolvedValue({ data: { text: longStoryText } });
       app = loadApp();
       const res = await request(app)
         .post('/api/llm')
         .send({ provider: 'custom', modelId: 'x-model', prompt: 'p', endpoint: 'http://localhost/fake' });
       expect(axios.post).toHaveBeenCalledWith('http://localhost/fake', expect.any(Object), expect.any(Object));
       expect(res.status).toBe(200);
-      expect(res.body.text).toBe('masal metni');
+      expect(res.body.text).toBe(longStoryText);
     });
   });
 
