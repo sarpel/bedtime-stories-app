@@ -1,13 +1,16 @@
 # Dependencies
 node_modules/
+node_modules_*/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
 # Production build
 dist/
 build/
 .augment/
+
 # Environment variables
 .env
 .env.local
@@ -52,3 +55,22 @@ logs/
 
 # Test files
 test-*.db
+
+# Development documentation (keep only README.md)
+*_ASSESSMENT.md
+*_REPORT.md
+*_GUIDE.md
+*_PLAN.md
+DEPLOYMENT_*.md
+PRODUCTION_*.md
+PI_ZERO_*.md
+SETUP_*.md
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Package manager lock files (keep package-lock.json, ignore others)
+yarn.lock
+pnpm-lock.yaml
