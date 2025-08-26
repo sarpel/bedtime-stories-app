@@ -11,7 +11,6 @@ const useProfiles = () => {
     try {
       setIsLoading(true)
       const response = await fetch('/api/profiles')
-      const response = await fetch('/api/profiles')
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error('Yetkilendirme hatası')
