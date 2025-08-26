@@ -27,7 +27,6 @@ import './App.css'
 import { Toaster } from '@/components/ui/sonner.jsx'
 import { toast } from 'sonner'
 
-
 function App() {
   const isMobile = useIsMobile()
   const [story, setStory] = useState('')
