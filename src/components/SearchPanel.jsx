@@ -1,0 +1,294 @@
+import { useState, useEffect, useMemo } from 'react'
+import { Button } from '@/components/ui/button.jsx'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx'
+import { Input } from '@/components/ui/input.jsx'
+import { Badge } from '@/components/ui/badge.jsx'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
+import { Search, X, Clock, Star, Filter, Loader2 } from 'lucide-react'
+import StoryCard from './StoryCard.jsx'
+import { useDebounce } from '../hooks/useDebounce.js'
+import { toast } from 'sonner'
+
+const SearchPanel = ({ 
+  onClose, 
+  onStorySelect, 
+  favorites = [], 
+  onToggleFavorite,
+  onDeleteStory 
+}) => {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchType, setSearchType] = useState('all') // all, title, content
+  const [searchResults, setSearchResults] = useState([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchHistory, setSearchHistory] = useState([])
+  const [hasSearched, setHasSearched] = useState(false)
+
+  // Debounce search query to avoid too many API calls
+  const debouncedQuery = useDebounce(searchQuery, 500)
+
+  // Load search history from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('story-search-history')
+      if (saved) {
+        setSearchHistory(JSON.parse(saved).slice(0, 10)) // Keep last 10 searches
+      }
+    } catch (error) {
+      console.error('Search history load error:', error)
+    }
+  }, [])
+
+  // Save search to history
+  const saveSearchToHistory = (query) => {
+    if (!query.trim() || query.length < 2) return
+    
+    try {
+      const newHistory = [query, ...searchHistory.filter(h => h !== query)].slice(0, 10)
+      setSearchHistory(newHistory)
+      localStorage.setItem('story-search-history', JSON.stringify(newHistory))
+    } catch (error) {
+      console.error('Search history save error:', error)
+    }
+  }
+
+  // Perform search
+  const performSearch = async (query, type = 'all') => {
+    if (!query.trim() || query.length < 2) {
+      setSearchResults([])
+      setHasSearched(false)
+      return
+    }
+
+    setIsSearching(true)
+    setHasSearched(true)
+
+    try {
+      const params = new URLSearchParams({
+        q: query.trim(),
+        limit: '50',
+        useFTS: 'true'
+      })
+
+      if (type !== 'all') {
+        params.append('type', type)
+      }
+
+      const response = await fetch(`/api/stories/search?${params}`)
+      
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status}`)
+      }
+
+      const data = await response.json()
+      setSearchResults(data.results || [])
+      
+      // Save successful search to history
+      saveSearchToHistory(query)
+
+      console.log(`Search completed: ${data.count} results for "${query}"`)
+      
+    } catch (error) {
+      console.error('Search error:', error)
+      toast.error('Arama yapılırken hata oluştu')
+      setSearchResults([])
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  // Effect for debounced search
+  useEffect(() => {
+    if (debouncedQuery) {
+      performSearch(debouncedQuery, searchType)
+    } else {
+      setSearchResults([])
+      setHasSearched(false)
+    }
+  }, [debouncedQuery, searchType])
+
+  // Clear search
+  const clearSearch = () => {
+    setSearchQuery('')
+    setSearchResults([])
+    setHasSearched(false)
+  }
+
+  // Clear search history
+  const clearSearchHistory = () => {
+    setSearchHistory([])
+    localStorage.removeItem('story-search-history')
+    toast.success('Arama geçmişi temizlendi')
+  }
+
+  // Handle search history click
+  const handleHistoryClick = (query) => {
+    setSearchQuery(query)
+  }
+
+  // Memoized search results with favorites info
+  const enrichedResults = useMemo(() => {
+    return searchResults.map(story => ({
+      ...story,
+      isFavorite: favorites.some(fav => fav.id === story.id)
+    }))
+  }, [searchResults, favorites])
+
+  return (
+    <Card className="w-full max-w-4xl mx-auto">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5" />
+            Masal Arama
+          </CardTitle>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {/* Search Input */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Masal ara... (en az 2 karakter)"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-10"
+            autoFocus
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearSearch}
+              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
+        {/* Search Type Tabs */}
+        <Tabs value={searchType} onValueChange={setSearchType}>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="all" className="flex items-center gap-1">
+              <Filter className="h-3 w-3" />
+              Tümü
+            </TabsTrigger>
+            <TabsTrigger value="title" className="flex items-center gap-1">
+              <Star className="h-3 w-3" />
+              Başlık
+            </TabsTrigger>
+            <TabsTrigger value="content" className="flex items-center gap-1">
+              <Search className="h-3 w-3" />
+              İçerik
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="all" className="mt-4">
+            <p className="text-sm text-muted-foreground">
+              Masal başlığı, türü ve içeriğinde arama yapar
+            </p>
+          </TabsContent>
+          <TabsContent value="title" className="mt-4">
+            <p className="text-sm text-muted-foreground">
+              Sadece masal başlığı ve türünde arama yapar
+            </p>
+          </TabsContent>
+          <TabsContent value="content" className="mt-4">
+            <p className="text-sm text-muted-foreground">
+              Sadece masal içeriğinde arama yapar
+            </p>
+          </TabsContent>
+        </Tabs>
+
+        {/* Search History */}
+        {!searchQuery && searchHistory.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                Son Aramalar
+              </h4>
+              <Button variant="ghost" size="sm" onClick={clearSearchHistory}>
+                Temizle
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {searchHistory.map((query, index) => (
+                <Badge
+                  key={index}
+                  variant="secondary"
+                  className="cursor-pointer hover:bg-secondary/80"
+                  onClick={() => handleHistoryClick(query)}
+                >
+                  {query}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isSearching && (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin mr-2" />
+            <span>Aranıyor...</span>
+          </div>
+        )}
+
+        {/* Search Results */}
+        {!isSearching && hasSearched && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium">
+                Arama Sonuçları ({enrichedResults.length})
+              </h4>
+              {searchQuery && (
+                <Badge variant="outline">
+                  "{searchQuery}" için {searchType === 'all' ? 'tüm' : searchType} arama
+                </Badge>
+              )}
+            </div>
+
+            {enrichedResults.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Arama kriterlerinize uygun masal bulunamadı.</p>
+                <p className="text-sm mt-1">Farklı kelimeler deneyin veya arama türünü değiştirin.</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 max-h-96 overflow-y-auto">
+                {enrichedResults.map((story) => (
+                  <StoryCard
+                    key={story.id}
+                    story={story}
+                    onSelect={() => onStorySelect(story)}
+                    onToggleFavorite={() => onToggleFavorite(story.id)}
+                    onDelete={() => onDeleteStory(story.id)}
+                    isFavorite={story.isFavorite}
+                    showActions={true}
+                    compact={true}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!searchQuery && !hasSearched && searchHistory.length === 0 && (
+          <div className="text-center py-8 text-muted-foreground">
+            <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>Masallarınızda arama yapmak için yukarıdaki kutucuğa yazın.</p>
+            <p className="text-sm mt-1">En az 2 karakter girmeniz gerekiyor.</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+export default SearchPanel

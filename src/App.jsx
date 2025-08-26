@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent } from '@/components/ui/card.jsx'
-import { Moon, Settings, Heart, AlertCircle, BookOpen, BarChart3, Zap, Play, Square, ListMusic, X } from 'lucide-react'
+import { Moon, Settings, Heart, AlertCircle, BookOpen, BarChart3, Zap, Play, Square, ListMusic, X, Search } from 'lucide-react'
 import SettingsPanel from './components/Settings.jsx'
 import StoryCreator from './components/StoryCreator.jsx'
 import FavoritesPanel from './components/FavoritesPanel.jsx'
@@ -9,6 +9,7 @@ import StoryManagementPanel from './components/StoryManagementPanel.jsx'
 import AnalyticsDashboard from './components/AnalyticsDashboard.jsx'
 import PerformanceMonitor from './components/PerformanceMonitor.jsx'
 import StoryQueuePanel from './components/StoryQueuePanel.jsx'
+import SearchPanel from './components/SearchPanel.jsx'
 import { LLMService } from './services/llmService.js'
 import { TTSService } from './services/ttsService.js'
 import { getDefaultSettings } from './services/configService.js'
@@ -43,6 +44,7 @@ function App() {
   const [showStoryManagement, setShowStoryManagement] = useState(false)
   const [showAnalytics, setShowAnalytics] = useState(false)
   const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false)
+  const [showSearch, setShowSearch] = useState(false)
   // Son oluşturulan masalın geçmiş ID'si
   const [currentStoryId, setCurrentStoryId] = useState(null)
   // Remote playback state (StoryQueuePanel'den bubble up)
@@ -536,6 +538,16 @@ function App() {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setShowSearch(true)}
+              className="gap-1 px-2 h-8 text-xs"
+            >
+              <Search className="h-3 w-3" />
+              <span className="hidden md:inline">Arama</span>
+              <span className="md:hidden">Ara</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setShowStoryManagement(true)}
               className="gap-1 px-2 h-8 text-xs"
             >
@@ -743,6 +755,30 @@ function App() {
             isOpen={showPerformanceMonitor}
             onClose={() => setShowPerformanceMonitor(false)}
           />
+        )}
+
+        {/* Search Panel */}
+        {showSearch && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <SearchPanel
+              onClose={() => setShowSearch(false)}
+              onStorySelect={(story) => {
+                setStory(story.story_text || story.story)
+                setSelectedStoryType(story.story_type || story.storyType)
+                setCustomTopic(story.custom_topic || story.customTopic || '')
+                setCurrentStoryId(story.id)
+                const audioSrc = story.audio ? getDbAudioUrl(story.audio.file_name) : story.audioUrl;
+                if (audioSrc) {
+                  setAudioUrl(audioSrc)
+                }
+                setShowSearch(false)
+                toast.success('Masal seçildi')
+              }}
+              favorites={favorites}
+              onToggleFavorite={handleToggleFavorite}
+              onDeleteStory={hybridDeleteStory}
+            />
+          </div>
         )}
 
         {/* Story Queue Panel - Replace old story list */}

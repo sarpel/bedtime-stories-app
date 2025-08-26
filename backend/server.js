@@ -678,6 +678,62 @@ app.delete('/api/queue/:id', (req, res) => {
 
 // --- VERİTABANI API ENDPOINT'LERİ ---
 
+// Masal arama endpoint'i (MUST be before /:id route)
+app.get('/api/stories/search', (req, res) => {
+  try {
+    const { q: query, limit, type, useFTS } = req.query;
+
+    // Input validation
+    if (!query || typeof query !== 'string' || query.trim().length === 0) {
+      return res.status(400).json({ error: 'Arama sorgusu gereklidir.' });
+    }
+
+    if (query.trim().length < 2) {
+      return res.status(400).json({ error: 'Arama sorgusu en az 2 karakter olmalıdır.' });
+    }
+
+    // Parse options
+    const searchOptions = {
+      limit: limit ? Math.min(parseInt(limit) || 20, 100) : 20,
+      useFTS: useFTS !== 'false' // Default true unless explicitly disabled
+    };
+
+    let results;
+
+    // Different search types
+    switch (type) {
+      case 'title':
+        results = storyDb.searchStoriesByTitle(query, searchOptions.limit);
+        break;
+      case 'content':
+        results = storyDb.searchStoriesByContent(query, searchOptions.limit);
+        break;
+      default:
+        results = storyDb.searchStories(query, searchOptions);
+    }
+
+    logger.info({
+      msg: 'Arama tamamlandı',
+      query: query.substring(0, 50),
+      type: type || 'all',
+      resultCount: results.length,
+      useFTS: searchOptions.useFTS
+    });
+
+    res.json({
+      query,
+      type: type || 'all',
+      results,
+      count: results.length,
+      usedFTS: searchOptions.useFTS
+    });
+
+  } catch (error) {
+    logger.error({ msg: 'Arama hatası', error: error?.message, query: req.query.q });
+    res.status(500).json({ error: 'Arama yapılırken hata oluştu.' });
+  }
+});
+
 // Tüm masalları getir
 app.get('/api/stories', (req, res) => {
   try {
@@ -903,6 +959,8 @@ app.get('/api/stories/type/:storyType', (req, res) => {
     res.status(500).json({ error: 'Masallar getirilirken hata oluştu.' });
   }
 });
+
+
 
 
 // --- TTS İSTEKLERİ İÇİN ENDPOINT (GÜNCELLENMİŞ) ---

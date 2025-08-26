@@ -127,10 +127,66 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_audio_story_id ON audio_files (story_id);
   `);
 
+  // FTS (Full Text Search) tablosu oluştur
+  try {
+    db.exec(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS stories_fts USING fts5(
+        story_text,
+        story_type,
+        custom_topic,
+        content='stories',
+        content_rowid='id'
+      );
+    `);
+    console.log('FTS tablosu oluşturuldu');
+  } catch (error) {
+    console.log('FTS tablosu zaten mevcut veya hata:', error.message);
+  }
+
+  // FTS tablosunu mevcut verilerle doldur
+  try {
+    db.exec(`
+      INSERT OR REPLACE INTO stories_fts(rowid, story_text, story_type, custom_topic)
+      SELECT id, story_text, story_type, COALESCE(custom_topic, '') FROM stories;
+    `);
+    console.log('FTS tablosu güncellendi');
+  } catch (error) {
+    console.log('FTS tablosu güncelleme hatası:', error.message);
+  }
+
   // Queue indeksleri
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_queue_story_id ON queue (story_id);
   `);
+
+  // FTS trigger'ları oluştur
+  try {
+    db.exec(`
+      CREATE TRIGGER IF NOT EXISTS stories_fts_insert AFTER INSERT ON stories BEGIN
+        INSERT INTO stories_fts(rowid, story_text, story_type, custom_topic)
+        VALUES (new.id, new.story_text, new.story_type, COALESCE(new.custom_topic, ''));
+      END;
+    `);
+
+    db.exec(`
+      CREATE TRIGGER IF NOT EXISTS stories_fts_update AFTER UPDATE ON stories BEGIN
+        UPDATE stories_fts SET
+          story_text = new.story_text,
+          story_type = new.story_type,
+          custom_topic = COALESCE(new.custom_topic, '')
+        WHERE rowid = new.id;
+      END;
+    `);
+
+    db.exec(`
+      CREATE TRIGGER IF NOT EXISTS stories_fts_delete AFTER DELETE ON stories BEGIN
+        DELETE FROM stories_fts WHERE rowid = old.id;
+      END;
+    `);
+    console.log('FTS trigger\'ları oluşturuldu');
+  } catch (error) {
+    console.log('FTS trigger\'ları zaten mevcut veya hata:', error.message);
+  }
 
   // Paylaşım sütunları ekledikten sonra indeksleri oluştur
   try {
@@ -232,6 +288,29 @@ const statements = {
     LEFT JOIN audio_files a ON s.id = a.story_id
     WHERE s.is_shared = 1
     ORDER BY s.shared_at DESC
+  `),
+
+  // Search operations
+  searchStoriesFTS: db.prepare(`
+    SELECT s.*, a.file_name, a.file_path, a.voice_id,
+           bm25(stories_fts) as rank
+    FROM stories_fts
+    JOIN stories s ON stories_fts.rowid = s.id
+    LEFT JOIN audio_files a ON s.id = a.story_id
+    WHERE stories_fts MATCH ?
+    ORDER BY rank, s.created_at DESC
+    LIMIT ?
+  `),
+
+  searchStoriesBasic: db.prepare(`
+    SELECT s.*, a.file_name, a.file_path, a.voice_id
+    FROM stories s
+    LEFT JOIN audio_files a ON s.id = a.story_id
+    WHERE s.story_text LIKE ?
+       OR s.story_type LIKE ?
+       OR s.custom_topic LIKE ?
+    ORDER BY s.created_at DESC
+    LIMIT ?
   `),
 
   // Audio operations
@@ -598,6 +677,124 @@ const storyDb = {
       console.error('Paylaşılan masalları getirme hatası:', error);
       throw error;
     }
+  },
+
+  // Search functions
+  searchStories(query, options = {}) {
+    try {
+      const limit = Math.min(options.limit || 50, 100); // Max 100 results
+      const useFTS = options.useFTS !== false; // Default to true
+
+      if (!query || typeof query !== 'string' || query.trim().length === 0) {
+        return [];
+      }
+
+      const searchTerm = query.trim();
+
+      // Try FTS first if available and enabled
+      if (useFTS) {
+        try {
+          // FTS5 query - escape special characters and use simple matching
+          const ftsQuery = searchTerm.replace(/[^\w\s]/g, ' ').trim();
+          if (ftsQuery.length > 0) {
+            const rows = statements.searchStoriesFTS.all(ftsQuery, limit);
+            return this.processStoryRows(rows);
+          }
+        } catch (ftsError) {
+          console.log('FTS search failed, falling back to basic search:', ftsError.message);
+        }
+      }
+
+      // Fallback to basic LIKE search
+      const likePattern = `%${searchTerm}%`;
+      const rows = statements.searchStoriesBasic.all(likePattern, likePattern, likePattern, limit);
+      return this.processStoryRows(rows);
+
+    } catch (error) {
+      console.error('Arama hatası:', error);
+      throw error;
+    }
+  },
+
+  searchStoriesByTitle(query, limit = 20) {
+    try {
+      if (!query || typeof query !== 'string' || query.trim().length === 0) {
+        return [];
+      }
+
+      // Title search is based on custom_topic and story_type
+      const likePattern = `%${query.trim()}%`;
+      const rows = db.prepare(`
+        SELECT s.*, a.file_name, a.file_path, a.voice_id
+        FROM stories s
+        LEFT JOIN audio_files a ON s.id = a.story_id
+        WHERE s.custom_topic LIKE ? OR s.story_type LIKE ?
+        ORDER BY s.created_at DESC
+        LIMIT ?
+      `).all(likePattern, likePattern, Math.min(limit, 50));
+
+      return this.processStoryRows(rows);
+    } catch (error) {
+      console.error('Başlık arama hatası:', error);
+      throw error;
+    }
+  },
+
+  searchStoriesByContent(query, limit = 20) {
+    try {
+      if (!query || typeof query !== 'string' || query.trim().length === 0) {
+        return [];
+      }
+
+      const likePattern = `%${query.trim()}%`;
+      const rows = db.prepare(`
+        SELECT s.*, a.file_name, a.file_path, a.voice_id
+        FROM stories s
+        LEFT JOIN audio_files a ON s.id = a.story_id
+        WHERE s.story_text LIKE ?
+        ORDER BY s.created_at DESC
+        LIMIT ?
+      `).all(likePattern, Math.min(limit, 50));
+
+      return this.processStoryRows(rows);
+    } catch (error) {
+      console.error('İçerik arama hatası:', error);
+      throw error;
+    }
+  },
+
+  // Helper function to process story rows consistently
+  processStoryRows(rows) {
+    const storiesMap = new Map();
+
+    rows.forEach(row => {
+      if (!storiesMap.has(row.id)) {
+        storiesMap.set(row.id, {
+          id: row.id,
+          story_text: row.story_text,
+          story_type: row.story_type,
+          custom_topic: row.custom_topic,
+          is_favorite: row.is_favorite,
+          is_shared: row.is_shared,
+          share_id: row.share_id,
+          shared_at: row.shared_at,
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+          audio: null,
+          rank: row.rank || null
+        });
+      }
+
+      if (row.file_name) {
+        storiesMap.get(row.id).audio = {
+          file_name: row.file_name,
+          file_path: row.file_path,
+          voice_id: row.voice_id
+        };
+      }
+    });
+
+    return Array.from(storiesMap.values());
   },
 
   // Utility functions
