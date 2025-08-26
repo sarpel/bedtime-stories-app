@@ -741,22 +741,7 @@ const storyDb = {
     }
   },
 
-      if (useFTS) {
-        try {
-          // FTS5 query - escape special characters and use Unicode-safe handling
-          const ftsQuery = searchTerm
-            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-          if (ftsQuery.length > 0) {
-            const rows = statements.searchStoriesFTS.all(ftsQuery, limit);
-            return this.processStoryRows(rows);
-          }
-        } catch (ftsError) {
-          console.log('FTS search failed, falling back to basic search:', ftsError.message);
-        }
-      },
-
+// (The orphaned FTS block has been removed; no other changes in this region.)
   searchStoriesByTitle(query, limit = MAX_SEARCH_LIMIT) {
     try {
       if (!query || typeof query !== 'string' || query.trim().length === 0) {
