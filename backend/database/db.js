@@ -39,7 +39,7 @@ function initDatabase() {
       story_text TEXT NOT NULL,
       story_type TEXT NOT NULL,
       custom_topic TEXT,
-  categories TEXT, -- JSON array (örn: ["macera","uyku"]) 
+  categories TEXT, -- JSON array (örn: ["macera","uyku"])
       is_favorite INTEGER DEFAULT 0,
       is_shared INTEGER DEFAULT 0,
       share_id TEXT UNIQUE,
@@ -154,13 +154,18 @@ function initDatabase() {
     console.log('FTS tablosu zaten mevcut veya hata:', error.message);
   }
 
-  // FTS tablosunu mevcut verilerle doldur
+  // FTS tablosunu mevcut verilerle doldur (sadece tablo boşsa)
   try {
-    db.exec(`
-      INSERT OR REPLACE INTO stories_fts(rowid, story_text, story_type, custom_topic)
-      SELECT id, story_text, story_type, COALESCE(custom_topic, '') FROM stories;
-    `);
-    console.log('FTS tablosu güncellendi');
+    const ftsCount = db.prepare('SELECT COUNT(*) as c FROM stories_fts').get();
+    if (ftsCount.c === 0) {
+      db.exec(`
+        INSERT OR REPLACE INTO stories_fts(rowid, story_text, story_type, custom_topic)
+        SELECT id, story_text, story_type, COALESCE(custom_topic, '') FROM stories;
+      `);
+      console.log('FTS tablosu ilk kez dolduruldu');
+    } else {
+      console.log('FTS tablosu zaten dolu, toplu doldurma atlandı');
+    }
   } catch (error) {
     console.log('FTS tablosu güncelleme hatası:', error.message);
   }
@@ -313,13 +318,19 @@ const statements = {
     LIMIT ?
   `),
 
-  searchStoriesBasic: db.prepare(`
+  searchStoriesByTitle: db.prepare(`
+    SELECT s.*, a.file_name, a.file_path, a.voice_id
+    FROM stories s
+    LEFT JOIN audio_files a ON s.id = a.story_id
+    WHERE s.custom_topic LIKE ? OR s.story_type LIKE ?
+    ORDER BY s.created_at DESC
+    LIMIT ?
+  `),
+  searchStoriesByContent: db.prepare(`
     SELECT s.*, a.file_name, a.file_path, a.voice_id
     FROM stories s
     LEFT JOIN audio_files a ON s.id = a.story_id
     WHERE s.story_text LIKE ?
-       OR s.story_type LIKE ?
-       OR s.custom_topic LIKE ?
     ORDER BY s.created_at DESC
     LIMIT ?
   `),
@@ -367,8 +378,28 @@ const statements = {
   `),
   getMaxQueuePos: db.prepare(`
     SELECT COALESCE(MAX(position), 0) as maxpos FROM queue
-  `)
+  `),
+
+  searchStoriesByTitle: db.prepare(`
+    SELECT s.*, a.file_name, a.file_path, a.voice_id
+    FROM stories s
+    LEFT JOIN audio_files a ON s.id = a.story_id
+    WHERE s.custom_topic LIKE ? OR s.story_type LIKE ?
+    ORDER BY s.created_at DESC
+    LIMIT ?
+  `),
+  searchStoriesByContent: db.prepare(`
+    SELECT s.*, a.file_name, a.file_path, a.voice_id
+    FROM stories s
+    LEFT JOIN audio_files a ON s.id = a.story_id
+    WHERE s.story_text LIKE ?
+    ORDER BY s.created_at DESC
+    LIMIT ?
+  `),
 };
+
+// Arama için maksimum limit sabiti
+const MAX_SEARCH_LIMIT = 50;
 
 // Utility function to generate unique share ID
 function generateShareId() {
@@ -707,9 +738,9 @@ const storyDb = {
         } catch (ftsError) {
           console.log('FTS search failed, falling back to basic search:', ftsError.message);
         }
-      }
+      },
 
-  searchStoriesByTitle(query, limit = 20) {
+  searchStoriesByTitle(query, limit = MAX_SEARCH_LIMIT) {
     try {
       if (!query || typeof query !== 'string' || query.trim().length === 0) {
         return [];
@@ -717,14 +748,7 @@ const storyDb = {
 
       // Title search is based on custom_topic and story_type
       const likePattern = `%${query.trim()}%`;
-      const rows = db.prepare(`
-        SELECT s.*, a.file_name, a.file_path, a.voice_id
-        FROM stories s
-        LEFT JOIN audio_files a ON s.id = a.story_id
-        WHERE s.custom_topic LIKE ? OR s.story_type LIKE ?
-        ORDER BY s.created_at DESC
-        LIMIT ?
-      `).all(likePattern, likePattern, Math.min(limit, 50));
+      const rows = statements.searchStoriesByTitle.all(likePattern, likePattern, Math.min(limit, MAX_SEARCH_LIMIT));
 
       return this.processStoryRows(rows);
     } catch (error) {
@@ -733,21 +757,14 @@ const storyDb = {
     }
   },
 
-  searchStoriesByContent(query, limit = 20) {
+  searchStoriesByContent(query, limit = MAX_SEARCH_LIMIT) {
     try {
       if (!query || typeof query !== 'string' || query.trim().length === 0) {
         return [];
       }
 
       const likePattern = `%${query.trim()}%`;
-      const rows = db.prepare(`
-        SELECT s.*, a.file_name, a.file_path, a.voice_id
-        FROM stories s
-        LEFT JOIN audio_files a ON s.id = a.story_id
-        WHERE s.story_text LIKE ?
-        ORDER BY s.created_at DESC
-        LIMIT ?
-      `).all(likePattern, Math.min(limit, 50));
+      const rows = statements.searchStoriesByContent.all(likePattern, Math.min(limit, MAX_SEARCH_LIMIT));
 
       return this.processStoryRows(rows);
     } catch (error) {
@@ -767,7 +784,6 @@ const storyDb = {
           story_text: row.story_text,
           story_type: row.story_type,
           custom_topic: row.custom_topic,
-          categories: row.categories ? JSON.parse(row.categories) : [],
           categories: row.categories ? JSON.parse(row.categories) : [],
           is_favorite: row.is_favorite,
           is_shared: row.is_shared,

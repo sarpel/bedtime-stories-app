@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Input } from '@/components/ui/input.jsx'
@@ -9,12 +9,14 @@ import StoryCard from './StoryCard.jsx'
 import { useDebounce } from '../hooks/useDebounce.js'
 import { toast } from 'sonner'
 
-const SearchPanel = ({ 
-  onClose, 
-  onStorySelect, 
-  favorites = [], 
+const SEARCH_HISTORY_KEY = 'story-search-history'
+
+const SearchPanel = ({
+  onClose,
+  onStorySelect,
+  favorites = [],
   onToggleFavorite,
-  onDeleteStory 
+  onDeleteStory
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchType, setSearchType] = useState('all') // all, title, content
@@ -24,12 +26,12 @@ const SearchPanel = ({
   const [hasSearched, setHasSearched] = useState(false)
 
   // Debounce search query to avoid too many API calls
-  const debouncedQuery = useDebounce(searchQuery, 500)
+  const debouncedQuery = useDebounce(searchQuery, 300)
 
   // Load search history from localStorage
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('story-search-history')
+      const saved = localStorage.getItem(SEARCH_HISTORY_KEY)
       if (saved) {
         setSearchHistory(JSON.parse(saved).slice(0, 10)) // Keep last 10 searches
       }
@@ -38,22 +40,25 @@ const SearchPanel = ({
     }
   }, [])
 
-  // Save search to history
-  const saveSearchToHistory = (query) => {
-    if (!query.trim() || query.length < 2) return
-    
+  // Save search to history (memoized)
+  const saveSearchToHistory = useCallback((query) => {
+    const q = (query || '').trim()
+    if (q.length < 2) return
     try {
-      const newHistory = [query, ...searchHistory.filter(h => h !== query)].slice(0, 10)
-      setSearchHistory(newHistory)
-      localStorage.setItem('story-search-history', JSON.stringify(newHistory))
+      setSearchHistory(prev => {
+        const next = [q, ...prev.filter(h => h !== q)].slice(0, 10)
+        localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(next))
+        return next
+      })
     } catch (error) {
       console.error('Search history save error:', error)
     }
-  }
+  }, [])
 
-  // Perform search
-  const performSearch = async (query, type = 'all') => {
-    if (!query.trim() || query.length < 2) {
+  // Perform search (memoized)
+  const performSearch = useCallback(async (query, type = 'all') => {
+    const q = (query || '').trim()
+    if (q.length < 2) {
       setSearchResults([])
       setHasSearched(false)
       return
@@ -64,7 +69,7 @@ const SearchPanel = ({
 
     try {
       const params = new URLSearchParams({
-        q: query.trim(),
+        q,
         limit: '50',
         useFTS: 'true'
       })
@@ -74,19 +79,18 @@ const SearchPanel = ({
       }
 
       const response = await fetch(`/api/stories/search?${params}`)
-      
+
       if (!response.ok) {
         throw new Error(`Search failed: ${response.status}`)
       }
 
       const data = await response.json()
       setSearchResults(data.results || [])
-      
-      // Save successful search to history
-      saveSearchToHistory(query)
 
-      console.log(`Search completed: ${data.count} results for "${query}"`)
-      
+      // Save successful search to history
+      saveSearchToHistory(q)
+
+      console.log(`Search completed: ${data.count} results for "${q}"`)
     } catch (error) {
       console.error('Search error:', error)
       toast.error('Arama yapılırken hata oluştu')
@@ -94,85 +98,8 @@ const SearchPanel = ({
     } finally {
       setIsSearching(false)
     }
-  }
-
-  // Effect for debounced search
-import { useState, useEffect, useMemo, useCallback } from 'react'
-
-   // … other hooks and state declarations …
-
--  const saveSearchToHistory = (query) => {
--    if (!query.trim() || query.length < 2) return
--    
--    try {
--      const newHistory = [query, ...searchHistory.filter(h => h !== query)].slice(0, 10)
--      setSearchHistory(newHistory)
--      localStorage.setItem('story-search-history', JSON.stringify(newHistory))
--    } catch (error) {
--      console.error('Search history save error:', error)
--    }
-  const saveSearchToHistory = useCallback((query) => {
-    const q = (query || '').trim()
-    if (q.length < 2) return
-    try {
-      setSearchHistory(prev => {
-        const next = [q, ...prev.filter(h => h !== q)].slice(0, 10)
-        localStorage.setItem('story-search-history', JSON.stringify(next))
-        return next
-      })
-    } catch (error) {
-      console.error('Search history save error:', error)
-    }
-  }, [])
-
-   // … other code …
-
--  const performSearch = async (query, type = 'all') => {
-  const performSearch = useCallback(async (query, type = 'all') => {
-    const q = (query || '').trim()
-    if (q.length < 2) {
-       setSearchResults([])
-       setHasSearched(false)
-       return
-     }
- 
-     setIsSearching(true)
-     setHasSearched(true)
- 
-     try {
-       const params = new URLSearchParams({
-        q,
-         limit: '50',
-         useFTS: 'true'
-       })
-       const response = await fetch(`/api/stories/search?${params}`)
-       if (!response.ok) {
-         throw new Error(`Search failed: ${response.status}`)
-       }
-       const data = await response.json()
-       setSearchResults(data.results || [])
-       
-       // Save successful search to history
-      saveSearchToHistory(q)
-       
-      // Optional: add debug logging via a central logger if needed
-       
-     } catch (error) {
-       console.error('Search error:', error)
-       toast.error('Arama yapılırken hata oluştu')
-       setSearchResults([])
-     } finally {
-       setIsSearching(false)
-     }
   }, [saveSearchToHistory])
 
--  useEffect(() => {
--    if (debouncedQuery) {
--      performSearch(debouncedQuery, searchType)
--    } else {
--      setSearchResults([])
--      setHasSearched(false)
--    }
   useEffect(() => {
     if (debouncedQuery) {
       performSearch(debouncedQuery, searchType)
@@ -181,6 +108,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
       setHasSearched(false)
     }
   }, [debouncedQuery, searchType, performSearch])
+
   // Clear search
   const clearSearch = () => {
     setSearchQuery('')
@@ -191,7 +119,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
   // Clear search history
   const clearSearchHistory = () => {
     setSearchHistory([])
-    localStorage.removeItem('story-search-history')
+    localStorage.removeItem(SEARCH_HISTORY_KEY)
     toast.success('Arama geçmişi temizlendi')
   }
 

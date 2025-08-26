@@ -688,15 +688,16 @@ app.get('/api/stories/search', (req, res) => {
       return res.status(400).json({ error: 'Arama sorgusu gereklidir.' });
     }
 
-    if (query.trim().length < 2) {
-      return res.status(400).json({ error: 'Arama sorgusu en az 2 karakter olmalıdır.' });
-    }
-
     // Parse options
     const searchOptions = {
       limit: limit ? Math.min(parseInt(limit) || 20, 100) : 20,
       useFTS: useFTS !== 'false' // Default true unless explicitly disabled
     };
+
+    // Minimum query length validation moved here
+    if (query.trim().length < 2) {
+      return res.status(400).json({ error: 'Arama sorgusu en az 2 karakter olmalıdır.' });
+    }
 
     let results;
 
