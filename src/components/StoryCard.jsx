@@ -223,7 +223,7 @@ export default function StoryCard({
               </Badge>
               <Badge variant="outline" className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                {getReadingTime(story?.story_text)} dk okuma
+                {getReadingTime(story)} dk okuma
               </Badge>
             </div>
           </div>
