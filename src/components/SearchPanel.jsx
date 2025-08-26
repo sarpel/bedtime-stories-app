@@ -97,6 +97,82 @@ const SearchPanel = ({
   }
 
   // Effect for debounced search
+import { useState, useEffect, useMemo, useCallback } from 'react'
+
+   // … other hooks and state declarations …
+
+-  const saveSearchToHistory = (query) => {
+-    if (!query.trim() || query.length < 2) return
+-    
+-    try {
+-      const newHistory = [query, ...searchHistory.filter(h => h !== query)].slice(0, 10)
+-      setSearchHistory(newHistory)
+-      localStorage.setItem('story-search-history', JSON.stringify(newHistory))
+-    } catch (error) {
+-      console.error('Search history save error:', error)
+-    }
+  const saveSearchToHistory = useCallback((query) => {
+    const q = (query || '').trim()
+    if (q.length < 2) return
+    try {
+      setSearchHistory(prev => {
+        const next = [q, ...prev.filter(h => h !== q)].slice(0, 10)
+        localStorage.setItem('story-search-history', JSON.stringify(next))
+        return next
+      })
+    } catch (error) {
+      console.error('Search history save error:', error)
+    }
+  }, [])
+
+   // … other code …
+
+-  const performSearch = async (query, type = 'all') => {
+  const performSearch = useCallback(async (query, type = 'all') => {
+    const q = (query || '').trim()
+    if (q.length < 2) {
+       setSearchResults([])
+       setHasSearched(false)
+       return
+     }
+ 
+     setIsSearching(true)
+     setHasSearched(true)
+ 
+     try {
+       const params = new URLSearchParams({
+        q,
+         limit: '50',
+         useFTS: 'true'
+       })
+       const response = await fetch(`/api/stories/search?${params}`)
+       if (!response.ok) {
+         throw new Error(`Search failed: ${response.status}`)
+       }
+       const data = await response.json()
+       setSearchResults(data.results || [])
+       
+       // Save successful search to history
+      saveSearchToHistory(q)
+       
+      // Optional: add debug logging via a central logger if needed
+       
+     } catch (error) {
+       console.error('Search error:', error)
+       toast.error('Arama yapılırken hata oluştu')
+       setSearchResults([])
+     } finally {
+       setIsSearching(false)
+     }
+  }, [saveSearchToHistory])
+
+-  useEffect(() => {
+-    if (debouncedQuery) {
+-      performSearch(debouncedQuery, searchType)
+-    } else {
+-      setSearchResults([])
+-      setHasSearched(false)
+-    }
   useEffect(() => {
     if (debouncedQuery) {
       performSearch(debouncedQuery, searchType)
@@ -104,8 +180,7 @@ const SearchPanel = ({
       setSearchResults([])
       setHasSearched(false)
     }
-  }, [debouncedQuery, searchType])
-
+  }, [debouncedQuery, searchType, performSearch])
   // Clear search
   const clearSearch = () => {
     setSearchQuery('')
@@ -266,7 +341,7 @@ const SearchPanel = ({
                     key={story.id}
                     story={story}
                     onSelect={() => onStorySelect(story)}
-                    onToggleFavorite={() => onToggleFavorite(story.id)}
+                    onToggleFavorite={() => onToggleFavorite(story)}
                     onDelete={() => onDeleteStory(story.id)}
                     isFavorite={story.isFavorite}
                     showActions={true}

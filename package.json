@@ -4,7 +4,28 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently --names \"FRONTEND,BACKEND\" --prefix-colors \"cyan,magenta\" \"vite\" \"node backend/server.js\"",
+// vite.config.js
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  // … other config …
+  server: {
+    host: '0.0.0.0',
+    port: 5173,
+    // …
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        secure: false
+      },
+      '/audio': {
+        target: 'http://localhost:3001',
+        changeOrigin: true
+      }
+    }
+  }
+})
     "build": "vite build --mode production",
     "start": "node backend/server.js",
     "test": "npm run test --workspace backend && node tests/run-tests.cjs",

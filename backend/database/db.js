@@ -693,23 +693,13 @@ const storyDb = {
     }
   },
 
-  // Search functions
-  searchStories(query, options = {}) {
-    try {
-      const limit = Math.min(options.limit || 50, 100); // Max 100 results
-      const useFTS = options.useFTS !== false; // Default to true
-
-      if (!query || typeof query !== 'string' || query.trim().length === 0) {
-        return [];
-      }
-
-      const searchTerm = query.trim();
-
-      // Try FTS first if available and enabled
       if (useFTS) {
         try {
-          // FTS5 query - escape special characters and use simple matching
-          const ftsQuery = searchTerm.replace(/[^\w\s]/g, ' ').trim();
+          // FTS5 query - escape special characters and use Unicode-safe handling
+          const ftsQuery = searchTerm
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
           if (ftsQuery.length > 0) {
             const rows = statements.searchStoriesFTS.all(ftsQuery, limit);
             return this.processStoryRows(rows);
@@ -718,17 +708,6 @@ const storyDb = {
           console.log('FTS search failed, falling back to basic search:', ftsError.message);
         }
       }
-
-      // Fallback to basic LIKE search
-      const likePattern = `%${searchTerm}%`;
-      const rows = statements.searchStoriesBasic.all(likePattern, likePattern, likePattern, limit);
-      return this.processStoryRows(rows);
-
-    } catch (error) {
-      console.error('Arama hatası:', error);
-      throw error;
-    }
-  },
 
   searchStoriesByTitle(query, limit = 20) {
     try {
