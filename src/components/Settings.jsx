@@ -625,6 +625,27 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                     </div>
 
                     <div className="space-y-1">
+                      <Label htmlFor="theme" className="text-xs">Tema</Label>
+                      <Select
+                        value={localSettings.theme || 'system'}
+                        onValueChange={(value) => updateSetting('theme', value)}
+                      >
+                        <SelectTrigger className="h-7 text-xs w-full">
+                          <SelectValue placeholder="Seçin" />
+                        </SelectTrigger>
+                        <SelectContent
+                          className="z-[200] min-w-[var(--radix-select-trigger-width)] w-[var(--radix-select-trigger-width)]"
+                          position="popper"
+                          onCloseAutoFocus={(e) => e.preventDefault()}
+                        >
+                          <SelectItem value="light" className="text-xs">Açık</SelectItem>
+                          <SelectItem value="dark" className="text-xs">Koyu</SelectItem>
+                          <SelectItem value="system" className="text-xs">Sistem</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1">
                       <Label htmlFor="custom-prompt" className="text-xs">Özel Prompt</Label>
                       <Textarea
                         id="custom-prompt"

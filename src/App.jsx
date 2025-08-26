@@ -103,6 +103,40 @@ function App() {
     }
   }
 
+  // Tema uygulamasını yönet
+  useEffect(() => {
+    const applyTheme = (theme) => {
+      const root = document.documentElement
+
+      if (theme === 'dark') {
+        root.classList.add('dark')
+      } else if (theme === 'light') {
+        root.classList.remove('dark')
+      } else if (theme === 'system') {
+        // Sistem temasını kontrol et
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+        const handleSystemThemeChange = (e) => {
+          if (e.matches) {
+            root.classList.add('dark')
+          } else {
+            root.classList.remove('dark')
+          }
+        }
+
+        // İlk uygulama
+        handleSystemThemeChange(mediaQuery)
+
+        // Değişiklikleri dinle
+        mediaQuery.addEventListener('change', handleSystemThemeChange)
+
+        return () => mediaQuery.removeEventListener('change', handleSystemThemeChange)
+      }
+    }
+
+    const cleanup = applyTheme(settings.theme || 'system')
+    return cleanup
+  }, [settings.theme])
+
   // Favori masallar hook'u
   const {
     favorites,
