@@ -341,7 +341,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
                     key={story.id}
                     story={story}
                     onSelect={() => onStorySelect(story)}
-                    onToggleFavorite={() => onToggleFavorite(story.id)}
+                    onToggleFavorite={() => onToggleFavorite(story)}
                     onDelete={() => onDeleteStory(story.id)}
                     isFavorite={story.isFavorite}
                     showActions={true}
