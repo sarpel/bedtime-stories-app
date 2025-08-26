@@ -111,7 +111,7 @@ function App() {
   } = useFavorites()
 
   // Masal geçmişi hook'u (localStorage için backward compatibility)
-  const { history, updateStoryAudio, updateStory, removeFromHistory, clearHistory } = useStoryHistory()
+  const { history, addToHistory, updateStoryAudio, updateStory, removeFromHistory, clearHistory } = useStoryHistory()
 
   // Veritabanı hook'u (yeni sistem)
   const {
