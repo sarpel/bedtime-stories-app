@@ -11,14 +11,21 @@ const useProfiles = () => {
     try {
       setIsLoading(true)
       const response = await fetch('/api/profiles')
-      if (response.ok) {
-        const data = await response.json()
-        setProfiles(data.profiles || [])
-
-        // Aktif profili bul
-        const active = data.profiles?.find(p => p.is_active)
-        setActiveProfile(active || null)
+      const response = await fetch('/api/profiles')
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Yetkilendirme hatası')
+        } else if (response.status === 500) {
+          throw new Error('Sunucu hatası')
+        }
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
+      const data = await response.json()
+      setProfiles(data.profiles || [])
+
+      // Aktif profili bul
+      const active = data.profiles?.find(p => p.is_active)
+      setActiveProfile(active || null)
     } catch (error) {
       console.error('Profilleri yükleme hatası:', error)
       toast.error('Profiller yüklenirken hata oluştu')
