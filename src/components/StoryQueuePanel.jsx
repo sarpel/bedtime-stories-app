@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
@@ -286,7 +286,8 @@ export default function StoryQueuePanel({
   seekTo,
   getDbAudioUrl,
   // setOnEnded fonksiyonu App'ten pekala geçirilebilir; burada props yerine window üzerinden erişmeyelim
-  setOnEnded
+  setOnEnded,
+  onRemoteStatusChange // App seviyesine remote durumunu yükseltmek için opsiyonel callback
 }) {
   const [localStories, setLocalStories] = useState(stories)
   const [queue, setQueue] = useState([]) // gerçek çalma kuyruğu (story objeleri)
@@ -302,20 +303,32 @@ export default function StoryQueuePanel({
   const [remoteStatus, setRemoteStatus] = useState({ playing: false })
   const [remoteLoading, setRemoteLoading] = useState(false)
 
-  async function refreshRemote() {
+  const refreshRemote = useCallback(async () => {
     try {
       const r = await fetch('/api/play/status')
       if (r.ok) {
-        setRemoteStatus(await r.json())
+        const data = await r.json()
+        setRemoteStatus(data)
+        if (onRemoteStatusChange) {
+          try {
+            onRemoteStatusChange(data)
+          } catch (e) {
+            console.warn('Remote status callback error:', e)
+          }
+        }
       }
     } catch { /* ignore */ }
-  }
+  }, [onRemoteStatusChange])
 
   useEffect(() => {
-    refreshRemote()
-    const id = setInterval(refreshRemote, 5000)
-    return () => clearInterval(id)
-  }, [])
+    let id;
+    const start = () => { refreshRemote(); id = setInterval(refreshRemote, 5000); };
+    const stop = () => { if (id) clearInterval(id); id = null; };
+    const onVis = () => (document.hidden ? stop() : start());
+    onVis();
+    document.addEventListener('visibilitychange', onVis);
+    return () => { stop(); document.removeEventListener('visibilitychange', onVis); };
+  }, [refreshRemote])
 
   async function remotePlayToggle(storyId) {
     if (!storyId) return
@@ -343,6 +356,7 @@ export default function StoryQueuePanel({
 
   function handleDragEnd(event) {
     const { active, over } = event
+    if (!over) return
 
     if (active.id !== over.id) {
       const oldIndex = queue.findIndex((story) => story.id === active.id)
@@ -353,7 +367,7 @@ export default function StoryQueuePanel({
       persistQueue(newQueue)
       // DB senkron
       try { queueService.setQueueIds(newQueue.map(s => s.id)) } catch { /* queue sync optional */ }
-      console.log('Kuyruk sırası güncellendi:', newQueue.map(s => s.id))
+      if (import.meta.env?.DEV) console.log('Kuyruk sırası güncellendi:', newQueue.map(s => s.id))
     }
   }
 
@@ -509,19 +523,7 @@ export default function StoryQueuePanel({
     }
   }
 
-  const prev = () => {
-    if (!queue || queue.length === 0) return
-    let idx = currentIndex > 0 ? currentIndex - 1 : (repeatAll ? queue.length - 1 : -1)
-    while (idx >= 0) {
-      const item = queue[idx]
-      const url = item.audio ? getDbAudioUrl(item.audio.file_name) : item.audioUrl
-      if (url) {
-        playAtIndex(idx)
-        return
-      }
-      idx--
-    }
-  }
+  // prev fonksiyonu header kontrollerinde uzaktan oynatma ile değiştirildi
 
   // Audio bittiğinde otomatik bir sonraki masala geç
   useEffect(() => {
@@ -589,25 +591,78 @@ export default function StoryQueuePanel({
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-1 sm:gap-2 w-full sm:w-auto">
-            <Button size="sm" onClick={() => playAtIndex(currentIndex === -1 ? 0 : currentIndex)} title="Oynat">
-              {audioIsPlaying && currentIndex !== -1 && (audioCurrentStoryId === (queue[currentIndex]?.id)) ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-              <span className="ml-1 hidden sm:inline">Oynat</span>
-            </Button>
-            <Button variant="outline" size="sm" onClick={prev} title="Önceki"><SkipBack className="h-3 w-3" /></Button>
-            <Button variant="outline" size="sm" onClick={next} title="Sonraki"><SkipForward className="h-3 w-3" /></Button>
-            <Button variant="outline" size="sm" onClick={stopAudio} title="Durdur"><Square className="h-3 w-3" /></Button>
+            {/* Header kontrol butonları artık sadece UZAK (cihaz) oynatmayı yönetir */}
             <Button
-              variant={remoteStatus.playing ? 'default' : 'outline'}
               size="sm"
-              disabled={remoteLoading || queue.length === 0}
               onClick={() => {
                 const activeId = currentIndex === -1 ? queue[0]?.id : queue[currentIndex]?.id
-                if (activeId) remotePlayToggle(activeId)
+                const candidate = currentIndex === -1 ? queue[0] : queue[currentIndex]
+                const hasAudio = !!(candidate && (candidate.audio || candidate.audioUrl))
+                if (activeId && hasAudio) {
+                  remotePlayToggle(activeId)
+                }
               }}
-              title="Cihazda Çal / Durdur"
+              disabled={
+                remoteLoading ||
+                queue.length === 0 ||
+                (() => {
+                  const c = currentIndex === -1 ? queue[0] : queue[currentIndex]
+                  return !(c && (c.audio || c.audioUrl))
+                })()
+              }
+              title={remoteStatus.playing ? 'Uzaktan Durdur' : 'Uzaktan Oynat'}
             >
-              <Radio className="h-3 w-3" />
+              {remoteStatus.playing ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+              <span className="ml-1 hidden sm:inline">{remoteStatus.playing ? 'Dur' : 'Oynat'}</span>
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Sadece queue index değiştirip otomatik remote play
+                if (!queue.length) return
+                let target = currentIndex
+                for (let i = 0; i < queue.length; i++) {
+                  target = (target - 1 + queue.length) % queue.length
+                  const it = queue[target]
+                  if (it && (it.audio || it.audioUrl)) break
+                }
+                setCurrentIndex(target)
+                const item = queue[target]
+                if (item) remotePlayToggle(item.id)
+              }}
+              disabled={remoteLoading || queue.length < 2}
+              title="Önceki (Uzaktan)"
+            ><SkipBack className="h-3 w-3" /></Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (!queue.length) return
+                let target = currentIndex
+                for (let i = 0; i < queue.length; i++) {
+                  target = (target + 1) % queue.length
+                  const it = queue[target]
+                  if (it && (it.audio || it.audioUrl)) break
+                }
+                setCurrentIndex(target)
+                const item = queue[target]
+                if (item) remotePlayToggle(item.id)
+              }}
+              disabled={remoteLoading || queue.length < 2}
+              title="Sonraki (Uzaktan)"
+            ><SkipForward className="h-3 w-3" /></Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (remoteStatus.playing) {
+                  remotePlayToggle(remoteStatus.storyId)
+                }
+              }}
+              disabled={!remoteStatus.playing || remoteLoading}
+              title="Uzaktan Durdur"
+            ><Square className="h-3 w-3" /></Button>
             <Separator className="h-6 hidden sm:block" orientation="vertical" />
             <Button variant={shuffle ? 'default' : 'outline'} size="sm" onClick={() => setShuffle(!shuffle)} title="Karıştır"><Shuffle className="h-3 w-3" /></Button>
             <Button variant={repeatAll ? 'default' : 'outline'} size="sm" onClick={() => setRepeatAll(!repeatAll)} title="Tekrar (Tümü)"><Repeat2 className="h-3 w-3" /></Button>

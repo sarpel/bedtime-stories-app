@@ -24,6 +24,9 @@ import safeLocalStorage from './utils/safeLocalStorage.js'
 import { logger } from './utils/logger.js'
 import stabilityMonitor from './utils/stabilityMonitor.js'
 import './App.css'
+import { Toaster } from '@/components/ui/sonner.jsx'
+import { toast } from 'sonner'
+import { Play, Pause, Square, ListMusic, X } from 'lucide-react'
 
 function App() {
   const isMobile = useIsMobile()
@@ -43,6 +46,10 @@ function App() {
   const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false)
   // Son oluşturulan masalın geçmiş ID'si
   const [currentStoryId, setCurrentStoryId] = useState(null)
+  // Remote playback state (StoryQueuePanel'den bubble up)
+  const [remotePlayback, setRemotePlayback] = useState({ playing: false })
+  const [remoteProgressPct, setRemoteProgressPct] = useState(0) // bilinmiyorsa animasyonlu placeholder
+  const [showMiniPlayer, setShowMiniPlayer] = useState(false)
 
   const [settings, setSettings] = useState(() => {
     // localStorage'dan ayarları güvenli şekilde yükle
@@ -233,7 +240,7 @@ function App() {
       return
     }
 
-    console.log('[App] generateStory:start', {
+    if (import.meta.env?.DEV) console.log('[App] generateStory:start', {
       selectedStoryType,
       customTopicLen: customTopic.length
     })
@@ -246,40 +253,31 @@ function App() {
 
     try {
       const llmService = new LLMService(settings)
-      console.log('[App] LLMService:created')
+      if (import.meta.env?.DEV) console.log('[App] LLMService:created')
 
       // Eğer customTopic varsa onu kullan, yoksa selectedStoryType kullan
       const storyTypeToUse = customTopic.trim() ? 'custom' : selectedStoryType
       const topicToUse = customTopic.trim() || ''
-      console.log('[App] request:prepared', { storyTypeToUse, topicToUseLen: topicToUse.length })
+      if (import.meta.env?.DEV) console.log('[App] request:prepared', { storyTypeToUse, topicToUseLen: topicToUse.length })
 
       let story = await llmService.generateStory((progressValue) => {
         setProgress(progressValue)
-        console.log('[App] progress:', progressValue)
+        if (import.meta.env?.DEV) console.log('[App] progress:', progressValue)
       }, storyTypeToUse, topicToUse)
-      console.log('[App] response:received', { length: story?.length || 0 })
+      if (import.meta.env?.DEV) console.log('[App] response:received', { length: story?.length || 0 })
 
-      // LLM bazen boş/kısa yanıt döndürebilir; kullanıcı deneyimini korumak için fallback üret
-      if (!story || (typeof story === 'string' && story.trim().length < 300)) {
-        console.warn('LLM kısa/boş yanıt döndürdü, fallback masal üretilecek.')
-        console.log('[App] fallback:triggered', { length: story?.length || 0 })
-        try {
-          story = llmService.generateFallbackStory()
-          console.log('[App] fallback:generated', { length: story?.length || 0 })
-        } catch {
-          // generateFallbackStory başarısız olursa minimum metin kullan
-          story = 'Bir zamanlar, çok uzak diyarlarda, iyi kalpli bir çocuk yaşarmış. Her gece yıldızlara bakar ve güzel rüyalar görürmüş. İyi geceler, tatlı rüyalar.'
-          console.log('[App] fallback:mintext')
-        }
+      // Validate story response
+      if (!story || (typeof story === 'string' && story.trim().length < 50)) {
+        throw new Error('LLM yanıtı çok kısa veya boş. API ayarlarını kontrol edin.')
       }
 
       setStory(story)
-      console.log('[App] story:set', { length: story?.length || 0 })
+      if (import.meta.env?.DEV) console.log('[App] story:set', { length: story?.length || 0 })
 
       // Analytics: Track successful story generation
       const duration = Date.now() - startTime
       analyticsService.trackStoryGeneration(storyTypeToUse, topicToUse, true, duration)
-      console.log('[App] analytics:storyGeneration:success', { duration })
+      if (import.meta.env?.DEV) console.log('[App] analytics:storyGeneration:success', { duration })
 
       // Veritabanına kaydet
       try {
@@ -288,19 +286,18 @@ function App() {
         console.log('Masal veritabanına kaydedildi:', dbStory.id)
         console.log('[App] db:createStory:success', { id: dbStory.id })
 
+        // Show success toast after successful story creation and database save
+        toast.success('Masal oluşturma tamamlandı', { description: 'Yeni masal hazır.' })
+
         // Yeni story eklenmesi favorileri etkilemez, gereksiz refresh yok
       } catch (dbError) {
         console.error('Veritabanına kaydetme hatası:', dbError)
         console.log('[App] db:createStory:error', { message: dbError?.message })
 
-        // Fallback olarak localStorage kullan
-        const id = addToHistory({
-          story,
-          storyType: storyTypeToUse,
-          customTopic: topicToUse
+        // Show error to user
+        toast.error('Veritabanına kaydetme başarısız', {
+          description: 'Masal oluşturuldu ancak kaydedilemedi.'
         })
-        setCurrentStoryId(id)
-        console.log('[App] history:add', { id })
       }
 
     } catch (error) {
@@ -327,16 +324,8 @@ function App() {
 
       setError(errorMessage)
 
-      // Try to generate a fallback story
-      try {
-        const llmService = new LLMService(settings)
-        const fallbackStory = llmService.generateFallbackStory()
-        setStory(fallbackStory)
-        console.log('[App] error:fallback:generated', { length: fallbackStory?.length || 0 })
-      } catch {
-        setStory('')
-        console.log('[App] error:fallback:failed')
-      }
+      // Clear story on error
+      setStory('')
     } finally {
       setIsGenerating(false)
       setProgress(0)
@@ -384,6 +373,9 @@ function App() {
 
       // Hikayeleri yeniden yükle ki yeni audio bilgisi görünsün
       await loadStories()
+
+      // Show success toast after successful audio generation
+      toast.success('Ses oluşturma tamamlandı', { description: 'Ses dosyası kaydedildi.' })
 
     } catch (error) {
       console.error('Audio generation failed for story:', storyId, error)
@@ -441,6 +433,9 @@ function App() {
 
       // Ses dosyası eklenmesi favorileri etkilemez, gereksiz refresh yok
 
+      // Show success toast after successful audio generation
+      toast.success('Ses oluşturma tamamlandı', { description: 'Ses dosyası kaydedildi.' })
+
     } catch (error) {
       console.error('Audio generation failed:', error)
 
@@ -461,6 +456,7 @@ function App() {
       }
 
       setError(errorMessage)
+      toast.error('Ses oluşturma hatası', { description: 'Ses oluşturulamadı.' })
     } finally {
       setIsGeneratingAudio(false)
       setProgress(0)
@@ -507,6 +503,7 @@ function App() {
 
       // Kaydetme işlemi tamamlandı, ana menüye dön
       clearStory()
+      toast.success('Masal kaydedildi')
 
     } catch (dbError) {
       console.error('Manuel kaydetme hatası:', dbError)
@@ -514,27 +511,16 @@ function App() {
       // Show user-friendly error
       setError('Masal kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.')
 
-      // Fallback olarak localStorage kullan
-      try {
-        const id = addToHistory({
-          story,
-          storyType: selectedStoryType,
-          customTopic
-        })
-        setCurrentStoryId(id)
-        console.log('Masal localStorage\'a kaydedildi:', id)
-
-        // Kaydetme başarılı, ana menüye dön
-        clearStory()
-
-      } catch (fallbackError) {
-        console.error('localStorage fallback hatası:', fallbackError)
-      }
+      // Show error to user
+      toast.error('Masal kaydedilemedi', {
+        description: 'Lütfen tekrar deneyin.'
+      })
     }
   }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <Toaster richColors position="top-right" closeButton duration={4000} />
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-2 sm:px-4 py-3 sm:py-4 flex items-center justify-between">
@@ -810,6 +796,16 @@ function App() {
             seekTo={seekTo}
             getDbAudioUrl={getDbAudioUrl}
             setOnEnded={setOnEnded}
+            onRemoteStatusChange={(st) => {
+              setRemotePlayback(st)
+              // Mini player görünürlüğü kontrolü
+              if (st.playing) {
+                setShowMiniPlayer(true)
+              } else {
+                setShowMiniPlayer(false)
+                setRemoteProgressPct(0)
+              }
+            }}
           />
         )}
       </main>
@@ -826,6 +822,75 @@ function App() {
 
       {/* Hidden Audio Element */}
       {/* useAudioPlayer kendi Audio nesnesini yönettiği için ekstra <audio> elemanı gerekmiyor */}
+
+      {/* Remote Mini Player (uzaktan oynatma tetiklendiğinde) */}
+      {showMiniPlayer && (
+        <div className="fixed bottom-4 right-4 z-50 w-72 sm:w-80 bg-card/95 backdrop-blur border border-border rounded-lg shadow-lg p-3 animate-in fade-in slide-in-from-bottom">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <ListMusic className="h-5 w-5 text-primary" />
+              <div className="text-sm font-medium">
+                {remotePlayback.playing ? 'Cihazda Oynatılıyor' : 'Oynatma Durdu'}
+                <div className="text-xs text-muted-foreground">
+                  {(() => {
+                    if (remotePlayback.storyId && dbStories.length > 0) {
+                      const story = dbStories.find(s => s.id === remotePlayback.storyId)
+                      if (story) {
+                        const title = story.custom_topic || story.story_type || 'Masal'
+                        return title.length > 30 ? title.substring(0, 30) + '...' : title
+                      }
+                    }
+                    return remotePlayback.file ? remotePlayback.file.split('/').pop() : remotePlayback.playing ? 'Masal çalıyor...' : 'Hazır'
+                  })()}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowMiniPlayer(false)}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              title="Kapat"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="mt-3">
+            <div className="h-2 w-full bg-muted rounded overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-500"
+                style={{ width: remotePlayback.playing ? `${remoteProgressPct}%` : '0%' }}
+              />
+            </div>
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  // Basit toggle: aynı endpoint
+                  try {
+                    if (remotePlayback.playing) {
+                      await fetch('/api/play/stop', { method: 'POST' })
+                    }
+                  } finally {
+                    // Status update manuel; StoryQueuePanel periyodik olarak zaten yenileyecek
+                  }
+                }}
+                title={remotePlayback.playing ? 'Durdur' : 'Durdu'}
+                disabled={!remotePlayback.playing}
+              >
+                {remotePlayback.playing ? <Square className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowMiniPlayer(false)}
+              >Gizle</Button>
+            </div>
+            <span className="text-[10px] text-muted-foreground">Uzaktan oynatma</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

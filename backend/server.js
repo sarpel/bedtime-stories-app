@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const axios = require('axios');
+const { PassThrough, pipeline } = require('stream');
 const pino = require('pino');
 const pinoHttp = require('pino-http');
 
@@ -40,6 +41,9 @@ const logger = pino({
     }
   }
 });
+
+// Constants
+const LLM_REQUEST_TIMEOUT_MS = 120000; // 2 minutes
 
 // Env anahtarlarının varlık durumunu başlangıçta logla (içerikleri değil)
 try {
@@ -85,16 +89,7 @@ function stopCurrentPlayback(reason = 'stopped') {
 }
 
 // Sıkıştırma ve ek güvenlik katmanları kullanılmıyor (kişisel/lokal kullanım)
-// CORS: Production tek cihaz kullanım senaryosu; genişletilmiş serbestiyet.
-app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(204);
-  }
-  next();
-});
+// CORS removed - using same-origin via Vite dev proxy as per guidelines
 
 // Frontend'den gelen JSON verilerini okuyabilmek için middleware
 app.use(express.json({ limit: '10mb' }));
@@ -106,6 +101,9 @@ app.use((req, res, next) => {
 
   switch (ext) {
     case '.js':
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      break;
+    case '.jsx':
       res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
       break;
     case '.mjs':
@@ -227,7 +225,7 @@ try {
         }
 
         // Fix MIME types for JavaScript modules
-        if (filePath.endsWith('.js')) {
+        if (filePath.endsWith('.js') || filePath.endsWith('.jsx')) {
           res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
         }
 
@@ -263,7 +261,7 @@ try {
         etag: true,
         lastModified: true,
         setHeaders: (res, filePath) => {
-          if (filePath.endsWith('.js')) {
+          if (filePath.endsWith('.js') || filePath.endsWith('.jsx')) {
             res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
           }
           res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -441,10 +439,14 @@ app.post('/api/llm', async (req, res) => {
     const effectiveModel = modelId || process.env.OPENAI_MODEL;
     endpoint = clientEndpoint || process.env.OPENAI_ENDPOINT;
     headers.Authorization = `Bearer ${OPENAI_API_KEY}`;
-    // OpenAI Responses API formatı (güncellendi)
+    // OpenAI Responses API formatı
+    const defaultSystemPrompt = '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.';
+    const systemPrompt = (process.env.SYSTEM_PROMPT_TURKISH || defaultSystemPrompt).trim();
+    const fullPrompt = `${systemPrompt}\n\n${prompt}`;
+
     body = {
       model: effectiveModel,
-      input: prompt,
+      input: fullPrompt,
       temperature: Number.isFinite(temperature) ? temperature : 1.0
     };
     if (maxTokens) {
@@ -506,17 +508,97 @@ app.post('/api/llm', async (req, res) => {
   try {
     logger.info({ msg: '[API /api/llm] forwarding:start', endpoint });
     const t0 = Date.now();
-    const response = await axios.post(endpoint, body, { headers });
+    const response = await axios.post(endpoint, body, {
+      headers,
+      timeout: LLM_REQUEST_TIMEOUT_MS
+    });
     const duration = Date.now() - t0;
     const data = response.data;
+
+    // Debug logging for Responses API (can be removed in production)
+    if (provider === 'openai') {
+      logger.info({
+        msg: '[API /api/llm] OpenAI response received',
+        status: response.status,
+        hasOutput: !!data.output,
+        hasChoices: !!data.choices
+      });
+    }
+
+    // Transform response format to expected format
+    let transformedData = data;
+
+    // OpenAI Responses API format - actual content is in the 'output' field
+    if (provider === 'openai' && data.output && Array.isArray(data.output)) {
+      // Find the message object with content in the output array
+      let storyContent = '';
+      for (const item of data.output) {
+        if (item.type === 'message' && item.content && Array.isArray(item.content)) {
+          // Look for output_text type in the content array
+          for (const contentItem of item.content) {
+            if (contentItem.type === 'output_text' && contentItem.text) {
+              storyContent = contentItem.text;
+              break;
+            }
+          }
+          if (storyContent) break;
+        }
+      }
+
+      // If no content found, stringify the whole output for debugging
+      if (!storyContent) {
+        storyContent = JSON.stringify(data.output, null, 2);
+        logger.warn({
+          msg: '[API /api/llm] No story content found in OpenAI Responses API output',
+          outputLength: data.output.length
+        });
+      }
+
+      transformedData = {
+        text: storyContent,
+        usage: data.usage,
+        model: data.model,
+        id: data.id
+      };
+    }
+    // Legacy Chat Completions format (fallback)
+    else if (provider === 'openai' && data.choices && data.choices[0] && data.choices[0].message) {
+      transformedData = {
+        text: data.choices[0].message.content,
+        usage: data.usage,
+        model: data.model,
+        id: data.id
+      };
+    }
+
+    // Validate story response more robustly
+    const story = transformedData?.text;
+    if (!story || (typeof story === 'string' && story.trim().length < 50)) {
+      logger.warn({ msg: 'LLM response too short or empty', textLength: story?.length || 0 });
+      throw new Error('LLM yanıtı çok kısa veya boş. API ayarlarını kontrol edin.');
+    }
+
+    // Additional validation to ensure it's actual story content
+    if (typeof story === 'string') {
+      // Check if response looks like JSON or error message
+      if (story.trim().startsWith('{') || story.trim().startsWith('[')) {
+        logger.warn({ msg: 'LLM returned JSON instead of story text', preview: story.substring(0, 100) });
+        throw new Error('LLM yanıtı beklenen formatta değil. API ayarlarını kontrol edin.');
+      }
+      if (story.toLowerCase().includes('error') || story.toLowerCase().includes('invalid')) {
+        logger.warn({ msg: 'LLM response contains error keywords', preview: story.substring(0, 100) });
+        throw new Error('LLM bir hata mesajı döndürdü. API ayarlarını kontrol edin.');
+      }
+    }
+
     logger.info({
       msg: '[API /api/llm] forwarding:success',
       status: response.status,
       durationMs: duration,
-      keys: Object.keys(data || {}),
-      textLen: typeof data?.text === 'string' ? data.text.length : undefined
+      keys: Object.keys(transformedData || {}),
+      textLen: typeof transformedData?.text === 'string' ? transformedData.text.length : undefined
     });
-    res.json(data);
+    res.json(transformedData);
   } catch (error) {
     logger.error({
       msg: 'LLM API Hatası',
@@ -825,19 +907,20 @@ app.get('/api/stories/type/:storyType', (req, res) => {
 
 // --- TTS İSTEKLERİ İÇİN ENDPOINT (GÜNCELLENMİŞ) ---
 app.post('/api/tts', async (req, res) => {
-  console.log('🔊 [Backend TTS] Request received:', {
+  logger.info({
+    msg: '[Backend TTS] Request received',
     provider: req.body.provider,
     voiceId: req.body.voiceId,
     hasRequestBody: !!req.body.requestBody,
     requestBodyKeys: req.body.requestBody ? Object.keys(req.body.requestBody) : []
-  })
+  });
 
   // Frontend'den gelen ayarları ve metni al
   const { provider, modelId, voiceId, requestBody, storyId, endpoint: clientEndpoint } = req.body;
 
   // Input validation
   if (!provider || !requestBody) {
-    console.log('🔊 [Backend TTS] Validation failed:', { provider, hasRequestBody: !!requestBody })
+    logger.warn({ msg: '[Backend TTS] Validation failed', provider, hasRequestBody: !!requestBody });
     return res.status(400).json({ error: 'Provider ve request body gereklidir.' });
   }
   // Provider kısıtlaması kaldırıldı: generic sağlayıcılar için endpoint gereklidir
@@ -962,36 +1045,44 @@ app.post('/api/tts', async (req, res) => {
         const fileName = `story-${sanitizedStoryId}-${Date.now()}.mp3`;
         const filePath = path.join(storyDb.getAudioDir(), fileName);
 
+        // Use PassThrough streams to tee the incoming stream
+        const tee1 = new PassThrough();
+        const tee2 = new PassThrough();
+
+        // Tee the incoming stream
+        response.data.pipe(tee1);
+        response.data.pipe(tee2);
+
         // Ses dosyasını kaydet
         const writeStream = fs.createWriteStream(filePath);
-        response.data.pipe(writeStream);
+        pipeline(tee1, writeStream, (err) => {
+          if (err) {
+            logger.error({ msg: 'File pipeline error', error: err?.message });
+          } else {
+            logger.info({ msg: 'Audio file saved', filePath });
+            // Veritabanına ses dosyası bilgisini kaydet
+            try {
+              // Voice ID'yi provider'a göre çıkar
+              let usedVoiceId = 'unknown';
+              if (provider === 'elevenlabs') {
+                usedVoiceId = voiceId || 'unknown';
+              } else if (provider === 'gemini') {
+                usedVoiceId = requestBody.generationConfig?.speechConfig?.voiceConfig?.name || 'unknown';
+              }
 
-        writeStream.on('finish', () => {
-          logger.info({ msg: 'Audio file saved', filePath });
-          // Veritabanına ses dosyası bilgisini kaydet
-          try {
-            // Voice ID'yi provider'a göre çıkar
-            let usedVoiceId = 'unknown';
-            if (provider === 'elevenlabs') {
-              usedVoiceId = voiceId || 'unknown';
-            } else if (provider === 'gemini') {
-              usedVoiceId = requestBody.generationConfig?.speechConfig?.voiceConfig?.name || 'unknown';
+              storyDb.saveAudio(sanitizedStoryId, fileName, filePath, usedVoiceId, requestBody);
+              logger.info({ msg: 'Audio info saved to database', storyId: sanitizedStoryId });
+            } catch (dbError) {
+              logger.error({ msg: 'Database save error', error: dbError?.message });
             }
-
-            storyDb.saveAudio(sanitizedStoryId, fileName, filePath, usedVoiceId, requestBody);
-            logger.info({ msg: 'Audio info saved to database', storyId: sanitizedStoryId });
-          } catch (dbError) {
-            logger.error({ msg: 'Database save error', error: dbError?.message });
           }
-        });
-
-        writeStream.on('error', (error) => {
-          logger.error({ msg: 'File write error', error: error?.message });
         });
 
         // Aynı zamanda client'a da stream gönder
         res.setHeader('Content-Type', 'audio/mpeg');
-        response.data.pipe(res);
+        pipeline(tee2, res, (err) => {
+          if (err) logger.error({ msg: 'Client stream pipeline error', error: err?.message });
+        });
 
       } catch (fileError) {
         logger.error({ msg: 'File handling error', error: fileError?.message });
@@ -1139,6 +1230,17 @@ if (require.main === module) {
     console.log(
       `Backend proxy sunucusu http://localhost:${PORT} adresinde çalışıyor`
     );
+
+    // Log system prompt configuration
+    const defaultSystemPrompt = '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.';
+    const systemPrompt = (process.env.SYSTEM_PROMPT_TURKISH || defaultSystemPrompt).trim();
+    const isCustomPrompt = !!process.env.SYSTEM_PROMPT_TURKISH;
+    logger.info({
+      msg: 'System prompt configuration',
+      isCustomPrompt,
+      promptLength: systemPrompt.length,
+      promptPreview: systemPrompt.substring(0, 100) + (systemPrompt.length > 100 ? '...' : '')
+    });
   });
 }
 
