@@ -772,7 +772,7 @@ app.get('/api/stories/:id', (req, res) => {
 app.post('/api/stories', (req, res) => {
   try {
     logger.info({ msg: 'POST /api/stories - request', bodyKeys: Object.keys(req.body || {}) })
-    const { storyText, storyType, customTopic } = req.body;
+    const { storyText, storyType, customTopic, categories } = req.body;
 
     // Input validation
     if (!storyText || !storyType) {
@@ -796,8 +796,21 @@ app.post('/api/stories', (req, res) => {
       return res.status(400).json({ error: 'Özel konu 200 karakterden uzun olamaz.' });
     }
 
-    const storyId = storyDb.createStory(storyText.trim(), storyType, customTopic?.trim());
+    // Kategoriler işleme (en fazla 10 kısa etiket, 2-24 char)
+    let catArray = [];
+    if (Array.isArray(categories)) {
+      catArray = categories
+        .filter(c => typeof c === 'string')
+        .map(c => c.trim())
+        .filter(c => c.length >= 2 && c.length <= 24)
+        .slice(0, 10);
+    }
+
+    const storyId = storyDb.createStory(storyText.trim(), storyType, customTopic?.trim(), catArray);
     const story = storyDb.getStory(storyId);
+    if (story) {
+      story.categories = catArray;
+    }
 
     res.status(201).json(story);
   } catch (error) {
@@ -816,7 +829,7 @@ app.put('/api/stories/:id', (req, res) => {
       return res.status(400).json({ error: 'Geçersiz masal ID\'si.' });
     }
 
-    const { storyText, storyType, customTopic } = req.body;
+  const { storyText, storyType, customTopic, categories } = req.body;
 
     // Input validation
     if (!storyText || !storyType) {
@@ -839,7 +852,8 @@ app.put('/api/stories/:id', (req, res) => {
       return res.status(400).json({ error: 'Özel konu 200 karakterden uzun olamaz.' });
     }
 
-    const updated = storyDb.updateStory(id, storyText.trim(), storyType, customTopic?.trim());
+  // Not: Şimdilik updateStory categories'i güncellemiyor; ileri aşamada migration yapılabilir.
+  const updated = storyDb.updateStory(id, storyText.trim(), storyType, customTopic?.trim());
 
     if (!updated) {
       return res.status(404).json({ error: 'Güncellenecek masal bulunamadı.' });

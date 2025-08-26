@@ -234,7 +234,7 @@ function App() {
     }
   }
 
-  const generateStory = async () => {
+  const generateStory = async (categories = []) => {
     // Hem selectedStoryType hem de customTopic boşsa masal oluşturma
     if (!selectedStoryType && !customTopic.trim()) {
       setError('Lütfen bir masal türü seçin veya özel bir konu yazın.')
@@ -282,7 +282,7 @@ function App() {
 
       // Veritabanına kaydet
       try {
-        const dbStory = await createDbStory(story, storyTypeToUse, topicToUse)
+  const dbStory = await createDbStory(story, storyTypeToUse, topicToUse, categories)
         setCurrentStoryId(dbStory.id)
         console.log('Masal veritabanına kaydedildi:', dbStory.id)
         console.log('[App] db:createStory:success', { id: dbStory.id })

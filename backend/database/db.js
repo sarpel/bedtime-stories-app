@@ -39,6 +39,7 @@ function initDatabase() {
       story_text TEXT NOT NULL,
       story_type TEXT NOT NULL,
       custom_topic TEXT,
+  categories TEXT, -- JSON array (örn: ["macera","uyku"]) 
       is_favorite INTEGER DEFAULT 0,
       is_shared INTEGER DEFAULT 0,
       share_id TEXT UNIQUE,
@@ -56,6 +57,16 @@ function initDatabase() {
     // Sütun zaten varsa hata verir, bu normaldir
     if (!error.message.includes('duplicate column name')) {
       console.log('is_favorite sütunu zaten mevcut');
+    }
+  }
+
+  // categories sütununu ekle (migration)
+  try {
+    db.exec(`ALTER TABLE stories ADD COLUMN categories TEXT`);
+    console.log('categories sütunu eklendi');
+  } catch (error) {
+    if (!error.message.includes('duplicate column name')) {
+      console.log('categories sütunu zaten mevcut');
     }
   }
 
@@ -229,8 +240,8 @@ initDatabase();
 const statements = {
   // Story operations
   insertStory: db.prepare(`
-    INSERT INTO stories (story_text, story_type, custom_topic)
-    VALUES (?, ?, ?)
+  INSERT INTO stories (story_text, story_type, custom_topic, categories)
+  VALUES (?, ?, ?, ?)
   `),
 
   getStoryById: db.prepare(`
@@ -367,9 +378,10 @@ function generateShareId() {
 // Database functions
 const storyDb = {
   // Story operations
-  createStory(storyText, storyType, customTopic = null) {
+  createStory(storyText, storyType, customTopic = null, categories = []) {
     try {
-      const result = statements.insertStory.run(storyText, storyType, customTopic);
+      const categoriesValue = Array.isArray(categories) ? JSON.stringify(categories) : (categories || null);
+      const result = statements.insertStory.run(storyText, storyType, customTopic, categoriesValue);
       return result.lastInsertRowid;
     } catch (error) {
       console.error('Masal oluşturma hatası:', error);
@@ -510,6 +522,7 @@ const storyDb = {
         story_text: row.story_text,
         story_type: row.story_type,
         custom_topic: row.custom_topic,
+  categories: row.categories ? JSON.parse(row.categories) : [],
         created_at: row.created_at,
         updated_at: row.updated_at,
         audio: row.audio_id ? {
@@ -622,6 +635,7 @@ const storyDb = {
         story_text: row.story_text,
         story_type: row.story_type,
         custom_topic: row.custom_topic,
+  categories: row.categories ? JSON.parse(row.categories) : [],
         is_favorite: row.is_favorite,
         is_shared: row.is_shared,
         share_id: row.share_id,
@@ -774,6 +788,8 @@ const storyDb = {
           story_text: row.story_text,
           story_type: row.story_type,
           custom_topic: row.custom_topic,
+          categories: row.categories ? JSON.parse(row.categories) : [],
+          categories: row.categories ? JSON.parse(row.categories) : [],
           is_favorite: row.is_favorite,
           is_shared: row.is_shared,
           share_id: row.share_id,

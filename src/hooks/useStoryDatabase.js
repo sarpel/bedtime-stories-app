@@ -50,11 +50,11 @@ export function useStoryDatabase() {
   }, [])
 
   // Yeni masal oluştur
-  const createStory = async (storyText, storyType, customTopic = null) => {
+  const createStory = async (storyText, storyType, customTopic = null, categories = []) => {
     setLoading(true)
     setError(null)
     try {
-      const newStory = await databaseService.createStory(storyText, storyType, customTopic)
+  const newStory = await databaseService.createStory(storyText, storyType, customTopic, categories)
       await loadStories() // Listeyi yenile
       return newStory
     } catch (err) {

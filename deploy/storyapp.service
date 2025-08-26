@@ -1,18 +1,41 @@
-# Minimal production systemd unit for Pi Zero 2W
+# Production systemd unit for Pi Zero 2W - Updated for current project structure
 [Unit]
-Description=Bedtime Stories App
-After=network.target
+Description=Bedtime Stories App - AI-powered bedtime story generator
+Documentation=https://github.com/sarpel/bedtime-stories-app
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
 User=pi
-WorkingDirectory=/opt/storyapp/backend
+Group=pi
+WorkingDirectory=/opt/storyapp
 Environment=NODE_ENV=production
-Environment=PORT=8080
+Environment=PORT=3001
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-ExecStart=/usr/bin/node server.js
+ExecStart=/usr/bin/node backend/server.js
+ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
-RestartSec=5
+RestartSec=10
+TimeoutStartSec=60
+TimeoutStopSec=20
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/storyapp/backend/database /opt/storyapp/backend/audio
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+# Resource limits for Pi Zero 2W
+MemoryMax=200M
+CPUQuota=80%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=storyapp
 
 [Install]
 WantedBy=multi-user.target
