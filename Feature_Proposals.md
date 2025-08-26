@@ -27,7 +27,7 @@ Masalları dışa aktarma (JSON)
 Yedekten geri yükleme
 Otomatik yedekleme
 
-7. Çocuk Profilleri
+✅ 7. Çocuk Profilleri
 Birden fazla çocuk için ayrı profiller
 Yaş ve tercih kaydetme
 Kişiselleştirilmiş öneriler

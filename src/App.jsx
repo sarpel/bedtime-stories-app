@@ -19,6 +19,7 @@ import { useStoryHistory } from './hooks/useStoryHistory.js'
 import { useStoryDatabase } from './hooks/useStoryDatabase.js'
 import { useAudioPlayer } from './hooks/useAudioPlayer.js'
 import { useIsMobile } from './hooks/use-mobile.js'
+import useProfiles from './hooks/useProfiles.js'
 import ApiKeyHelp from './components/ApiKeyHelp.jsx'
 import safeLocalStorage from './utils/safeLocalStorage.js'
 // Pi Zero optimizations
@@ -137,6 +138,16 @@ function App() {
     return cleanup
   }, [settings.theme])
 
+  // Aktif profil değiştiğinde settings'i güncelle
+  useEffect(() => {
+    if (activeProfile) {
+      updateSettings({
+        ...settings,
+        activeProfile: activeProfile
+      })
+    }
+  }, [activeProfile])
+
   // Favori masallar hook'u
   const {
     favorites,
@@ -158,6 +169,17 @@ function App() {
     deleteStory: deleteDbStory,
     getAudioUrl: getDbAudioUrl
   } = useStoryDatabase()
+
+  // Profiller hook'u
+  const {
+    profiles,
+    activeProfile,
+    isLoading: profilesLoading,
+    createProfile,
+    updateProfile,
+    deleteProfile,
+    setActiveProfileById
+  } = useProfiles()
 
   // Enhanced toggle favorite function with proper state management
   const handleToggleFavorite = async (storyData) => {
@@ -287,7 +309,12 @@ function App() {
     const startTime = Date.now()
 
     try {
-      const llmService = new LLMService(settings)
+      // Aktif profili settings'e dahil et
+      const settingsWithProfile = {
+        ...settings,
+        activeProfile: activeProfile
+      }
+      const llmService = new LLMService(settingsWithProfile)
       if (import.meta.env?.DEV) console.log('[App] LLMService:created')
 
       // Eğer customTopic varsa onu kullan, yoksa selectedStoryType kullan
