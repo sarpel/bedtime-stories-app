@@ -16,14 +16,18 @@ process.env.GEMINI_TTS_ENDPOINT = 'https://gemini.test/tts';
 
 const app = require('../backend/server');
 
+/**
+ * @param {boolean} cond
+ * @param {string} [msg]
+ */
 function assert(cond, msg){ if(!cond) throw new Error(msg || 'Assertion failed'); }
 
 exports.health_ok = () => new Promise((resolve, reject) => {
   const server = app.listen(0, () => {
     const port = server.address().port;
     http.get({ hostname: '127.0.0.1', port, path: '/health', timeout: 2000 }, res => {
-      let data='';
-      res.on('data', d=>data+=d);
+      let data = '';
+      res.on('data', d => data += d);
       res.on('end', () => {
         try {
           assert(res.statusCode === 200 || res.statusCode === 503, 'Status 200 veya 503 olmalı');

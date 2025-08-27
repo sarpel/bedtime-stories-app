@@ -26,7 +26,7 @@ function logResult(ok, name, durationMs) {
 }
 
 async function run() {
-    const files = fs.readdirSync(testsDir).filter(f => f.endsWith('.test.cjs'));
+    const files = fs.readdirSync(testsDir).filter(f => f.endsWith('.test.cjs') || f.endsWith('.test.ts'));
     for (const file of files) {
         const testModule = require(path.join(testsDir, file));
         const cases = Object.entries(testModule).filter(([k, v]) => typeof v === 'function');
@@ -50,7 +50,10 @@ async function run() {
                         setTimeout(() => done(new Error('Timeout after 5000ms')), 5000);
                     });
                 } else {
-                    await fn();
+                    const result = fn();
+                    if (result && typeof result.then === 'function') {
+                        await result;
+                    }
                 }
                 passed++;
                 logResult(true, `${file}:${name}`, Date.now() - started);
