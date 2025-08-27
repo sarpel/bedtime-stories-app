@@ -29,6 +29,7 @@ db.pragma('cache_size = -1000'); // 1MB cache (reduced for Pi Zero)
 db.pragma('temp_store = MEMORY'); // Use memory for temp tables (small amounts)
 db.pragma('mmap_size = 33554432'); // 32MB memory map (reduced for Pi Zero)
 db.pragma('page_size = 4096'); // Optimal for Pi Zero's ARM architecture
+db.pragma('foreign_keys = ON'); // Enforce FK constraints
 
 // Veritabanı tablolarını oluştur
 function initDatabase() {
@@ -72,8 +73,11 @@ function initDatabase() {
     console.log('is_favorite sütunu eklendi');
   } catch (error) {
     // Sütun zaten varsa hata verir, bu normaldir
-    if (!error.message.includes('duplicate column name')) {
+    if (error.message.includes('duplicate column name')) {
       console.log('is_favorite sütunu zaten mevcut');
+    } else {
+      console.error('is_favorite sütunu eklenemedi:', error.message);
+      throw error;
     }
   }
 
@@ -82,8 +86,11 @@ function initDatabase() {
     db.exec(`ALTER TABLE stories ADD COLUMN categories TEXT`);
     console.log('categories sütunu eklendi');
   } catch (error) {
-    if (!error.message.includes('duplicate column name')) {
+    if (error.message.includes('duplicate column name')) {
       console.log('categories sütunu zaten mevcut');
+    } else {
+      console.error('categories sütunu eklenemedi:', error.message);
+      throw error;
     }
   }
 
@@ -102,8 +109,11 @@ function initDatabase() {
       }
     }
   } catch (error) {
-    if (!error.message.includes('duplicate column name')) {
+    if (error.message.includes('duplicate column name')) {
       console.log('share_id sütunu zaten mevcut');
+    } else {
+      console.error('share_id sütunu eklenemedi:', error.message);
+      throw error;
     }
   }
 
@@ -111,8 +121,11 @@ function initDatabase() {
     db.exec(`ALTER TABLE stories ADD COLUMN shared_at DATETIME`);
     console.log('shared_at sütunu eklendi');
   } catch (error) {
-    if (!error.message.includes('duplicate column name')) {
+    if (error.message.includes('duplicate column name')) {
       console.log('shared_at sütunu zaten mevcut');
+    } else {
+      console.error('shared_at sütunu eklenemedi:', error.message);
+      throw error;
     }
   }
 

@@ -81,7 +81,7 @@ function App() {
   // Ayarları localStorage'a kaydet
   const updateSettings = (newSettings) => {
     try {
-      console.log('🔧 App updateSettings:', newSettings)
+      if (import.meta.env.DEV) console.log('🔧 App updateSettings:', newSettings)
 
       // State güncellemesi önce yap
       setSettings(newSettings)
@@ -89,9 +89,9 @@ function App() {
       // localStorage'a kaydetme işlemini setTimeout ile ertele
       setTimeout(() => {
         const saved = safeLocalStorage.set('bedtime-stories-settings', newSettings)
-        if (saved) {
+        if (saved && import.meta.env.DEV) {
           console.log('✅ Ayarlar localStorage\'a kaydedildi')
-        } else {
+        } else if (!saved) {
           console.error('❌ localStorage kaydetme hatası')
           setError('Ayarlar kaydedilirken bir sorun oluştu, ancak değişiklikler geçerli.')
         }
@@ -184,7 +184,7 @@ function App() {
   // Enhanced toggle favorite function with proper state management
   const handleToggleFavorite = async (storyData) => {
     try {
-      console.log('🎯 App.jsx - Favori toggle başlatılıyor:', storyData)
+      if (import.meta.env.DEV) console.log('🎯 App.tsx - Favori toggle başlatılıyor:', storyData)
       const result = await toggleFavorite(storyData)
 
       // Analytics: Track favorite action
@@ -193,10 +193,10 @@ function App() {
         analyticsService.trackFavoriteAction(storyId, result.action)
       }
 
-      console.log('🎯 App.jsx - Favori toggle tamamlandı:', result ? result.action : 'undefined')
-
-      // toggleFavorite zaten state'i güncelliyor, gereksiz refresh yok
-      console.log('🎯 App.jsx - Yeni favori sayısı:', favorites.length)
+      if (import.meta.env.DEV) {
+        console.log('🎯 App.tsx - Favori toggle tamamlandı:', result ? result.action : 'undefined')
+        console.log('🎯 App.tsx - Yeni favori sayısı:', favorites.length)
+      }
 
       return result
     } catch (error) {

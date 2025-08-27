@@ -58,7 +58,7 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
 
   const updateSetting = (path, value) => {
     try {
-      console.log('🔧 Settings updateSetting:', path, value, localSettings)
+      // Removed console.log to prevent API key leakage
       const newSettings = { ...localSettings }
       const keys = path.split('.')
       let current = newSettings
@@ -71,10 +71,11 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
       }
       current[keys[keys.length - 1]] = value
 
-      console.log('🔧 Settings newSettings:', newSettings)
+      // Removed console.log to prevent sensitive data leakage
       setLocalSettings(newSettings)
     } catch (error) {
-      console.error('❌ Settings updateSetting error:', error, { path, value, localSettings })
+      // Removed detailed logging to prevent sensitive data leakage - only show error type
+      console.error('❌ Settings updateSetting error for path:', path)
     }
   }
 
@@ -609,10 +610,7 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                       <Label htmlFor="story-length" className="text-xs">Masal Uzunluğu</Label>
                       <Select
                         value={localSettings.storyLength || 'medium'}
-                        onValueChange={(value) => {
-                          console.log('📝 Select onValueChange:', value)
-                          updateSetting('storyLength', value)
-                        }}
+                        onValueChange={(value) => updateSetting('storyLength', value)}
                       >
                         <SelectTrigger className="h-7 text-xs w-full">
                           <SelectValue placeholder="Seçin" />
