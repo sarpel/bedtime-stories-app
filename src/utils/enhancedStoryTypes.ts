@@ -139,13 +139,7 @@ export const enhancedStoryTypes: EnhancedStoryType[] = [
 ]
 
 // Enhanced prompt building
-interface UserProfile {
-  age?: number
-  name?: string
-  interests?: string[]
-  gender?: string
-  custom_prompt?: string
-}
+// Profile types removed
 
 interface SeriesInfo {
   title: string
@@ -160,7 +154,6 @@ interface SeriesInfo {
 export const buildEnhancedPrompt = (
   storyType: string,
   customTopic: string,
-  profile: UserProfile | null = null,
   seriesInfo: SeriesInfo | null = null
 ): string => {
   const selectedType = enhancedStoryTypes.find(t => t.id === storyType)
@@ -183,16 +176,7 @@ export const buildEnhancedPrompt = (
   }
 
 
-  // Profile-based personalization
-  if (profile) {
-    const { name, age, gender } = profile
-    const genderText = gender === 'girl' ? 'kız' : gender === 'boy' ? 'erkek' : 'çocuk'
-    basePrompt += `\n\nHedef dinleyici: ${name || 'Çocuk'} (${age || 5} yaşında ${genderText})`
-    
-    if (profile.custom_prompt) {
-      basePrompt += `\nÖzel istekler: ${profile.custom_prompt}`
-    }
-  }
+  // Profile-based personalization removed
 
   // Series information
   if (seriesInfo) {

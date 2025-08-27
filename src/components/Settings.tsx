@@ -8,10 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Brain, Volume2, MessageSquare, Save, RotateCcw, Settings as SettingsIcon, User } from 'lucide-react'
+import { Brain, Volume2, MessageSquare, Save, RotateCcw, Settings as SettingsIcon } from 'lucide-react'
 import { getDefaultSettings } from '@/services/configService'
 import VoiceSelector from './VoiceSelector'
-import ProfileSelector from './ProfileSelector'
+// Profile feature removed from Settings
 // Audio quality ve background music imports kaldırıldı - sadece basit ayarlar
 
 interface VoiceSettings {
@@ -176,7 +176,7 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
 
         <CardContent className="p-3">
           <Tabs defaultValue="llm" className="space-y-3">
-            <TabsList className="grid w-full grid-cols-4 h-8">
+            <TabsList className="grid w-full grid-cols-3 h-8">
               <TabsTrigger value="llm" className="flex items-center gap-1 text-xs">
                 <Brain className="h-3 w-3" />
                 <span className="hidden sm:inline">LLM</span>
@@ -188,10 +188,6 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
               <TabsTrigger value="content" className="flex items-center gap-1 text-xs">
                 <MessageSquare className="h-3 w-3" />
                 <span className="hidden sm:inline">İçerik</span>
-              </TabsTrigger>
-              <TabsTrigger value="profiles" className="flex items-center gap-1 text-xs">
-                <User className="h-3 w-3" />
-                <span className="hidden sm:inline">Profiller</span>
               </TabsTrigger>
             </TabsList>
 
@@ -774,17 +770,7 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
               </div>
             </TabsContent>
 
-            {/* Profiles Settings */}
-            <TabsContent value="profiles" className="space-y-3">
-              <div className="mx-auto space-y-3">
-                <ProfileSelector
-                  onProfileSelect={(profile) => {
-                    // Profil seçildiğinde ayarları güncelle
-                    console.log('Profil seçildi:', profile)
-                  }}
-                />
-              </div>
-            </TabsContent>
+            {/* Profiles tab removed */}
           </Tabs>
         </CardContent>
         </Card>

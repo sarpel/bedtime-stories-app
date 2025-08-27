@@ -33,10 +33,68 @@ interface SeriesManagerProps {
 }
 
 interface SeriesFormProps {
+  formData: {
+    title: string
+    description: string
+    characterInfo: string
+  }
+  onFieldChange: (field: 'title' | 'description' | 'characterInfo', value: string) => void
   onSubmit: () => void
   submitLabel: string
   onCancel: () => void
 }
+
+// Extracted outside component to prevent remounts that cause input focus loss
+const SeriesForm = ({ formData, onFieldChange, onSubmit, submitLabel, onCancel }: SeriesFormProps) => (
+  <div className="space-y-4">
+    <div className="space-y-2">
+      <Label htmlFor="title">Seri Başlığı *</Label>
+      <Input
+        id="title"
+        value={formData.title}
+        onChange={(e) => onFieldChange('title', e.target.value)}
+        placeholder="Örneğin: Peri Kızın Maceraları"
+        autoComplete="off"
+      />
+    </div>
+
+    <div className="space-y-2">
+      <Label htmlFor="description">Açıklama</Label>
+      <Textarea
+        id="description"
+        value={formData.description}
+        onChange={(e) => onFieldChange('description', e.target.value)}
+        placeholder="Serinin konusu hakkında kısa açıklama..."
+        rows={3}
+        autoComplete="off"
+      />
+    </div>
+
+    <div className="space-y-2">
+      <Label htmlFor="characterInfo">Karakter Bilgileri (JSON)</Label>
+      <Textarea
+        id="characterInfo"
+        value={formData.characterInfo}
+        onChange={(e) => onFieldChange('characterInfo', e.target.value)}
+        placeholder='{"ana_karakter": "Ela", "yaş": 5, "özellikler": ["meraklı", "cesur"]}'
+        rows={4}
+        autoComplete="off"
+      />
+      <p className="text-xs text-muted-foreground">
+        Karakter tutarlılığı için JSON formatında bilgi girin
+      </p>
+    </div>
+
+    <div className="flex gap-2 pt-4">
+      <Button onClick={onSubmit} className="flex-1">
+        {submitLabel}
+      </Button>
+      <Button variant="outline" onClick={onCancel} className="flex-1">
+        İptal
+      </Button>
+    </div>
+  </div>
+)
 
 const SeriesManager = ({ onSeriesSelect, onContinueSeries, selectedSeriesId }: SeriesManagerProps) => {
   const {
@@ -132,56 +190,7 @@ const SeriesManager = ({ onSeriesSelect, onContinueSeries, selectedSeriesId }: S
     setShowEditDialog(true)
   }
 
-  const SeriesForm = React.memo(({ onSubmit, submitLabel, onCancel }: SeriesFormProps) => (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="title">Seri Başlığı *</Label>
-        <Input
-          id="title"
-          value={formData.title}
-          onChange={(e) => updateFormData('title', e.target.value)}
-          placeholder="Örneğin: Peri Kızın Maceraları"
-          autoComplete="off"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="description">Açıklama</Label>
-        <Textarea
-          id="description"
-          value={formData.description}
-          onChange={(e) => updateFormData('description', e.target.value)}
-          placeholder="Serinin konusu hakkında kısa açıklama..."
-          rows={3}
-          autoComplete="off"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="characterInfo">Karakter Bilgileri (JSON)</Label>
-        <Textarea
-          id="characterInfo"
-          value={formData.characterInfo}
-          onChange={(e) => updateFormData('characterInfo', e.target.value)}
-          placeholder='{"ana_karakter": "Ela", "yaş": 5, "özellikler": ["meraklı", "cesur"]}'
-          rows={4}
-          autoComplete="off"
-        />
-        <p className="text-xs text-muted-foreground">
-          Karakter tutarlılığı için JSON formatında bilgi girin
-        </p>
-      </div>
-
-      <div className="flex gap-2 pt-4">
-        <Button onClick={onSubmit} className="flex-1">
-          {submitLabel}
-        </Button>
-        <Button variant="outline" onClick={onCancel} className="flex-1">
-          İptal
-        </Button>
-      </div>
-    </div>
-  ))
+  // removed inline memoized SeriesForm (extracted above)
 
   return (
     <Card>
@@ -203,6 +212,8 @@ const SeriesManager = ({ onSeriesSelect, onContinueSeries, selectedSeriesId }: S
                 <DialogTitle>Yeni Seri Oluştur</DialogTitle>
               </DialogHeader>
               <SeriesForm
+                formData={formData}
+                onFieldChange={updateFormData}
                 onSubmit={handleCreateSeries}
                 submitLabel="Oluştur"
                 onCancel={() => setShowCreateDialog(false)}
@@ -291,6 +302,8 @@ const SeriesManager = ({ onSeriesSelect, onContinueSeries, selectedSeriesId }: S
             <DialogTitle>Seriyi Düzenle</DialogTitle>
           </DialogHeader>
           <SeriesForm
+            formData={formData}
+            onFieldChange={updateFormData}
             onSubmit={handleEditSeries}
             submitLabel="Güncelle"
             onCancel={() => {

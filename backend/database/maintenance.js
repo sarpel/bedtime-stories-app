@@ -176,17 +176,7 @@ class DatabaseMaintenance {
         console.log(`Cleaned up ${orphanedSeriesRefs.changes} orphaned series references`);
       }
 
-      // Clean up orphaned profile references in stories
-      const orphanedProfileRefs = db.prepare(`
-        UPDATE stories
-        SET profile_id = NULL
-        WHERE profile_id NOT IN (SELECT id FROM profiles)
-      `).run();
-
-      totalCleaned += orphanedProfileRefs.changes;
-      if (orphanedProfileRefs.changes > 0) {
-        console.log(`Cleaned up ${orphanedProfileRefs.changes} orphaned profile references`);
-      }
+      // Profile feature removed: no profile reference cleanup
 
       console.log(`Database cleanup completed. Total records cleaned: ${totalCleaned}`);
       return {
@@ -194,8 +184,7 @@ class DatabaseMaintenance {
         totalCleaned,
         orphanedAudio: orphanedAudio.changes,
         orphanedQueue: orphanedQueue.changes,
-        orphanedSeriesRefs: orphanedSeriesRefs.changes,
-        orphanedProfileRefs: orphanedProfileRefs.changes
+        orphanedSeriesRefs: orphanedSeriesRefs.changes
       };
     } catch (error) {
       console.error('Database cleanup failed:', error);

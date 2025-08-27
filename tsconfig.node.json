@@ -5,9 +5,15 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
+    "allowJs": false,
     "strict": true,
     "noEmit": false,
+    "outDir": ".tsbuild/node",
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationDir": ".tsbuild/node/types",
     "types": ["node"]
   },
-  "include": ["vite.config.js"]
+  "include": ["vite.config.ts"],
+  "exclude": ["dist", "node_modules"]
 }

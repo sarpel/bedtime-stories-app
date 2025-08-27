@@ -41,7 +41,6 @@ function initDatabase() {
       custom_topic TEXT,
   categories TEXT, -- JSON array (örn: ["macera","uyku"])
       content_hash TEXT, -- SHA256 hash of story content for duplicate detection
-      profile_id INTEGER, -- Hangi profil için oluşturulduğu
       series_id INTEGER, -- Seri ID'si (NULL ise tekil hikaye)
       series_order INTEGER, -- Serideki sıra (NULL ise tekil hikaye)
       series_title TEXT, -- Serinin başlığı
@@ -51,7 +50,6 @@ function initDatabase() {
       shared_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (profile_id) REFERENCES profiles(id),
       FOREIGN KEY (series_id) REFERENCES series(id)
     )
   `);
@@ -62,29 +60,15 @@ function initDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
       description TEXT,
-      profile_id INTEGER, -- Hangi profil için oluşturulduğu
       character_info TEXT, -- JSON object: karakter bilgileri ve tutarlılığı için
       is_active INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (profile_id) REFERENCES profiles(id)
+      -- profile removed
     )
   `);
 
-  // Profiles tablosu
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS profiles (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      age INTEGER,
-      gender TEXT, -- 'girl', 'boy', 'other'
-      preferences TEXT, -- JSON object with story preferences
-      custom_prompt TEXT, -- Profile-specific prompt
-      is_active INTEGER DEFAULT 0, -- Only one profile can be active
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+  // Profiles feature removed: profiles table no longer created
 
   // is_favorite sütununu varolan tabloya ekle (eğer yoksa)
   try {
@@ -169,15 +153,7 @@ function initDatabase() {
     console.log('Content hash migration error:', error.message);
   }
 
-  // profile_id sütununu ekle (migration)
-  try {
-    db.exec(`ALTER TABLE stories ADD COLUMN profile_id INTEGER REFERENCES profiles(id)`);
-    console.log('profile_id sütunu eklendi');
-  } catch (error) {
-    if (!error.message.includes('duplicate column name')) {
-      console.log('profile_id sütunu zaten mevcut');
-    }
-  }
+  // Profiles feature removed: no profile_id migration
 
   // Seri sütunlarını ekle (migration)
   try {
@@ -965,111 +941,15 @@ const storyDb = {
     return AUDIO_DIR;
   },
 
-  // Profile management functions
-  createProfile(name, age, gender, preferences = {}, customPrompt = '') {
-    const stmt = db.prepare(`
-      INSERT INTO profiles (name, age, gender, preferences, custom_prompt)
-      VALUES (?, ?, ?, ?, ?)
-    `);
-    const result = stmt.run(name, age, gender, JSON.stringify(preferences), customPrompt);
-    return result.lastInsertRowid;
-  },
-
-  getProfiles() {
-    const stmt = db.prepare('SELECT * FROM profiles ORDER BY created_at DESC');
-    return stmt.all().map(row => ({
-      ...row,
-      preferences: row.preferences ? JSON.parse(row.preferences) : {}
-    }));
-  },
-
-  getProfile(id) {
-    const stmt = db.prepare('SELECT * FROM profiles WHERE id = ?');
-    const row = stmt.get(id);
-    if (row) {
-      return {
-        ...row,
-        preferences: row.preferences ? JSON.parse(row.preferences) : {}
-      };
-    }
-    return null;
-  },
-
-  updateProfile(id, updates) {
-    const fields = [];
-    const values = [];
-
-    if (updates.name !== undefined) {
-      fields.push('name = ?');
-      values.push(updates.name);
-    }
-    if (updates.age !== undefined) {
-      fields.push('age = ?');
-      values.push(updates.age);
-    }
-    if (updates.gender !== undefined) {
-      fields.push('gender = ?');
-      values.push(updates.gender);
-    }
-    if (updates.preferences !== undefined) {
-      fields.push('preferences = ?');
-      values.push(JSON.stringify(updates.preferences));
-    }
-    if (updates.customPrompt !== undefined) {
-      fields.push('custom_prompt = ?');
-      values.push(updates.customPrompt);
-    }
-
-    if (fields.length > 0) {
-      fields.push('updated_at = CURRENT_TIMESTAMP');
-      const stmt = db.prepare(`UPDATE profiles SET ${fields.join(', ')} WHERE id = ?`);
-      values.push(id);
-      return stmt.run(...values);
-    }
-    return null;
-  },
-
-  deleteProfile(id) {
-    // Önce profile ait storyleri güncelle (profile_id'yi null yap)
-    const updateStoriesStmt = db.prepare('UPDATE stories SET profile_id = NULL WHERE profile_id = ?');
-    updateStoriesStmt.run(id);
-
-    // Profile'i sil
-    const deleteStmt = db.prepare('DELETE FROM profiles WHERE id = ?');
-    return deleteStmt.run(id);
-  },
-
-  setActiveProfile(id) {
-    // Tüm profilleri inactive yap
-    db.prepare('UPDATE profiles SET is_active = 0').run();
-
-    // Belirtilen profili active yap
-    if (id) {
-      const stmt = db.prepare('UPDATE profiles SET is_active = 1 WHERE id = ?');
-      return stmt.run(id);
-    }
-    return null;
-  },
-
-  getActiveProfile() {
-    const stmt = db.prepare('SELECT * FROM profiles WHERE is_active = 1 LIMIT 1');
-    const row = stmt.get();
-    if (row) {
-      return {
-        ...row,
-        preferences: row.preferences ? JSON.parse(row.preferences) : {}
-      };
-    }
-    return null;
-  },
+  // Profile feature removed: profile management functions deleted
 
   // Series management functions
-  createSeries(title, description = '', profileId = null, characterInfo = {}) {
+  createSeries(title, description = '', characterInfo = {}) {
     const stmt = db.prepare(`
-      INSERT INTO series (title, description, profile_id, character_info)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO series (title, description, character_info)
+      VALUES (?, ?, ?)
     `);
-    const result = stmt.run(title, description, profileId, JSON.stringify(characterInfo));
+    const result = stmt.run(title, description, JSON.stringify(characterInfo));
     return result.lastInsertRowid;
   },
 

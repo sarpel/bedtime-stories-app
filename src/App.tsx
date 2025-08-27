@@ -18,7 +18,7 @@ import { useStoryHistory } from './hooks/useStoryHistory.ts'
 import { useStoryDatabase } from './hooks/useStoryDatabase.ts'
 import { useAudioPlayer } from './hooks/useAudioPlayer.ts'
 import { useIsMobile } from './hooks/use-mobile.ts'
-import useProfiles from './hooks/useProfiles.ts'
+// Profiles feature removed
 import useSeries from './hooks/useSeries.ts'
 import ApiKeyHelp from './components/ApiKeyHelp.tsx'
 import safeLocalStorage from './utils/safeLocalStorage'
@@ -54,14 +54,7 @@ interface SeriesInfo {
   }>
 }
 
-interface Profile {
-  id: string | number
-  name: string
-  is_active?: boolean
-  age?: number
-  gender?: 'girl' | 'boy' | 'other'
-  custom_prompt?: string
-}
+// Profile type removed
 
 interface Story {
   id?: string | number
@@ -84,7 +77,6 @@ interface Story {
 
 interface AppSettings {
   theme?: string
-  activeProfile?: Profile
   openaiLLM?: any
   geminiLLM?: any
   elevenlabs?: any
@@ -120,16 +112,7 @@ function App() {
   const [selectedSeriesId, setSelectedSeriesId] = useState<string | number | null>(null)
   const [selectedSeries, setSelectedSeries] = useState<Series | null>(null)
 
-  // Profiller hook'u - activeProfile'ı kullanmadan önce tanımla
-  const {
-    profiles,
-    activeProfile,
-    isLoading: profilesLoading,
-    createProfile,
-    updateProfile,
-    deleteProfile,
-    setActiveProfileById
-  } = useProfiles()
+  // Profiles feature removed
 
   const [settings, setSettings] = useState<AppSettings>(() => {
     // localStorage'dan ayarları güvenli şekilde yükle
@@ -217,15 +200,7 @@ function App() {
     return cleanup
   }, [settings.theme])
 
-  // Aktif profil değiştiğinde settings'i güncelle
-  useEffect(() => {
-    if (activeProfile) {
-      updateSettings({
-        ...settings,
-        activeProfile: activeProfile
-      })
-    }
-  }, [activeProfile])
+  // Profiles feature removed - no active profile
 
   // Favori masallar hook'u
   const {
@@ -432,12 +407,7 @@ function App() {
     const startTime = Date.now()
 
     try {
-      // Aktif profili settings'e dahil et
-      const settingsWithProfile = {
-        ...settings,
-        activeProfile: activeProfile
-      }
-      const llmService = new LLMService(settingsWithProfile)
+      const llmService = new LLMService(settings)
       if (process.env.NODE_ENV === 'development') console.log('[App] LLMService:created')
 
       // Eğer customTopic varsa onu kullan, yoksa selectedStoryType kullan
