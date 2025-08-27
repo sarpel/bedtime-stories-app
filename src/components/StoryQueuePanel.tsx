@@ -415,7 +415,7 @@ export default function StoryQueuePanel({
     } catch (e) {
       console.error('Kuyruk yükleme hatası:', e)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [localStories && localStories.length])
 
   // stories değişince kuyruktaki objeleri güncelle (ör. audio eklenmiş olabilir)
@@ -545,7 +545,7 @@ export default function StoryQueuePanel({
   useEffect(() => {
     if (!setOnEnded) return
     setOnEnded(() => next)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [queue, currentIndex, shuffle, repeatAll, setOnEnded])
 
   const addToQueue = (story) => {

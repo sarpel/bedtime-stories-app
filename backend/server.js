@@ -830,7 +830,7 @@ app.put('/api/stories/:id', (req, res) => {
       return res.status(400).json({ error: 'Geçersiz masal ID\'si.' });
     }
 
-  const { storyText, storyType, customTopic, categories } = req.body;
+  const { storyText, storyType, customTopic } = req.body;
 
     // Input validation
     if (!storyText || !storyType) {

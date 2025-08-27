@@ -387,15 +387,6 @@ const statements = {
   getMaxQueuePos: db.prepare(`
     SELECT COALESCE(MAX(position), 0) as maxpos FROM queue
   `),
-
-  searchStoriesByTitle: db.prepare(`
-    SELECT s.*, a.file_name, a.file_path, a.voice_id
-    FROM stories s
-    LEFT JOIN audio_files a ON s.id = a.story_id
-    WHERE s.custom_topic LIKE ? OR s.story_type LIKE ?
-    ORDER BY s.created_at DESC
-    LIMIT ?
-  `),
 };
 
 // Arama için maksimum limit sabiti
