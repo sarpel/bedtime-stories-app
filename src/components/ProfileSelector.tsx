@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -44,6 +44,10 @@ const ProfileSelector = ({ onProfileSelect, selectedProfileId }: ProfileSelector
     gender: '',
     customPrompt: ''
   })
+
+  const updateFormData = useCallback((field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }, [])
 
   const handleCreateProfile = async () => {
     if (!formData.name || !formData.age || !formData.gender) {
@@ -114,15 +118,16 @@ interface ProfileFormProps {
   onCancel: () => void;
 }
 
-  const ProfileForm: React.FC<ProfileFormProps> = ({ onSubmit, submitLabel, onCancel }) => (
+  const ProfileForm: React.FC<ProfileFormProps> = React.memo(({ onSubmit, submitLabel, onCancel }) => (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="name">İsim *</Label>
         <Input
           id="name"
           value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          onChange={(e) => updateFormData('name', e.target.value)}
           placeholder="Çocuğun adı"
+          autoComplete="off"
         />
       </div>
 
@@ -132,10 +137,11 @@ interface ProfileFormProps {
           id="age"
           type="number"
           value={formData.age}
-          onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+          onChange={(e) => updateFormData('age', e.target.value)}
           placeholder="5"
           min="1"
           max="18"
+          autoComplete="off"
         />
       </div>
 
@@ -143,7 +149,7 @@ interface ProfileFormProps {
         <Label htmlFor="gender">Cinsiyet *</Label>
         <Select
           value={formData.gender}
-          onValueChange={(value) => setFormData({ ...formData, gender: value })}
+          onValueChange={(value) => updateFormData('gender', value)}
         >
           <SelectTrigger>
             <SelectValue placeholder="Seçin" />
@@ -161,8 +167,9 @@ interface ProfileFormProps {
         <Input
           id="customPrompt"
           value={formData.customPrompt}
-          onChange={(e) => setFormData({ ...formData, customPrompt: e.target.value })}
+          onChange={(e) => updateFormData('customPrompt', e.target.value)}
           placeholder="Özel masal tercihleri..."
+          autoComplete="off"
         />
       </div>
 
@@ -175,7 +182,7 @@ interface ProfileFormProps {
         </Button>
       </div>
     </div>
-  )
+  ))
 
   return (
     <Card>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -51,9 +51,24 @@ const SearchPanel = ({
   const [isSearching, setIsSearching] = useState(false)
   const [searchHistory, setSearchHistory] = useState<string[]>([])
   const [hasSearched, setHasSearched] = useState(false)
+  const panelRef = useRef<HTMLDivElement>(null)
 
   // Debounce search query to avoid too many API calls
   const debouncedQuery = useDebounce(searchQuery, 300)
+
+  // Click outside handler
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        onClose()
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [onClose])
 
   // Load search history from localStorage
   useEffect(() => {
@@ -164,7 +179,9 @@ const SearchPanel = ({
   }, [searchResults, favorites])
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-1">
+      <div ref={panelRef}>
+        <Card className="w-full max-w-[95vw] sm:max-w-2xl md:max-w-3xl lg:max-w-4xl max-h-[95vh] overflow-y-auto scrollbar-thin">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
@@ -318,6 +335,8 @@ const SearchPanel = ({
         )}
       </CardContent>
     </Card>
+      </div>
+    </div>
   )
 }
 

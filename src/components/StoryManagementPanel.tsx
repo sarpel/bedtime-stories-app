@@ -150,7 +150,7 @@ const StoryManagementPanel: React.FC<StoryManagementPanelProps> = ({
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-1">
       <div ref={panelRef}>
-        <Card className="w-full max-w-md sm:max-w-lg max-h-[95vh] overflow-y-auto scrollbar-thin">
+        <Card className="w-full max-w-[95vw] sm:max-w-md md:max-w-lg max-h-[95vh] overflow-y-auto scrollbar-thin">
         <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-2">
           <div className="flex items-center justify-between">
             <div>
@@ -171,7 +171,7 @@ const StoryManagementPanel: React.FC<StoryManagementPanelProps> = ({
               placeholder="Masallarda ara..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="flex-1 h-7 text-xs"
+              className="flex-1 h-8 text-sm"
             />
           </div>
         </CardHeader>
@@ -234,7 +234,7 @@ const StoryManagementPanel: React.FC<StoryManagementPanelProps> = ({
                             size="sm"
                             onClick={() => onGenerateAudio(story)}
                             disabled={isGeneratingAudio}
-                            className="h-5 px-1 text-xs"
+                            className="h-6 px-2 text-xs touch-manipulation"
                             title="Hikayeyi seslendir"
                           >
                             <Volume2 className="h-2 w-2 mr-1" />
@@ -249,7 +249,7 @@ const StoryManagementPanel: React.FC<StoryManagementPanelProps> = ({
                             story_type: story.story_type || story.storyType,
                             custom_topic: story.custom_topic || story.customTopic
                           })}
-                          className={`h-5 w-5 p-0 ${isFavorite?.(story) ? 'text-red-500' : ''}`}
+                          className={`h-6 w-6 p-0 touch-manipulation ${isFavorite?.(story) ? 'text-red-500' : ''}`}
                           title="Favorilere ekle/çıkar"
                         >
                           <Heart className={`h-2 w-2 ${isFavorite?.(story) ? 'fill-current' : ''
@@ -262,7 +262,7 @@ const StoryManagementPanel: React.FC<StoryManagementPanelProps> = ({
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEditStory(story)}
-                              className="h-5 w-5 p-0"
+                              className="h-6 w-6 p-0 touch-manipulation"
                               title="Düzenle"
                             >
                               <Edit className="h-2 w-2" />
@@ -294,11 +294,17 @@ const StoryManagementPanel: React.FC<StoryManagementPanelProps> = ({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-destructive hover:text-destructive h-5 w-5 p-0"
+                          className="text-destructive hover:text-destructive h-6 w-6 p-0 hover:bg-destructive/10"
                           title="Sil"
-                          onClick={() => onDeleteStory?.(story.id)}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            if (window.confirm('Bu masalı silmek istediğinizden emin misiniz?')) {
+                              onDeleteStory?.(story.id)
+                            }
+                          }}
                         >
-                          <Trash2 className="h-2 w-2" />
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>

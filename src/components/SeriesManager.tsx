@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -57,6 +57,10 @@ const SeriesManager = ({ onSeriesSelect, onContinueSeries, selectedSeriesId }: S
     description: '',
     characterInfo: ''
   })
+
+  const updateFormData = useCallback((field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }, [])
   const [selectedSeriesStories, setSelectedSeriesStories] = useState<Story[]>([])
   const [showStoriesDialog, setShowStoriesDialog] = useState(false)
 
@@ -128,15 +132,16 @@ const SeriesManager = ({ onSeriesSelect, onContinueSeries, selectedSeriesId }: S
     setShowEditDialog(true)
   }
 
-  const SeriesForm = ({ onSubmit, submitLabel, onCancel }: SeriesFormProps) => (
+  const SeriesForm = React.memo(({ onSubmit, submitLabel, onCancel }: SeriesFormProps) => (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="title">Seri Başlığı *</Label>
         <Input
           id="title"
           value={formData.title}
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+          onChange={(e) => updateFormData('title', e.target.value)}
           placeholder="Örneğin: Peri Kızın Maceraları"
+          autoComplete="off"
         />
       </div>
 
@@ -145,9 +150,10 @@ const SeriesManager = ({ onSeriesSelect, onContinueSeries, selectedSeriesId }: S
         <Textarea
           id="description"
           value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          onChange={(e) => updateFormData('description', e.target.value)}
           placeholder="Serinin konusu hakkında kısa açıklama..."
           rows={3}
+          autoComplete="off"
         />
       </div>
 
@@ -156,9 +162,10 @@ const SeriesManager = ({ onSeriesSelect, onContinueSeries, selectedSeriesId }: S
         <Textarea
           id="characterInfo"
           value={formData.characterInfo}
-          onChange={(e) => setFormData({ ...formData, characterInfo: e.target.value })}
+          onChange={(e) => updateFormData('characterInfo', e.target.value)}
           placeholder='{"ana_karakter": "Ela", "yaş": 5, "özellikler": ["meraklı", "cesur"]}'
           rows={4}
+          autoComplete="off"
         />
         <p className="text-xs text-muted-foreground">
           Karakter tutarlılığı için JSON formatında bilgi girin
@@ -174,7 +181,7 @@ const SeriesManager = ({ onSeriesSelect, onContinueSeries, selectedSeriesId }: S
         </Button>
       </div>
     </div>
-  )
+  ))
 
   return (
     <Card>

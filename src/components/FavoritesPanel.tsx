@@ -9,10 +9,7 @@ import {
   Heart,
   Trash2,
   Volume2,
-  Play,
-  Clock,
   Calendar,
-  Sparkles,
   X,
 } from 'lucide-react';
 import { getStoryTypeName } from '@/utils/storyTypes.js';
@@ -103,7 +100,7 @@ export default function FavoritesPanel({
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-1">
       <div ref={panelRef}>
-        <Card className="w-full max-w-md sm:max-w-lg max-h-[95vh] overflow-y-auto scrollbar-thin">
+        <Card className="w-full max-w-[95vw] sm:max-w-md md:max-w-lg max-h-[95vh] overflow-y-auto scrollbar-thin">
         <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-2">
           <div className="flex items-center justify-between">
             <div>
@@ -130,79 +127,91 @@ export default function FavoritesPanel({
           ) : (
             <ScrollArea className="h-96">
               <div className="space-y-1">
-                {favorites.map((favorite, index) => (
-                  <div key={favorite.id}>
-                    <div className="border rounded p-2">
-                      <div className="space-y-2">
-                        {/* 1. Satır: Başlık, Tür, Tarih (Sol) + Aksiyon Butonları (Sağ) */}
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1 flex-1 min-w-0">
-                            <h3 className="text-sm font-medium truncate">{favorite.title || 'Özel Masal'}</h3>
-                            <Badge variant="secondary" className="text-xs px-1 py-0 h-4 flex-shrink-0">
-                              {getStoryTypeName(favorite.storyType || favorite.story_type || '')}
+                {favorites.map((favorite) => (
+                  <Card key={favorite.id} className="p-2">
+                    <div className="space-y-1">
+                      {/* Başlık satırı - StoryManagementPanel ile aynı layout */}
+                      <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center gap-1 flex-1 min-w-0">
+                          <span className="font-medium text-xs truncate max-w-[24ch]">{favorite.title || 'Özel Masal'}</span>
+                          <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
+                            {getStoryTypeName(favorite.storyType || favorite.story_type || '')}
+                          </Badge>
+                          {(favorite.custom_topic || favorite.customTopic) && (
+                            <Badge variant="outline" className="text-xs px-1 py-0 h-4">
+                              {favorite.custom_topic || favorite.customTopic}
                             </Badge>
-                            <Badge variant="outline" className="text-xs px-1 py-0 h-4 flex-shrink-0">
-                              <Calendar className="h-2 w-2 mr-0.5" />
-                              {formatDate(favorite.createdAt)}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => onRemove(favorite.id)}
-                              className="text-destructive hover:text-destructive-foreground hover:bg-destructive h-6 px-1.5 text-xs"
-                            >
-                              <Trash2 className="h-3 w-3 mr-0.5" />
-                              Sil
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => playAudio(favorite.audioUrl || '', favorite.id)}
-                              className="h-6 px-1.5 text-xs"
-                              disabled={!favorite.audioUrl}
-                            >
-                              <Volume2 className="h-3 w-3 mr-0.5" />
-                              Seslendir
-                            </Button>
+                          )}
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Calendar className="h-2 w-2" />
+                            {new Date((favorite.created_at || favorite.createdAt || Date.now())).toLocaleDateString('tr-TR')}
                           </div>
                         </div>
 
-                        {/* 2. Satır: Önizleme (Sol) + Ses Kontrolleri (Sağ) */}
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-xs text-muted-foreground leading-tight line-clamp-2 flex-1">
-                            {(favorite.story || favorite.story_text || '').substring(0, 120)}...
-                          </p>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {/* Audio Controls - StoryManagementPanel ile aynı */}
                           {favorite.audioUrl && (
-                            <div className="flex-shrink-0">
-                              <AudioControls
-                                storyId={favorite.id}
-                                audioUrl={favorite.audioUrl}
-                                isPlaying={audioIsPlaying}
-                                isPaused={audioIsPaused}
-                                progress={audioProgress}
-                                duration={audioDuration}
-                                volume={audioVolume}
-                                isMuted={audioIsMuted}
-                                playbackRate={audioPlaybackRate}
-                                currentStoryId={audioCurrentStoryId}
-                                onPlay={playAudio}
-                                onPause={() => {}} // Add missing onPause prop
-                                onStop={stopAudio}
-                                onToggleMute={audioToggleMute}
-                                onVolumeChange={setVolumeLevel}
-                                onPlaybackSpeedChange={setPlaybackSpeed}
-                                onSeek={seekTo}
-                                size="xs"
-                              />
-                            </div>
+                            <AudioControls
+                              storyId={favorite.id}
+                              audioUrl={favorite.audioUrl}
+                              isPlaying={audioIsPlaying}
+                              isPaused={audioIsPaused}
+                              progress={audioProgress}
+                              duration={audioDuration}
+                              volume={audioVolume}
+                              isMuted={audioIsMuted}
+                              playbackRate={audioPlaybackRate}
+                              currentStoryId={audioCurrentStoryId}
+                              onPlay={playAudio}
+                              onPause={() => {}} // Add missing onPause prop
+                              onStop={stopAudio}
+                              onToggleMute={audioToggleMute}
+                              onVolumeChange={setVolumeLevel}
+                              onPlaybackSpeedChange={setPlaybackSpeed}
+                              onSeek={seekTo}
+                              size="xs"
+                              showAdvanced={false}
+                            />
                           )}
+
+                          {/* Generate Audio Button for stories without audio */}
+                          {!favorite.audioUrl && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => playAudio('', favorite.id)}
+                              disabled={true}
+                              className="h-5 px-1 text-xs"
+                              title="Ses dosyası bulunamadı"
+                            >
+                              <Volume2 className="h-2 w-2 mr-1" />
+                            </Button>
+                          )}
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive h-6 w-6 p-0 hover:bg-destructive/10"
+                            title="Favorilerden çıkar"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              if (window.confirm('Bu masalı favorilerden çıkarmak istediğinizden emin misiniz?')) {
+                                onRemove(favorite.id)
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </div>
                       </div>
+
+                      {/* Masal içeriği - StoryManagementPanel ile aynı */}
+                      <p className="text-xs text-muted-foreground line-clamp-1 leading-tight">
+                        {(favorite.story || favorite.story_text || '').substring(0, 100)}...
+                      </p>
                     </div>
-                    {index < favorites.length - 1 && <div className="h-px bg-border my-0.5" />}
-                  </div>
+                  </Card>
                 ))}
               </div>
             </ScrollArea>
