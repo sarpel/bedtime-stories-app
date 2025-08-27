@@ -31,8 +31,9 @@ interface LogEntry {
 // Detect environment safely
 const getEnvVar = (name: string, defaultValue: string = ''): string => {
   try {
-    // Check for process in a safe way using optional chaining
-    return globalThis?.process?.env?.[name] || defaultValue
+    // Check for process in a safe way using optional chaining and any-cast for env lookup
+    const proc: any = (globalThis as any)?.process
+    return (proc?.env?.[name] as string | undefined) || defaultValue
   } catch {
     return defaultValue
   }

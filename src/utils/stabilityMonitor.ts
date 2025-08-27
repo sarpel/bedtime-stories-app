@@ -52,8 +52,8 @@ class StabilityMonitor {
   performanceIssues: PerformanceIssue[]
   lastCleanup: number
   isMonitoring: boolean
-  memoryCheckInterval: NodeJS.Timeout | null
-  cleanupInterval: NodeJS.Timeout | null
+  memoryCheckInterval: number | null
+  cleanupInterval: number | null
   maxErrors: number
   maxPerformanceIssues: number
 
@@ -204,7 +204,7 @@ class StabilityMonitor {
   monitorPerformance(): void {
     // Monitor memory usage (less frequent for Pi Zero - every 60 seconds)
     if (typeof performance !== 'undefined' && performance.memory) {
-      this.memoryCheckInterval = setInterval(() => {
+      this.memoryCheckInterval = window.setInterval(() => {
         const memoryUsage = (performance.memory!.usedJSHeapSize / performance.memory!.jsHeapSizeLimit) * 100
 
         if (memoryUsage > 70) { // Lowered threshold for Pi Zero
@@ -230,7 +230,7 @@ class StabilityMonitor {
   }
 
   scheduleCleanup(): void {
-    this.cleanupInterval = setInterval(() => {
+    this.cleanupInterval = window.setInterval(() => {
       const now = Date.now()
 
       // Cleanup every 5 minutes for Pi Zero
@@ -272,12 +272,12 @@ class StabilityMonitor {
 
     // Clear intervals
     if (this.memoryCheckInterval) {
-      clearInterval(this.memoryCheckInterval)
+      window.clearInterval(this.memoryCheckInterval)
       this.memoryCheckInterval = null
     }
 
     if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval)
+      window.clearInterval(this.cleanupInterval)
       this.cleanupInterval = null
     }
 

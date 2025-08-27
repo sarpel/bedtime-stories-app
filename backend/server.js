@@ -139,7 +139,7 @@ if (fs.existsSync(publicPath)) {
     maxAge: isProduction ? '1y' : '0',
     etag: true,
     lastModified: true,
-    setHeaders: (res, filePath) => {
+    setHeaders: (res) => {
       // Security headers for all static files
       res.setHeader('X-Content-Type-Options', 'nosniff');
     }

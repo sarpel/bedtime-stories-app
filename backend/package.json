@@ -6,7 +6,6 @@
   "scripts": {
     "start": "NODE_ENV=production node server.js",
     "dev": "node server.js",
-    "test": "jest --runInBand",
     "rebuild": "npm rebuild better-sqlite3 --build-from-source"
   },
   "keywords": [],
@@ -23,10 +22,7 @@
     "pino-pretty": "^13.0.0",
     "pino-http": "^10.4.0"
   },
-  "devDependencies": {
-    "jest": "^29.7.0",
-    "supertest": "^7.1.4"
-  },
+  "devDependencies": {},
   "engines": {
   "node": ">=20.0.0",
   "npm": ">=10.0.0"

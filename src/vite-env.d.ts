@@ -1,11 +1,13 @@
 /// <reference types="vite/client" />
 
 declare module '*.jsx' {
-  import React = require('react');
-  export default React.ComponentType<any>;
+  import type { ComponentType } from 'react'
+  const Component: ComponentType<unknown>
+  export default Component
 }
 
 declare module '*.tsx' {
-  import React = require('react');
-  export default React.ComponentType<any>;
+  import type { ComponentType } from 'react'
+  const Component: ComponentType<unknown>
+  export default Component
 }

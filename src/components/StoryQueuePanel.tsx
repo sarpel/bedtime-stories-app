@@ -403,12 +403,12 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
   }, []) // onRemoteStatusChange kaldırıldı
 
   useEffect(() => {
-    let id: NodeJS.Timeout | null = null;
+    let id: number | null = null;
     const start = () => {
       refreshRemote();
-      id = setInterval(refreshRemote, 5000);
+      id = window.setInterval(refreshRemote, 5000);
     };
-    const stop = () => { if (id) clearInterval(id); id = null; };
+    const stop = () => { if (id) window.clearInterval(id); id = null; };
     const onVis = () => (document.hidden ? stop() : start());
     onVis();
     document.addEventListener('visibilitychange', onVis);
@@ -497,7 +497,6 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
     } catch (e) {
       console.error('Kuyruk yükleme hatası:', e)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localStories && localStories.length])
 
   // stories değişince kuyruktaki objeleri güncelle (ör. audio eklenmiş olabilir)
@@ -627,7 +626,6 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
   useEffect(() => {
     if (!setOnEnded) return
     setOnEnded(() => next)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue, currentIndex, shuffle, repeatAll, setOnEnded])
 
   const addToQueue = (story: Story) => {

@@ -108,10 +108,10 @@ export function useMemoryMonitor(threshold: number = 50) { // MB
   const [isHighMemory, setIsHighMemory] = useState(false)
 
   useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null
+    let intervalId: number | null = null
 
     if (typeof performance !== 'undefined' && (performance as any).memory) {
-      intervalId = setInterval(() => {
+      intervalId = window.setInterval(() => {
         const usage = (performance as any).memory.usedJSHeapSize / (1024 * 1024) // MB
         setMemoryUsage(Math.round(usage * 100) / 100)
         setIsHighMemory(usage > threshold)
@@ -119,7 +119,7 @@ export function useMemoryMonitor(threshold: number = 50) { // MB
     }
 
     return () => {
-      if (intervalId) clearInterval(intervalId)
+      if (intervalId) window.clearInterval(intervalId)
     }
   }, [threshold])
 
@@ -176,9 +176,9 @@ export function useCacheManager() {
     clearOldCache()
 
     // Her 10 dakikada bir temizle
-    const intervalId = setInterval(clearOldCache, 10 * 60 * 1000)
+    const intervalId = window.setInterval(clearOldCache, 10 * 60 * 1000)
 
-    return () => clearInterval(intervalId)
+    return () => window.clearInterval(intervalId)
   }, [clearOldCache])
 
   return {

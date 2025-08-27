@@ -32,5 +32,5 @@ const appTree = (
 )
 
 createRoot(document.getElementById('root')!).render(
-  process.env.NODE_ENV === 'development' ? <StrictMode>{appTree}</StrictMode> : appTree
+  import.meta.env.DEV ? <StrictMode>{appTree}</StrictMode> : appTree
 )

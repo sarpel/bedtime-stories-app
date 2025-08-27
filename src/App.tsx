@@ -395,7 +395,7 @@ function App() {
       return
     }
 
-    if (process.env.NODE_ENV === 'development') console.log('[App] generateStory:start', {
+    if (import.meta.env.DEV) console.log('[App] generateStory:start', {
       selectedStoryType,
       customTopicLen: customTopic.length
     })
@@ -408,12 +408,12 @@ function App() {
 
     try {
       const llmService = new LLMService(settings)
-      if (process.env.NODE_ENV === 'development') console.log('[App] LLMService:created')
+      if (import.meta.env.DEV) console.log('[App] LLMService:created')
 
       // Eğer customTopic varsa onu kullan, yoksa selectedStoryType kullan
       const storyTypeToUse = customTopic.trim() ? 'custom' : selectedStoryType
       const topicToUse = customTopic.trim() || ''
-      if (process.env.NODE_ENV === 'development') console.log('[App] request:prepared', { storyTypeToUse, topicToUseLen: topicToUse.length })
+      if (import.meta.env.DEV) console.log('[App] request:prepared', { storyTypeToUse, topicToUseLen: topicToUse.length })
 
       // Seri bilgisini hazırla
       let seriesInfo = null
@@ -428,9 +428,9 @@ function App() {
 
       let story = await llmService.generateStory((progressValue) => {
         setProgress(progressValue)
-        if (process.env.NODE_ENV === 'development') console.log('[App] progress:', progressValue)
+        if (import.meta.env.DEV) console.log('[App] progress:', progressValue)
       }, storyTypeToUse, topicToUse, seriesInfo)
-      if (process.env.NODE_ENV === 'development') console.log('[App] response:received', { length: story?.length || 0 })
+      if (import.meta.env.DEV) console.log('[App] response:received', { length: story?.length || 0 })
 
       // Validate story response
       if (!story || (typeof story === 'string' && story.trim().length < 50)) {
@@ -438,12 +438,12 @@ function App() {
       }
 
       setStory(story)
-      if (process.env.NODE_ENV === 'development') console.log('[App] story:set', { length: story?.length || 0 })
+      if (import.meta.env.DEV) console.log('[App] story:set', { length: story?.length || 0 })
 
       // Analytics: Track successful story generation
       const duration = Date.now() - startTime
       analyticsService.trackStoryGeneration(storyTypeToUse, topicToUse, true, duration)
-      if (process.env.NODE_ENV === 'development') console.log('[App] analytics:storyGeneration:success', { duration })
+      if (import.meta.env.DEV) console.log('[App] analytics:storyGeneration:success', { duration })
 
       // Veritabanına kaydet
       try {

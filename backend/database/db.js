@@ -1021,7 +1021,7 @@ const storyDb = {
       WHERE series_id = ?
       ORDER BY series_order ASC, created_at ASC
     `);
-    return stmt.all();
+    return stmt.all(seriesId);
   },
 
   addStoryToSeries(storyId, seriesId, seriesTitle, order = null) {
