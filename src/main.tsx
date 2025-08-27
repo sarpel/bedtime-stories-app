@@ -5,7 +5,7 @@ import './index.css'
 import App from './App.tsx'
 import SharedStoryViewer from './components/SharedStoryViewer.tsx'
 import ErrorBoundary from './components/ErrorBoundary.tsx'
-import stabilityMonitor from './utils/stabilityMonitor'
+import stabilityMonitor from './utils/stabilityMonitor.ts'
 
 // Extend window interface for stability monitor
 declare global {

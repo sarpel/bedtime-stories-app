@@ -106,6 +106,12 @@ app.use((req, res, next) => {
     case '.jsx':
       res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
       break;
+    case '.ts':
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      break;
+    case '.tsx':
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      break;
     case '.mjs':
       res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
       break;
@@ -125,7 +131,20 @@ app.use((req, res, next) => {
 
 // Static dosyalar (ses) - frontend build için tekil konsolide blok aşağıda (çift mount kaldırıldı)
 app.use('/audio', express.static(path.join(__dirname, 'audio'), { etag: true, lastModified: true }));
-// distDir burada tanımlanmıyor; aşağıdaki kapsamlı blokta yerel olarak hesaplanacak
+
+// Serve public folder for favicon and other static assets
+const publicPath = path.join(__dirname, '..', 'public');
+if (fs.existsSync(publicPath)) {
+  app.use(express.static(publicPath, {
+    maxAge: isProduction ? '1y' : '0',
+    etag: true,
+    lastModified: true,
+    setHeaders: (res, filePath) => {
+      // Security headers for all static files
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+    }
+  }));
+}
 
 // Rate limiting uygulanmıyor (kişisel kurulum)
 
@@ -225,7 +244,7 @@ try {
         }
 
         // Fix MIME types for JavaScript modules
-        if (filePath.endsWith('.js') || filePath.endsWith('.jsx')) {
+        if (filePath.endsWith('.js') || filePath.endsWith('.jsx') || filePath.endsWith('.ts') || filePath.endsWith('.tsx')) {
           res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
         }
 
@@ -263,7 +282,7 @@ try {
         etag: true,
         lastModified: true,
         setHeaders: (res, filePath) => {
-          if (filePath.endsWith('.js') || filePath.endsWith('.jsx')) {
+          if (filePath.endsWith('.js') || filePath.endsWith('.jsx') || filePath.endsWith('.ts') || filePath.endsWith('.tsx')) {
             res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
           }
           res.setHeader('X-Content-Type-Options', 'nosniff');

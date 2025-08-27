@@ -1090,4 +1090,19 @@ const storyDb = {
 // Veritabanını başlat
 initDatabase();
 
+// Database maintenance integration
+const DatabaseMaintenance = require('./maintenance');
+
+// Export maintenance functions
+storyDb.maintenance = {
+  vacuum: () => new DatabaseMaintenance().vacuum(),
+  analyze: () => new DatabaseMaintenance().analyze(),
+  reindex: () => new DatabaseMaintenance().reindex(),
+  cleanup: () => new DatabaseMaintenance().cleanup(),
+  integrityCheck: () => new DatabaseMaintenance().integrityCheck(),
+  getStats: () => new DatabaseMaintenance().getStats(),
+  fullMaintenance: () => new DatabaseMaintenance().fullMaintenance(),
+  optimize: () => new DatabaseMaintenance().optimize()
+};
+
 module.exports = storyDb;

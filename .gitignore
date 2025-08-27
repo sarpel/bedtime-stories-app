@@ -8,7 +8,7 @@ pnpm-debug.log*
 .github/prompts/
 # GitHub metadata (keep Actions, templates, dependabot tracked)
 # .github/
-
+docs/Feature_Proposals.md
 # Production build
 dist/
 build/
