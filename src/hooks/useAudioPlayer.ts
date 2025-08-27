@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import analyticsService from '../services/analyticsService.js'
+import analyticsService from '../services/analyticsService'
 
 export function useAudioPlayer() {
   const [currentAudio, setCurrentAudio] = useState<string | null>(null)

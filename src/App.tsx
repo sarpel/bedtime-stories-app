@@ -1,32 +1,32 @@
 import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button.jsx'
-import { Card, CardContent } from '@/components/ui/card.jsx'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Moon, Settings, Heart, AlertCircle, BookOpen, BarChart3, Zap, Play, Square, ListMusic, X, Search } from 'lucide-react'
-import SettingsPanel from './components/Settings.jsx'
-import StoryCreator from './components/StoryCreator.jsx'
-import FavoritesPanel from './components/FavoritesPanel.jsx'
-import StoryManagementPanel from './components/StoryManagementPanel.jsx'
-import AnalyticsDashboard from './components/AnalyticsDashboard.jsx'
-import PerformanceMonitor from './components/PerformanceMonitor.jsx'
-import StoryQueuePanel from './components/StoryQueuePanel.jsx'
-import SearchPanel from './components/SearchPanel.jsx'
-import { LLMService } from './services/llmService.js'
-import { TTSService } from './services/ttsService.js'
-import { getDefaultSettings } from './services/configService.js'
-import analyticsService from './services/analyticsService.js'
-import useFavorites from './hooks/useFavorites.js'
-import { useStoryHistory } from './hooks/useStoryHistory.js'
-import { useStoryDatabase } from './hooks/useStoryDatabase.js'
-import { useAudioPlayer } from './hooks/useAudioPlayer.js'
-import { useIsMobile } from './hooks/use-mobile.js'
-import useProfiles from './hooks/useProfiles.js'
-import ApiKeyHelp from './components/ApiKeyHelp.jsx'
-import safeLocalStorage from './utils/safeLocalStorage.js'
+import SettingsPanel from './components/Settings'
+import StoryCreator from './components/StoryCreator'
+import FavoritesPanel from './components/FavoritesPanel'
+import StoryManagementPanel from './components/StoryManagementPanel'
+import AnalyticsDashboard from './components/AnalyticsDashboard'
+// import PerformanceMonitor from './components/PerformanceMonitor' // Component removed
+import StoryQueuePanel from './components/StoryQueuePanel'
+import SearchPanel from './components/SearchPanel'
+import { LLMService } from './services/llmService'
+import { TTSService } from './services/ttsService'
+import { getDefaultSettings } from './services/configService'
+import analyticsService from './services/analyticsService'
+import useFavorites from './hooks/useFavorites'
+import { useStoryHistory } from './hooks/useStoryHistory'
+import { useStoryDatabase } from './hooks/useStoryDatabase'
+import { useAudioPlayer } from './hooks/useAudioPlayer'
+import { useIsMobile } from './hooks/use-mobile'
+import useProfiles from './hooks/useProfiles'
+import ApiKeyHelp from './components/ApiKeyHelp'
+import safeLocalStorage from './utils/safeLocalStorage'
 // Pi Zero optimizations
-import { logger } from './utils/logger.js'
-import stabilityMonitor from './utils/stabilityMonitor.js'
+import { logger } from './utils/logger'
+import stabilityMonitor from './utils/stabilityMonitor'
 import './App.css'
-import { Toaster } from '@/components/ui/sonner.jsx'
+import { Toaster } from '@/components/ui/sonner'
 import { toast } from 'sonner'
 
 function App() {
@@ -44,7 +44,7 @@ function App() {
   const [showApiKeyHelp, setShowApiKeyHelp] = useState(false)
   const [showStoryManagement, setShowStoryManagement] = useState(false)
   const [showAnalytics, setShowAnalytics] = useState(false)
-  const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false)
+  // const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false) // Component removed
   const [showSearch, setShowSearch] = useState(false)
   // Son oluşturulan masalın geçmiş ID'si
   const [currentStoryId, setCurrentStoryId] = useState(null)
@@ -637,6 +637,7 @@ function App() {
               <BarChart3 className="h-3 w-3" />
               <span className="hidden lg:inline">Analitik</span>
             </Button>
+            {/* Performance Monitor removed
             <Button
               variant="outline"
               size="sm"
@@ -647,6 +648,7 @@ function App() {
               <Zap className="h-3 w-3" />
               <span className="hidden lg:inline">Performans</span>
             </Button>
+            */}
             <Button
               variant="outline"
               size="sm"
@@ -810,13 +812,14 @@ function App() {
           <AnalyticsDashboard onClose={() => setShowAnalytics(false)} />
         )}
 
-        {/* Performance Monitor */}
+        {/* Performance Monitor - Component removed
         {showPerformanceMonitor && (
           <PerformanceMonitor
             isOpen={showPerformanceMonitor}
             onClose={() => setShowPerformanceMonitor(false)}
           />
         )}
+        */}
 
         {/* Search Panel */}
         {showSearch && (

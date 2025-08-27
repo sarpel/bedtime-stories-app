@@ -1,10 +1,22 @@
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 
+interface Profile {
+  id: string | number
+  name: string
+  age?: number
+  gender?: string
+  preferences?: string
+  custom_prompt?: string
+  is_active?: boolean | number
+  created_at?: string
+  updated_at?: string
+}
+
 const useProfiles = () => {
-  const [profiles, setProfiles] = useState([])
-  const [activeProfile, setActiveProfile] = useState(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [profiles, setProfiles] = useState<Profile[]>([])
+  const [activeProfile, setActiveProfile] = useState<Profile | null>(null)
+  const [isLoading, setIsLoading] = useState<boolean>(false)
 
   // Profilleri yükle
   const loadProfiles = useCallback(async () => {

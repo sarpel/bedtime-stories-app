@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import databaseService from '../services/optimizedDatabaseService.js'
-import safeLocalStorage from '../utils/safeLocalStorage.js'
+import databaseService from '../services/optimizedDatabaseService'
+import safeLocalStorage from '../utils/safeLocalStorage'
 
 interface FavoriteItem {
   id: string

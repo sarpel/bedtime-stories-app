@@ -12,7 +12,7 @@ import {
   Calendar,
   X,
 } from 'lucide-react';
-import { getStoryTypeName } from '@/utils/storyTypes.js';
+import { getStoryTypeName } from '@/utils/storyTypes';
 
 // Favorite story interface
 interface Favorite {

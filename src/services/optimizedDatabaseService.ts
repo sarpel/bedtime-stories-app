@@ -1,4 +1,4 @@
-import { apiResponseCache } from '@/utils/cache.js'
+import { apiResponseCache } from '@/utils/cache'
 
 /**
  * Optimize edilmiş Database Service
