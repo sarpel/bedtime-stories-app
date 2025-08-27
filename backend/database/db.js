@@ -935,7 +935,4 @@ const storyDb = {
   }
 }
 
-// Veritabanını başlat
-initDatabase();
-
 module.exports = storyDb;

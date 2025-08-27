@@ -1,15 +1,15 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Button } from '@/components/ui/button.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
-import { Separator } from '@/components/ui/separator.jsx'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
 import { BookOpen, Heart, X, GripVertical, Settings, Volume2, Play, Pause, Square, SkipForward, SkipBack, Shuffle, Repeat2, Plus, Edit, Trash2, Radio } from 'lucide-react'
-import AudioControls from './AudioControls.jsx'
-import { getStoryTypeLabel } from '@/utils/storyTypes.js'
-import { getStoryTitle } from '@/utils/titleGenerator.js'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog.jsx'
-import { Input } from '@/components/ui/input.jsx'
-import { ScrollArea } from '@/components/ui/scroll-area.jsx'
+import AudioControls from './AudioControls'
+import { getStoryTypeLabel } from '@/utils/storyTypes'
+import { getStoryTitle } from '@/utils/titleGenerator'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   DndContext,
   closestCenter,
@@ -20,38 +20,91 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 // CSS util kullanılmıyor, kaldırıldı
-import { queueService } from '@/services/queueService.js'
-import { getBestTitle } from '@/services/titleService.js'
+import { queueService } from '@/services/queueService'
+import { getBestTitle } from '@/services/titleService'
 
-// Sortable Story Item Component
-function SortableStoryItem({
-  story,
-  titleMap,
-  onToggleFavorite,
-  onRemoveFromQueue,
-  onEditStory,
-  onSelectStory,
-  isFavorite,
-  onGenerateAudio,
-  isGeneratingAudio,
-  audioIsPlaying,
-  audioIsPaused,
-  audioProgress,
-  audioDuration,
-  audioVolume,
-  audioIsMuted,
-  audioPlaybackRate,
-  audioCurrentStoryId,
-  playAudio,
-  stopAudio,
-  audioToggleMute,
-  setVolumeLevel,
-  setPlaybackSpeed,
-  seekTo,
-  getDbAudioUrl,
-  onRemotePlay,
-  remoteStatus
-}) {
+// Type definitions
+interface Story {
+  id: string | number
+  story_text?: string
+  story?: string
+  story_type?: string
+  storyType?: string
+  custom_topic?: string
+  customTopic?: string
+  audio?: {
+    file_name: string
+  }
+  audioUrl?: string
+  created_at?: string
+  createdAt?: string
+}
+
+interface RemoteStatus {
+  playing: boolean
+  storyId?: string | number
+}
+
+// Sortable Story Item Component Props
+interface SortableStoryItemProps {
+  story: Story
+  titleMap: Record<string, string>
+  onToggleFavorite: (data: { story: string; storyType: string; customTopic?: string; audioUrl?: string }) => Promise<void>
+  onRemoveFromQueue: (id: string | number) => void
+  onEditStory: (story: Story) => void
+  onSelectStory: (story: Story) => void
+  isFavorite: (data: { story: string; storyType: string }) => boolean
+  onGenerateAudio: (story: Story) => void
+  isGeneratingAudio: boolean
+  audioIsPlaying: boolean
+  audioIsPaused: boolean
+  audioProgress: number
+  audioDuration: number
+  audioVolume: number
+  audioIsMuted: boolean
+  audioPlaybackRate: number
+  audioCurrentStoryId: string | number | null
+  playAudio: (url: string, id: string | number) => void
+  stopAudio: () => void
+  audioToggleMute: () => void
+  setVolumeLevel: (volume: number) => void
+  setPlaybackSpeed: (speed: number) => void
+  seekTo: (time: number) => void
+  getDbAudioUrl: (fileName: string) => string
+  onRemotePlay: (storyId: string | number) => void
+  remoteStatus: RemoteStatus
+}
+
+function SortableStoryItem(props: SortableStoryItemProps) {
+  const {
+    story,
+    titleMap,
+    onToggleFavorite,
+    onRemoveFromQueue,
+    onEditStory,
+    onSelectStory,
+    isFavorite,
+    onGenerateAudio,
+    isGeneratingAudio,
+    audioIsPlaying,
+    audioIsPaused,
+    audioProgress,
+    audioDuration,
+    audioVolume,
+    audioIsMuted,
+    audioPlaybackRate,
+    audioCurrentStoryId,
+    playAudio,
+    stopAudio,
+    audioToggleMute,
+    setVolumeLevel,
+    setPlaybackSpeed,
+    seekTo,
+    getDbAudioUrl,
+    onRemotePlay,
+    remoteStatus
+  } = props
+
   const {
     attributes,
     listeners,
@@ -88,7 +141,7 @@ function SortableStoryItem({
             {titleMap?.[story.id] || getStoryTitle(story)}
           </span>
           <Badge variant="secondary" className="text-[11px] sm:text-[9px] px-1.5 sm:px-1 py-0.5 h-4 sm:h-3 leading-none">
-            {getStoryTypeLabel(story.story_type || story.storyType)}
+            {getStoryTypeLabel((story.story_type || story.storyType) || '')}
           </Badge>
           {(story.custom_topic || story.customTopic) && (
             <Badge variant="outline" className="text-[11px] sm:text-[9px] px-1.5 sm:px-1 py-0.5 h-4 sm:h-3 leading-none max-w-24 truncate">
@@ -96,14 +149,14 @@ function SortableStoryItem({
             </Badge>
           )}
           <span className="text-[11px] sm:text-[9px] text-muted-foreground font-mono shrink-0">
-            {new Date(story.created_at || story.createdAt).toLocaleDateString('tr-TR', {
+            {new Date((story.created_at || story.createdAt) || '').toLocaleDateString('tr-TR', {
               day: '2-digit',
               month: '2-digit'
             })}
           </span>
         </div>
         <p className="text-[11px] sm:text-[10px] text-muted-foreground truncate leading-tight">
-          {(story.story_text || story.story).substring(0, 50)}...
+          {(story.story_text || story.story || '').substring(0, 50)}...
         </p>
       </div>
 
@@ -123,8 +176,8 @@ function SortableStoryItem({
             }
 
             const storyData = {
-              story: story.story_text || story.story,
-              storyType: story.story_type || story.storyType,
+              story: story.story_text || story.story || '',
+              storyType: story.story_type || story.storyType || '',
               customTopic: story.custom_topic || story.customTopic,
               audioUrl: story.audio ? getDbAudioUrl(story.audio.file_name) : story.audioUrl
             }
@@ -136,8 +189,8 @@ function SortableStoryItem({
             }
           }}
           className={`h-5 w-5 p-0 ${isFavorite({
-            story: story.story_text || story.story,
-            storyType: story.story_type || story.storyType
+            story: story.story_text || story.story || '',
+            storyType: story.story_type || story.storyType || ''
           })
             ? 'text-red-500 hover:text-red-600'
             : 'hover:text-red-500'
@@ -146,8 +199,8 @@ function SortableStoryItem({
         >
           <Heart
             className={`h-2 w-2 ${isFavorite({
-              story: story.story_text || story.story,
-              storyType: story.story_type || story.storyType
+              story: story.story_text || story.story || '',
+              storyType: story.story_type || story.storyType || ''
             })
               ? 'fill-current'
               : ''
@@ -159,8 +212,8 @@ function SortableStoryItem({
         {(story.audio || story.audioUrl) && (
           <div className="flex items-center">
             <AudioControls
-              storyId={story.id}
-              audioUrl={story.audio ? getDbAudioUrl(story.audio.file_name) : story.audioUrl}
+              storyId={String(story.id)}
+              audioUrl={story.audio ? getDbAudioUrl(story.audio.file_name) : story.audioUrl || null}
               isPlaying={audioIsPlaying}
               isPaused={audioIsPaused}
               progress={audioProgress}
@@ -168,8 +221,9 @@ function SortableStoryItem({
               volume={audioVolume}
               isMuted={audioIsMuted}
               playbackRate={audioPlaybackRate}
-              currentStoryId={audioCurrentStoryId}
+              currentStoryId={audioCurrentStoryId ? String(audioCurrentStoryId) : null}
               onPlay={playAudio}
+              onPause={stopAudio}
               onStop={stopAudio}
               onToggleMute={audioToggleMute}
               onVolumeChange={setVolumeLevel}
@@ -260,6 +314,35 @@ function SortableStoryItem({
   )
 }
 
+// Main component props interface
+interface StoryQueuePanelProps {
+  stories: Story[]
+  onUpdateStory: (story: Story) => void
+  onSelectStory: (story: Story) => void
+  onShowStoryManagement: () => void
+  onToggleFavorite: (data: { story: string; storyType: string; customTopic?: string; audioUrl?: string }) => Promise<void>
+  isFavorite: (data: { story: string; storyType: string }) => boolean
+  onGenerateAudio: (story: Story) => void
+  isGeneratingAudio: boolean
+  audioIsPlaying: boolean
+  audioIsPaused: boolean
+  audioProgress: number
+  audioDuration: number
+  audioVolume: number
+  audioIsMuted: boolean
+  audioPlaybackRate: number
+  audioCurrentStoryId: string | number | null
+  playAudio: (url: string, id: string | number) => void
+  stopAudio: () => void
+  audioToggleMute: () => void
+  setVolumeLevel: (volume: number) => void
+  setPlaybackSpeed: (speed: number) => void
+  seekTo: (time: number) => void
+  getDbAudioUrl: (fileName: string) => string
+  setOnEnded: (callback: () => void) => void
+  onRemoteStatusChange: (status: RemoteStatus) => void
+}
+
 export default function StoryQueuePanel({
   stories,
   onUpdateStory,
@@ -288,19 +371,19 @@ export default function StoryQueuePanel({
   // setOnEnded fonksiyonu App'ten pekala geçirilebilir; burada props yerine window üzerinden erişmeyelim
   setOnEnded,
   onRemoteStatusChange // App seviyesine remote durumunu yükseltmek için opsiyonel callback
-}) {
-  const [localStories, setLocalStories] = useState(stories)
-  const [queue, setQueue] = useState([]) // gerçek çalma kuyruğu (story objeleri)
-  const [currentIndex, setCurrentIndex] = useState(-1)
-  const [showAddDialog, setShowAddDialog] = useState(false)
-  const [search, setSearch] = useState('')
-  const [editTarget, setEditTarget] = useState(null)
+}: StoryQueuePanelProps) {
+  const [localStories, setLocalStories] = useState<Story[]>(stories)
+  const [queue, setQueue] = useState<Story[]>([]) // gerçek çalma kuyruğu (story objeleri)
+  const [currentIndex, setCurrentIndex] = useState<number>(-1)
+  const [showAddDialog, setShowAddDialog] = useState<boolean>(false)
+  const [search, setSearch] = useState<string>('')
+  const [editTarget, setEditTarget] = useState<Story | null>(null)
   const [editText, setEditText] = useState('')
   const [editTopic, setEditTopic] = useState('')
   const [shuffle, setShuffle] = useState(false)
   const [repeatAll, setRepeatAll] = useState(true)
-  const [titles, setTitles] = useState({})
-  const [remoteStatus, setRemoteStatus] = useState({ playing: false })
+  const [titles, setTitles] = useState<Record<string | number, string>>({})
+  const [remoteStatus, setRemoteStatus] = useState<RemoteStatus>({ playing: false })
   const [remoteLoading, setRemoteLoading] = useState(false)
 
   const refreshRemote = useCallback(async () => {
@@ -321,7 +404,7 @@ export default function StoryQueuePanel({
   }, []) // onRemoteStatusChange kaldırıldı
 
   useEffect(() => {
-    let id;
+    let id: number | null = null;
     const start = () => {
       refreshRemote();
       id = setInterval(refreshRemote, 5000);
@@ -346,7 +429,7 @@ export default function StoryQueuePanel({
     }
   }, [onRemoteStatusChange, remoteStatus])
 
-  async function remotePlayToggle(storyId) {
+  async function remotePlayToggle(storyId: string | number) {
     if (!storyId) return
     setRemoteLoading(true)
     try {
@@ -370,7 +453,7 @@ export default function StoryQueuePanel({
     })
   )
 
-  function handleDragEnd(event) {
+  function handleDragEnd(event: any) {
     const { active, over } = event
     if (!over) return
 
@@ -382,7 +465,7 @@ export default function StoryQueuePanel({
       setQueue(newQueue)
       persistQueue(newQueue)
       // DB senkron
-      try { queueService.setQueueIds(newQueue.map(s => s.id)) } catch { /* queue sync optional */ }
+      try { queueService.setQueueIds(newQueue.map(s => String(s.id))) } catch { /* queue sync optional */ }
       if (import.meta.env?.DEV) console.log('Kuyruk sırası güncellendi:', newQueue.map(s => s.id))
     }
   }
@@ -399,7 +482,7 @@ export default function StoryQueuePanel({
       if (raw) {
         const ids = JSON.parse(raw)
         const mapped = ids
-          .map((id) => (localStories || []).find((s) => s.id === id))
+          .map((id: string | number) => (localStories || []).find((s) => s.id === id))
           .filter(Boolean)
         if (mapped.length > 0) {
           setQueue(mapped)
@@ -415,7 +498,7 @@ export default function StoryQueuePanel({
     } catch (e) {
       console.error('Kuyruk yükleme hatası:', e)
     }
-     
+
   }, [localStories && localStories.length])
 
   // stories değişince kuyruktaki objeleri güncelle (ör. audio eklenmiş olabilir)
@@ -467,14 +550,14 @@ export default function StoryQueuePanel({
     return () => { alive = false }
   }, [queue, titles])
 
-  const persistQueue = (items) => {
+  const persistQueue = (items: Story[]) => {
     try {
       const ids = items.map((s) => s.id)
       localStorage.setItem('bedtime-queue-v1', JSON.stringify(ids))
     } catch (err) { console.warn('Queue persist failed', err) }
   }
 
-  const playAtIndex = (idx) => {
+  const playAtIndex = (idx: number) => {
     if (!queue || idx < 0 || idx >= queue.length) return
     const item = queue[idx]
     const audioUrl = item.audio ? getDbAudioUrl(item.audio.file_name) : item.audioUrl
@@ -545,23 +628,23 @@ export default function StoryQueuePanel({
   useEffect(() => {
     if (!setOnEnded) return
     setOnEnded(() => next)
-     
+
   }, [queue, currentIndex, shuffle, repeatAll, setOnEnded])
 
-  const addToQueue = (story) => {
+  const addToQueue = (story: Story) => {
     if (!story) return
     if (queue.find((s) => s.id === story.id)) return
     const updated = [...queue, story]
     setQueue(updated)
     persistQueue(updated)
-    try { queueService.add(story.id) } catch { /* queue sync optional */ }
+    try { queueService.add(String(story.id)) } catch { /* queue sync optional */ }
   }
 
-  const removeFromQueue = (id) => {
+  const removeFromQueue = (id: string | number) => {
     const updated = queue.filter((s) => s.id !== id)
     setQueue(updated)
     persistQueue(updated)
-    try { queueService.remove(id) } catch { /* queue sync optional */ }
+    try { queueService.remove(String(id)) } catch { /* queue sync optional */ }
     if (currentIndex !== -1) {
       const idx = queue.findIndex((s) => s.id === id)
       if (idx !== -1 && idx <= currentIndex) {
@@ -672,7 +755,7 @@ export default function StoryQueuePanel({
               variant="outline"
               size="sm"
               onClick={() => {
-                if (remoteStatus.playing) {
+                if (remoteStatus.playing && remoteStatus.storyId) {
                   remotePlayToggle(remoteStatus.storyId)
                 }
               }}
@@ -782,12 +865,12 @@ export default function StoryQueuePanel({
                     <div key={s.id} className="flex items-start justify-between gap-2 p-2 rounded hover:bg-muted/40">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="text-[10px] px-1.5 h-4">{getStoryTypeLabel(s.story_type || s.storyType)}</Badge>
+                          <Badge variant="secondary" className="text-[10px] px-1.5 h-4">{getStoryTypeLabel((s.story_type || s.storyType) || '')}</Badge>
                           {(s.custom_topic || s.customTopic) && (
                             <Badge variant="outline" className="text-[10px] px-1.5 h-4">{s.custom_topic || s.customTopic}</Badge>
                           )}
                         </div>
-                        <div className="text-xs text-muted-foreground truncate max-w-[36ch]">{(s.story_text || s.story).slice(0, 100)}...</div>
+                        <div className="text-xs text-muted-foreground truncate max-w-[36ch]">{((s.story_text || s.story) || '').slice(0, 100)}...</div>
                       </div>
                       <div className="shrink-0 flex items-center gap-2">
                         {(s.audio || s.audioUrl) ? (
@@ -825,7 +908,7 @@ export default function StoryQueuePanel({
               <Button onClick={async () => {
                 if (!editTarget || !onUpdateStory) { setEditTarget(null); return }
                 try {
-                  await onUpdateStory(editTarget.id, { story: editText, customTopic: editTopic })
+                  await onUpdateStory({ ...editTarget, story_text: editText, story: editText, custom_topic: editTopic, customTopic: editTopic })
                   // local queue güncelle
                   const updated = queue.map((s) => s.id === editTarget.id ? { ...s, story_text: editText, story: editText, custom_topic: editTopic, customTopic: editTopic } : s)
                   setQueue(updated)
