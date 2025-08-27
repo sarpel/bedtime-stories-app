@@ -34,7 +34,7 @@ class OptimizedDatabaseService {
     const cached = this.queryCache.get(key)
     if (cached) {
       this.performanceMetrics.cacheHits++
-      console.log('[DB] cachedFetch:cacheHit', { url, cacheKey: key })
+      if (import.meta.env.DEV) console.log('[DB] cachedFetch:cacheHit', { url, cacheKey: key })
       return cached
     }
 
@@ -159,10 +159,12 @@ class OptimizedDatabaseService {
 
   // Create story with cache invalidation
   async createStory(storyText, storyType, customTopic = null, categories = []) {
-    console.log('OptimizedDatabaseService.createStory called with:');
-    console.log('storyText:', typeof storyText, storyText ? storyText.substring(0, 100) + '...' : 'null/undefined');
-    console.log('storyType:', typeof storyType, storyType);
-    console.log('customTopic:', typeof customTopic, customTopic);
+    if (import.meta.env.DEV) {
+      console.log('OptimizedDatabaseService.createStory called with:');
+      console.log('storyText:', typeof storyText, storyText ? storyText.substring(0, 100) + '...' : 'null/undefined');
+      console.log('storyType:', typeof storyType, storyType);
+      console.log('customTopic:', typeof customTopic, customTopic);
+    }
 
     const requestBody = {
       storyText: storyText,
