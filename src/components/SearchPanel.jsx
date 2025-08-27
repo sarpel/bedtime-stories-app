@@ -93,6 +93,7 @@ const SearchPanel = ({
       if (process.env.NODE_ENV === 'development') {
         console.log(`Search completed: ${data.count} results for "${q}"`)
       }
+
     } catch (error) {
       console.error('Search error:', error)
       toast.error('Arama yapılırken hata oluştu')

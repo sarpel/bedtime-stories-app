@@ -176,6 +176,7 @@ export default function StoryCreator({
       }
     })
 
+
     setCategories(merged)
     setCategoryInput('')
   }
@@ -256,6 +257,7 @@ export default function StoryCreator({
                       #{cat}
                     </Badge>
                   ))}
+
               </div>
             ) : (
               <CardDescription className="text-sm">

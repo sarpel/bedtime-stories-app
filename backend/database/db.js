@@ -40,7 +40,9 @@ function initDatabase() {
       story_type TEXT NOT NULL,
       custom_topic TEXT,
   categories TEXT, -- JSON array (örn: ["macera","uyku"])
+
       profile_id INTEGER, -- Hangi profil için oluşturulduğu
+
       is_favorite INTEGER DEFAULT 0,
       is_shared INTEGER DEFAULT 0,
       share_id TEXT UNIQUE,
@@ -87,7 +89,7 @@ function initDatabase() {
     }
   }
 
-  // profile_id sütununu ekle (migration)
+
   try {
     db.exec(`ALTER TABLE stories ADD COLUMN profile_id INTEGER REFERENCES profiles(id)`);
     console.log('profile_id sütunu eklendi');
@@ -724,7 +726,7 @@ const storyDb = {
     }
   },
 
-// (The orphaned FTS block has been removed; no other changes in this region.)
+
   searchStoriesByTitle(query, limit = MAX_SEARCH_LIMIT) {
     try {
       if (!query || typeof query !== 'string' || query.trim().length === 0) {
@@ -800,6 +802,7 @@ const storyDb = {
       throw error;
     }
   },
+
 
   // Helper function to process story rows consistently
   processStoryRows(rows) {
