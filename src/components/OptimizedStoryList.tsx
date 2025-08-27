@@ -1,11 +1,11 @@
 import { memo, useState, useMemo, useCallback } from 'react'
-import { Card, CardContent } from '@/components/ui/card.jsx'
-import { Button } from '@/components/ui/button.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
-import { Input } from '@/components/ui/input.jsx'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { BookOpen, Search, ChevronDown, ChevronUp } from 'lucide-react'
-import { useProgressiveLoading, useDebouncedSearch } from '@/hooks/usePerformance.js'
-import { getStoryTypeLabel } from '@/utils/storyTypes.js'
+import { useProgressiveLoading, useDebouncedSearch } from '@/hooks/usePerformance'
+import { getStoryTypeLabel } from '@/utils/storyTypes'
 
 interface Story {
   id: string | number

@@ -265,7 +265,7 @@ function App() {
   // Enhanced toggle favorite function with proper state management
   const handleToggleFavorite = async (storyData: Story) => {
     try {
-      console.log('🎯 App.jsx - Favori toggle başlatılıyor:', storyData)
+      console.log('🎯 App.tsx - Favori toggle başlatılıyor:', storyData)
 
       // Ensure story is not empty
       if (!storyData.story || storyData.story.trim().length === 0) {
@@ -294,14 +294,14 @@ function App() {
         analyticsService.trackFavoriteAction(String(storyId), result.action)
       }
 
-      console.log('🎯 App.jsx - Favori toggle tamamlandı:', result ? result.action : 'undefined')
+      console.log('🎯 App.tsx - Favori toggle tamamlandı:', result ? result.action : 'undefined')
 
       // toggleFavorite zaten state'i güncelliyor, gereksiz refresh yok
-      console.log('🎯 App.jsx - Yeni favori sayısı:', favorites.length)
+      console.log('🎯 App.tsx - Yeni favori sayısı:', favorites.length)
 
       return result
     } catch (error) {
-      console.error('🎯 App.jsx - Favori toggle hatası:', error)
+      console.error('🎯 App.tsx - Favori toggle hatası:', error)
       return false
     }
   }
@@ -388,6 +388,8 @@ function App() {
       const dbStory = dbStories.find(s => s.id === id)
       if (dbStory) {
         await deleteDbStory(id)
+        // State'i güncelle
+        await loadStories()
       } else {
         // Backward compatibility için localStorage
         removeFromHistory(Number(id))

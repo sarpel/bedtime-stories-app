@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import safeLocalStorage from '../utils/safeLocalStorage.js'
+import safeLocalStorage from '../utils/safeLocalStorage'
 
 const MAX_HISTORY = 10 // Son 10 masalı sakla
 

@@ -1,17 +1,17 @@
 import { useState, useRef, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Input } from '@/components/ui/input.jsx'
-import { Label } from '@/components/ui/label.jsx'
-import { Textarea } from '@/components/ui/textarea.jsx'
-import { Button } from '@/components/ui/button.jsx'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
-import { Slider } from '@/components/ui/slider.jsx'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Slider } from '@/components/ui/slider'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Badge } from '@/components/ui/badge'
 import { Brain, Volume2, MessageSquare, Save, RotateCcw, Settings as SettingsIcon, User } from 'lucide-react'
-import { getDefaultSettings } from '@/services/configService.js'
-import VoiceSelector from './VoiceSelector.jsx'
-import ProfileSelector from './ProfileSelector.jsx'
+import { getDefaultSettings } from '@/services/configService'
+import VoiceSelector from './VoiceSelector'
+import ProfileSelector from './ProfileSelector'
 // Audio quality ve background music imports kaldırıldı - sadece basit ayarlar
 
 interface VoiceSettings {
@@ -84,14 +84,18 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
       // Settings panel içindeki tıklamalarda panel'i kapatma
       if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
         // Dropdown/Select content'leri portal olarak body'e render edilir
-        // Bu tıklamaları ignore et
+        // Bu tıklamaları ignore et - daha geniş detection
         const isDropdownClick = (event.target as Element)?.closest('[data-radix-select-content]') ||
           (event.target as Element)?.closest('[data-radix-popper-content-wrapper]') ||
           (event.target as Element)?.closest('[data-radix-select-viewport]') ||
           (event.target as Element)?.closest('[role="listbox"]') ||
           (event.target as Element)?.closest('[role="option"]') ||
           (event.target as Element)?.closest('.select-content') ||
-          (event.target as Element)?.closest('[data-state="open"]')
+          (event.target as Element)?.closest('[data-state="open"]') ||
+          (event.target as Element)?.closest('[data-radix-select-trigger]') ||
+          (event.target as Element)?.closest('[data-radix-select-content]') ||
+          (event.target as Element)?.closest('[data-radix-popper-content]') ||
+          (event.target as Element)?.closest('[data-radix-collection-item]')
 
         if (!isDropdownClick) {
           onClose()

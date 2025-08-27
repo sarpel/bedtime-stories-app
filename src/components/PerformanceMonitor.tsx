@@ -5,7 +5,7 @@ import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
 import { X, Monitor, Cpu, HardDrive, Clock, AlertTriangle } from 'lucide-react';
-import safeLocalStorage from '../utils/safeLocalStorage.js';
+import safeLocalStorage from '../utils/safeLocalStorage';
 
 // Extend the global Performance interface to include memory property
 declare global {

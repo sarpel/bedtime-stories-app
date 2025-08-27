@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import databaseService from '../services/optimizedDatabaseService.js'
+import databaseService from '../services/optimizedDatabaseService'
 
 interface Story {
   id?: string | number

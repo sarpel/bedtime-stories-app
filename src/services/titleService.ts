@@ -1,4 +1,4 @@
-import { getStoryTitle, generateTitleWithLLM } from '@/utils/titleGenerator.js'
+import { getStoryTitle, generateTitleWithLLM } from '@/utils/titleGenerator'
 
 const CACHE_KEY = 'title-cache-v1'
 

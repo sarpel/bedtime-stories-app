@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Button } from '@/components/ui/button.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
-import { Textarea } from '@/components/ui/textarea.jsx'
-import { Progress } from '@/components/ui/progress.jsx'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Textarea } from '@/components/ui/textarea'
+import { Progress } from '@/components/ui/progress'
 import {
   Heart,
   Share2,
@@ -18,8 +18,8 @@ import {
   MoreHorizontal,
   X
 } from 'lucide-react'
-import { getStoryTypeName } from '@/utils/storyTypes.js'
-import { shareStory, shareToSocialMedia, downloadStory } from '@/utils/share.js'
+import { getStoryTypeName } from '@/utils/storyTypes'
+import { shareStory, shareToSocialMedia, downloadStory } from '@/utils/share'
 
 interface Story {
   id?: string | number

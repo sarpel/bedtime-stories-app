@@ -1,7 +1,7 @@
-import { config } from './configService.js'
-import { audioCache } from '../utils/cache.js'
-import optimizedDatabaseService from './optimizedDatabaseService.js'
-import { logger } from '../utils/logger.js'
+import { config } from './configService'
+import { audioCache } from '../utils/cache'
+import optimizedDatabaseService from './optimizedDatabaseService'
+import { logger } from '../utils/logger'
 // Audio quality imports kaldırıldı - basit sabit format kullanılacak
 
 interface VoiceSettings {

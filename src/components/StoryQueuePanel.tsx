@@ -1,15 +1,15 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Button } from '@/components/ui/button.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
-import { Separator } from '@/components/ui/separator.jsx'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
 import { BookOpen, Heart, X, GripVertical, Settings, Volume2, Play, Pause, Square, SkipForward, SkipBack, Shuffle, Repeat2, Plus, Edit, Trash2, Radio } from 'lucide-react'
-import AudioControls from './AudioControls.jsx'
-import { getStoryTypeLabel } from '@/utils/storyTypes.js'
-import { getStoryTitle } from '@/utils/titleGenerator.js'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog.jsx'
-import { Input } from '@/components/ui/input.jsx'
-import { ScrollArea } from '@/components/ui/scroll-area.jsx'
+import AudioControls from './AudioControls'
+import { getStoryTypeLabel } from '@/utils/storyTypes'
+import { getStoryTitle } from '@/utils/titleGenerator'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   DndContext,
   closestCenter,
@@ -20,8 +20,8 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 // CSS util kullanılmıyor, kaldırıldı
-import { queueService } from '@/services/queueService.js'
-import { getBestTitle } from '@/services/titleService.js'
+import { queueService } from '@/services/queueService'
+import { getBestTitle } from '@/services/titleService'
 
 interface Story {
   id?: string | number

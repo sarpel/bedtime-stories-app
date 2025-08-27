@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Button } from '@/components/ui/button.jsx'
-import { Textarea } from '@/components/ui/textarea.jsx'
-import { Label } from '@/components/ui/label.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
-import { Progress } from '@/components/ui/progress.jsx'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
 import {
   BookOpen,
   Sparkles,
@@ -19,10 +19,10 @@ import {
   MoreHorizontal,
   X
 } from 'lucide-react'
-import { storyTypes, getStoryTypeName, extractStoryTitle } from '@/utils/storyTypes.js'
-import { shareStory, shareToSocialMedia, downloadStory, SupportedPlatform } from '@/utils/share.js'
-import sharingService from '@/services/sharingService.js'
-import SeriesManager from './SeriesManager.jsx'
+import { storyTypes, getStoryTypeName, extractStoryTitle } from '@/utils/storyTypes'
+import { shareStory, shareToSocialMedia, downloadStory, SupportedPlatform } from '@/utils/share'
+import sharingService from '@/services/sharingService'
+import SeriesManager from './SeriesManager'
 
 // StoryCreator props interface
 interface StoryCreatorProps {

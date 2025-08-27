@@ -8,8 +8,8 @@ import { ScrollArea } from './ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { X, Search, Edit, Trash2, BookOpen, Heart, Calendar, Volume2 } from 'lucide-react';
 import { getStoryTypeLabel } from '../utils/storyTypes';
-import { getStoryTitle } from '@/utils/titleGenerator.js';
-import AudioControls from './AudioControls.jsx';
+import { getStoryTitle } from '@/utils/titleGenerator';
+import AudioControls from './AudioControls';
 
 // Story interface for type safety
 interface Story {

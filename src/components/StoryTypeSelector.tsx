@@ -1,11 +1,11 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Button } from '@/components/ui/button.jsx'
-import { Textarea } from '@/components/ui/textarea.jsx'
-import { Label } from '@/components/ui/label.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
-import { Progress } from '@/components/ui/progress.jsx'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
 import { BookOpen, Sparkles, Volume2 } from 'lucide-react'
-import { storyTypes } from '@/utils/storyTypes.js'
+import { storyTypes } from '@/utils/storyTypes'
 
 interface Story {
   id: string | number

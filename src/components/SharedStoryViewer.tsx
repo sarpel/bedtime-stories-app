@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Button } from '@/components/ui/button.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
   BookOpen,
   Volume2,
@@ -17,9 +17,9 @@ import {
   AlertCircle,
   Heart
 } from 'lucide-react'
-import { getStoryTypeName } from '@/utils/storyTypes.js'
-import sharingService from '@/services/sharingService.js'
-import AudioControls from '@/components/AudioControls.jsx'
+import { getStoryTypeName } from '@/utils/storyTypes'
+import sharingService from '@/services/sharingService'
+import AudioControls from '@/components/AudioControls'
 
 // Story interface for type safety
 interface Story {

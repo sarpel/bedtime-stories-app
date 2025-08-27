@@ -1,13 +1,13 @@
 import { useRef, useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Button } from '@/components/ui/button.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group.jsx'
-import { Label } from '@/components/ui/label.jsx'
-import { Separator } from '@/components/ui/separator.jsx'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
 import { Volume2, User, Clock, Star } from 'lucide-react'
-import { voiceOptions, getVoiceById } from '@/utils/voiceOptions.js'
-import { TTSService } from '@/services/ttsService.js'
+import { voiceOptions, getVoiceById } from '@/utils/voiceOptions'
+import { TTSService } from '@/services/ttsService'
 
 interface Voice {
   id: string

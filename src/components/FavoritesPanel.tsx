@@ -1,10 +1,10 @@
 import { useRef, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx';
-import { Button } from '@/components/ui/button.jsx';
-import { Badge } from '@/components/ui/badge.jsx';
-import { ScrollArea } from '@/components/ui/scroll-area.jsx';
-import { Separator } from '@/components/ui/separator.jsx';
-import AudioControls from './AudioControls.jsx';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import AudioControls from './AudioControls';
 import {
   Heart,
   Trash2,

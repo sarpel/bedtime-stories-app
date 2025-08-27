@@ -1,4 +1,4 @@
-import { logger } from '../utils/logger.js'
+import { logger } from '../utils/logger'
 
 // Masal paylaşım servisi
 class SharingService {
