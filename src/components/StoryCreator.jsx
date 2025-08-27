@@ -240,6 +240,7 @@ export default function StoryCreator({
                   {getReadingTime(story)} dk okuma
                 </Badge>
                 {categories.map(cat => (
+
                   <Badge
                     key={cat}
                     variant="outline"
@@ -251,6 +252,7 @@ export default function StoryCreator({
                     aria-label={`${cat} kategorisini kaldır`}
                     title="Kaldır"
                   >
+
                     #{cat}
                   </Badge>
                 ))}

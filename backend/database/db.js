@@ -77,7 +77,7 @@ function initDatabase() {
     }
   }
 
-  // categories sütununu ekle (migration)
+
   try {
     db.exec(`ALTER TABLE stories ADD COLUMN categories TEXT`);
     console.log('categories sütunu eklendi');
@@ -393,14 +393,6 @@ const statements = {
     FROM stories s
     LEFT JOIN audio_files a ON s.id = a.story_id
     WHERE s.custom_topic LIKE ? OR s.story_type LIKE ?
-    ORDER BY s.created_at DESC
-    LIMIT ?
-  `),
-  searchStoriesByContent: db.prepare(`
-    SELECT s.*, a.file_name, a.file_path, a.voice_id
-    FROM stories s
-    LEFT JOIN audio_files a ON s.id = a.story_id
-    WHERE s.story_text LIKE ?
     ORDER BY s.created_at DESC
     LIMIT ?
   `),
@@ -732,7 +724,6 @@ const storyDb = {
     }
   },
 
-// (The orphaned FTS block has been removed; no other changes in this region.)
   searchStoriesByTitle(query, limit = MAX_SEARCH_LIMIT) {
     try {
       if (!query || typeof query !== 'string' || query.trim().length === 0) {
@@ -808,6 +799,7 @@ const storyDb = {
       throw error;
     }
   },
+
 
   // Helper function to process story rows consistently
   processStoryRows(rows) {
