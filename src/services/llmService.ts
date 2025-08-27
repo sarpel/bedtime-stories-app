@@ -1,11 +1,79 @@
-import { getStoryTypePrompt } from '@/utils/storyTypes.js'
-import { config } from './configService.js'
-import { storyCache } from '@/utils/cache.js'
-import { logger } from '@/utils/logger.js'
+import { getStoryTypePrompt } from '@/utils/storyTypes'
+import { config } from './configService'
+import { storyCache } from '@/utils/cache'
+import { logger } from '@/utils/logger'
+
+// Types for LLM service
+interface LLMSettings {
+  llmProvider?: string
+  openaiLLM?: {
+    endpoint?: string
+    modelId?: string
+    apiKey?: string
+  }
+  llmEndpoint?: string
+  llmModelId?: string
+  llmApiKey?: string
+  geminiLLM?: {
+    endpoint?: string
+    modelId?: string
+    apiKey?: string
+  }
+  customPrompt?: string
+  customInstructions?: string
+  storyLength?: string
+  llmSettings?: {
+    temperature?: number
+  }
+  activeProfile?: UserProfile | null
+}
+
+interface UserProfile {
+  name: string
+  age: string
+  gender: string
+  custom_prompt?: string
+}
+
+interface StoryCacheMeta {
+  llmSettings: {
+    temperature: number
+    maxTokens: number
+  }
+  customPrompt?: string
+}
+
+interface LLMResponse {
+  output?: string | Array<{ type?: string; content?: string; text?: string }>
+  candidates?: Array<{
+    output_text?: string
+    content?: {
+      parts?: Array<string | { text?: string }>
+    }
+  }>
+  choices?: Array<{
+    message?: { content: string }
+    text?: string
+  }>
+  content?: Array<{ text: string }>
+  response?: string
+  text?: string
+}
 
 // LLM Service for story generation
 export class LLMService {
-  constructor(settings) {
+  provider: string
+  endpoint: string
+  modelId: string
+  apiKey: string
+  customPrompt: string
+  customInstructions: string
+  storyLength: string
+  temperature: number
+  maxTokens: number
+  activeProfile: UserProfile | null
+
+  constructor(settings: LLMSettings) {
     this.provider = settings.llmProvider || 'openai'
 
     if (this.provider === 'openai') {
@@ -18,12 +86,17 @@ export class LLMService {
       this.endpoint = settings.geminiLLM?.endpoint || config.geminiLLM.endpoint
       this.modelId = settings.geminiLLM?.modelId || config.geminiLLM.model
       this.apiKey = settings.geminiLLM?.apiKey || config.geminiLLM.apiKey
+    } else {
+      // Default fallback
+      this.endpoint = config.openai.endpoint
+      this.modelId = config.openai.model
+      this.apiKey = config.openai.apiKey
     }
 
     // Kullanıcı ayarları
-    this.customPrompt = settings.customPrompt
+    this.customPrompt = settings.customPrompt || ''
     this.customInstructions = settings.customInstructions || ''
-    this.storyLength = settings.storyLength
+    this.storyLength = settings.storyLength || 'medium'
     this.temperature = settings.llmSettings?.temperature ?? 0.9
     // Yanıtların kısalmaması için maxTokens sabit 5000
     this.maxTokens = 5000
@@ -48,13 +121,13 @@ export class LLMService {
       })
     } catch (initErr) {
       // Init logging failed; safe to ignore in production
-      logger.debug('LLM Service init log error', 'LLMService', { error: initErr?.message })
+      logger.debug('LLM Service init log error', 'LLMService', { error: (initErr as Error)?.message })
     }
   }
 
   // Get story length instructions based on setting
-  getStoryLengthInstruction() {
-    const lengthMap = {
+  getStoryLengthInstruction(): string {
+    const lengthMap: Record<string, string> = {
       short: 'Kısa bir masal yaz (yaklaşık 1-2 dakika okuma süresi, 150-250 kelime).',
       medium: 'Orta uzunlukta bir masal yaz (yaklaşık 3-5 dakika okuma süresi, 300-500 kelime).',
       long: 'Uzun bir masal yaz (yaklaşık 5-8 dakika okuma süresi, 600-800 kelime).'
@@ -63,7 +136,7 @@ export class LLMService {
   }
 
   // Build the complete prompt
-  buildPrompt(storyType = null, customTopic = '') {
+  buildPrompt(storyType: string | null, customTopic: string): string {
     const lengthInstruction = this.getStoryLengthInstruction()
 
     // Aktif profil bilgisini ekle
@@ -94,17 +167,20 @@ export class LLMService {
       : ''
 
     const prompt = `${this.customPrompt}${profileInfo}${storyTypeText}\n\n${lengthInstruction}\n\nMasal Türkçe olmalı ve şu özellikleri içermeli:\n- 5 yaşındaki bir kız çocuğu için uygun\n- Eğitici ve pozitif değerler içeren\n- Uyku vakti için rahatlatıcı\n- Hayal gücünü geliştiren${extraInstructions}\n\nMasalı şimdi yaz:`
-    console.log('[LLMService:buildPrompt]', {
-      storyType,
-      customTopic,
-      hasActiveProfile: !!this.activeProfile,
-      promptLen: prompt.length
-    })
+
+    if (import.meta.env?.DEV) {
+      logger.debug('[LLMService:buildPrompt]', 'LLMService', {
+        storyType,
+        customTopic,
+        hasActiveProfile: !!this.activeProfile,
+        promptLen: prompt.length
+      })
+    }
     return prompt
   }
 
   // Generate story using custom LLM endpoint
-  async generateStory(onProgress, storyType = null, customTopic = '') {
+  async generateStory(onProgress: ((progress: number) => void) | null, storyType: string | null = null, customTopic: string = ''): Promise<string> {
     try {
       // Model kontrolü
       if (!this.modelId) {
@@ -112,18 +188,21 @@ export class LLMService {
       }
 
       // Önbellekten kontrol et
-      const cacheKeyMeta = {
+      const cacheKeyMeta: StoryCacheMeta = {
         llmSettings: { temperature: this.temperature, maxTokens: this.maxTokens },
         customPrompt: this.customPrompt
       }
-      const cachedStory = storyCache.getStory(storyType, customTopic, cacheKeyMeta)
+      const cacheKey = storyType || 'general'
+      const cachedStory = storyCache.getStory(cacheKey, customTopic, cacheKeyMeta)
 
       if (cachedStory) {
-        console.log('[LLMService:cacheHit]', {
-          storyType,
-          customTopic,
-          length: cachedStory.length
-        })
+        if (import.meta.env?.DEV) {
+          logger.debug('[LLMService:cacheHit]', 'LLMService', {
+            storyType,
+            customTopic,
+            length: cachedStory.length
+          })
+        }
         onProgress?.(100)
         return cachedStory
       }
@@ -142,14 +221,18 @@ export class LLMService {
         max_output_tokens: this.getMaxTokens(),
         temperature: this.temperature
       }
-      console.log('[LLMService:request:start]', {
-        url,
-        provider: this.provider,
-        modelId: this.modelId,
-        promptLen: prompt.length,
-        max_output_tokens: payload.max_output_tokens,
-        temperature: payload.temperature
-      })
+
+      if (import.meta.env?.DEV) {
+        logger.info('[LLMService:request:start]', 'LLMService', {
+          url,
+          provider: this.provider,
+          modelId: this.modelId,
+          promptLen: prompt.length,
+          max_output_tokens: payload.max_output_tokens,
+          temperature: payload.temperature
+        })
+      }
+
       const t0 = Date.now()
       const response = await fetch(url, {
         method: 'POST',
@@ -164,52 +247,67 @@ export class LLMService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'non-json-response' }))
-        console.error('[LLMService:request:error]', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData?.error
-        })
+        if (import.meta.env?.DEV) {
+          logger.error('[LLMService:request:error]', 'LLMService', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData?.error
+          })
+        }
         throw new Error(`LLM API hatası (${response.status}): ${errorData.error}`)
       }
 
-      const data = await response.json()
+      const data: LLMResponse = await response.json()
       const dt = Date.now() - t0
-      console.log('[LLMService:request:success]', {
-        status: response.status,
-        durationMs: dt,
-        keys: Object.keys(data || {}),
-        textLen: typeof data?.text === 'string' ? data.text.length : undefined
-      })
+
+      if (import.meta.env?.DEV) {
+        logger.info('[LLMService:request:success]', 'LLMService', {
+          status: response.status,
+          durationMs: dt,
+          keys: Object.keys(data || {}),
+          textLen: typeof data?.text === 'string' ? data.text.length : undefined
+        })
+      }
+
       onProgress?.(90)
 
       // Backend normalize edilmiş text döndürüyorsa onu kullan
       const story = (typeof data?.text === 'string' && data.text.trim())
         ? data.text.trim()
         : this.extractStoryFromResponse(data)
-      console.log('[LLMService:extract]', {
-        extractedLen: story?.length || 0,
-        isString: typeof story === 'string'
-      })
+
+      if (import.meta.env?.DEV) {
+        logger.debug('[LLMService:extract]', 'LLMService', {
+          extractedLen: story?.length || 0,
+          isString: typeof story === 'string'
+        })
+      }
+
       onProgress?.(100)
 
       // Önbellekle
-      storyCache.setStory(storyType, customTopic, cacheKeyMeta, story)
-      console.log('[LLMService:cacheSet]', {
-        storyType,
-        customTopic,
-        length: story.length
-      })
+      storyCache.setStory(cacheKey, customTopic, cacheKeyMeta, story)
+
+      if (import.meta.env?.DEV) {
+        logger.debug('[LLMService:cacheSet]', 'LLMService', {
+          storyType,
+          customTopic,
+          length: story.length
+        })
+      }
 
       return story
 
     } catch (error) {
-      console.error('[LLMService:error]', { message: error.message })
+      if (import.meta.env?.DEV) {
+        logger.error('[LLMService:error]', 'LLMService', { message: (error as Error).message })
+      }
       throw error
     }
   }
 
   // Prepare request body for different LLM providers
-  prepareRequestBody(prompt) {
+  prepareRequestBody(prompt: string): object {
     // OpenAI Responses API format (güncellendi)
     if (this.endpoint.includes('responses') || this.endpoint.includes('/api/llm')) {
       return {
@@ -271,21 +369,23 @@ export class LLMService {
   }
 
   // Extract story from different response formats
-  extractStoryFromResponse(data) {
+  extractStoryFromResponse(data: LLMResponse): string {
     // OpenAI Responses API format (yeni) - output bir array olabilir
     if (data?.output) {
       if (Array.isArray(data.output) && data.output.length > 0) {
         // output array'inde text content'i ara
-        const textContent = data.output.find(item =>
-          item?.type === 'text' || typeof item === 'string' || item?.content
-        );
+        const textContent = data.output.find((item: unknown) =>
+          item && (typeof item === 'string' || (typeof item === 'object' && ('type' in item || 'content' in item || 'text' in item)))
+        )
         if (textContent) {
-          return (textContent.content || textContent.text || textContent || '').toString().trim();
+          return (typeof textContent === 'string' ? textContent :
+                  (textContent as any).content || (textContent as any).text || String(textContent)).toString().trim()
         }
         // Fallback: ilk elemanı string olarak al
-        return (data.output[0]?.content || data.output[0]?.text || data.output[0] || '').toString().trim();
+        return (data.output[0] && typeof data.output[0] === 'string' ? data.output[0] :
+                (data.output[0] as any)?.content || (data.output[0] as any)?.text || String(data.output[0] || '')).toString().trim()
       } else if (typeof data.output === 'string') {
-        return data.output.trim();
+        return data.output.trim()
       }
     }
 
@@ -293,13 +393,13 @@ export class LLMService {
     if (data && Array.isArray(data.candidates) && data.candidates.length > 0) {
       const first = data.candidates[0]
       // Some SDKs expose output_text directly
-      if (typeof first.output_text === 'string' && first.output_text.trim()) {
+      if (typeof first?.output_text === 'string' && first.output_text.trim()) {
         return first.output_text.trim()
       }
-      const parts = first.content && Array.isArray(first.content.parts) ? first.content.parts : []
+      const parts = first?.content && Array.isArray(first.content.parts) ? first.content.parts : []
       if (parts.length) {
         const joined = parts
-          .map(p => (typeof p === 'string' ? p : (p?.text || '')))
+          .map((p: unknown) => (typeof p === 'string' ? p : (p && typeof p === 'object' && 'text' in p ? (p as any).text : '')))
           .join('')
           .trim()
         if (joined) return joined
@@ -308,7 +408,7 @@ export class LLMService {
 
     // Legacy OpenAI Chat format
     if (data?.choices?.[0]?.message) {
-      return data.choices[0].message.content.trim()
+      return data.choices[0].message.content?.trim() || ''
     }
 
     // Claude format
@@ -322,21 +422,22 @@ export class LLMService {
     }
 
     // Direct text response
-    if (typeof data === 'string') {
-      return data.trim()
+    const dataAny = data as any
+    if (typeof dataAny === 'string') {
+      return dataAny.trim()
     }
 
     // Custom response format
-    if (data.response) {
-      return data.response.trim()
+    if (data?.response) {
+      return String(data.response).trim()
     }
 
-    if (data.text) {
-      return data.text.trim()
+    if (data?.text) {
+      return String(data.text).trim()
     }
 
-    if (data.output) {
-      return data.output.trim()
+    if (data?.output) {
+      return String(data.output).trim()
     }
 
     throw new Error('LLM yanıtından masal metni çıkarılamadı. API yanıt formatını kontrol edin.')
