@@ -468,6 +468,21 @@ function App() {
   const generateAudio = async () => {
     if (!story) return
 
+    // Check if story needs to be saved first
+    if (!currentStoryId) {
+      // Auto-save the story before generating audio
+      const storyTypeToUse = customTopic.trim() ? 'custom' : selectedStoryType
+      const topicToUse = customTopic.trim() || ''
+      
+      try {
+        const dbStory = await createDbStory(story, storyTypeToUse, topicToUse)
+        setCurrentStoryId(dbStory.id || null)
+      } catch (error) {
+        setError('Masal kaydedilemedi; ses oluşturma iptal edildi.')
+        return
+      }
+    }
+
     setIsGeneratingAudio(true)
     setProgress(0)
     setError('')

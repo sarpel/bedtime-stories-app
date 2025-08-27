@@ -1,6 +1,16 @@
 // ElevenLabs ses seçenekleri
 
-export const voiceOptions = [
+export interface Voice {
+  id: string;
+  name: string;
+  description: string;
+  language: string;
+  gender: string;
+  age: string;
+  style: string;
+}
+
+export const voiceOptions: ReadonlyArray<Voice> = [
   {
     id: 'xsGHrtxT5AdDzYXTQT0d',
     name: 'Gönül Filiz',
@@ -52,24 +62,24 @@ export const voiceOptions = [
 export const defaultVoice = voiceOptions[0]
 
 // Ses ID'sine göre ses bilgisi getirme
-export const getVoiceById = (id: string) => {
+export const getVoiceById = (id: string): Voice => {
   return voiceOptions.find(voice => voice.id === id) || defaultVoice
 }
 
 // Ses adına göre ses bilgisi getirme
-export const getVoiceByName = (name: string) => {
+export const getVoiceByName = (name: string): Voice => {
   return voiceOptions.find(voice => voice.name === name) || defaultVoice
 }
 
 // Kategoriye göre sesleri filtreleme
-export const getVoicesByGender = (gender: string) => {
+export const getVoicesByGender = (gender: string): Voice[] => {
   return voiceOptions.filter(voice => voice.gender === gender)
 }
 
-export const getVoicesByAge = (age: string) => {
+export const getVoicesByAge = (age: string): Voice[] => {
   return voiceOptions.filter(voice => voice.age === age)
 }
 
-export const getVoicesByStyle = (style: string) => {
-  return voiceOptions.filter(voice => voice.style.includes(style))
+export const getVoicesByStyle = (style: string): Voice[] => {
+  return voiceOptions.filter(voice => voice.style.toLowerCase().includes(style.toLowerCase()))
 }

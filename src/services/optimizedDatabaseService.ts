@@ -391,16 +391,17 @@ class OptimizedDatabaseService {
 
       console.log(`${stories.length} masal localStorage'dan veritabanına taşınacak...`)
 
+      // Fetch existing stories once, not for each item (O(N²) → O(N) optimization)
+      const existingStories = await this.getAllStories(false)
+      const existingKeysSet = new Set(
+        existingStories.map((s: any) => `${s.story_type}|${s.story_text}`)
+      )
+
       for (const story of stories) {
         try {
-          // Masalın zaten var olup olmadığını kontrol et
-          const existingStories = await this.getAllStories(false) // No cache for migration
-          const exists = existingStories.some(existing =>
-            existing.story_text === story.story &&
-            existing.story_type === story.storyType
-          )
-
-          if (exists) {
+          // Check against pre-fetched set for O(1) lookup
+          const storyKey = `${story.storyType}|${story.story}`
+          if (existingKeysSet.has(storyKey)) {
             skipped++
             continue
           }

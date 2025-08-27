@@ -173,10 +173,10 @@ export class TTSService {
         storyId: storyId
       }
 
-      console.log('🔊 [TTSService] Request payload:', requestPayload)
+      // Removed payload logging to prevent data leakage (story content could be PII)
 
-      // İstek relative backend yoluna yapılıyor (Vite proxy/prod aynı origin)
-      const response = await fetch(`/api/tts`, {
+      // Use configured endpoint instead of hardcoded '/api/tts'
+      const response = await fetch(this.endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -186,7 +186,7 @@ export class TTSService {
 
       onProgress?.(60)
 
-      console.log('🔊 [TTSService] Response status:', response.status)
+      // Removed response status logging for cleaner production logs
       if (!response.ok) {
         const errorText = await response.text()
         throw new Error(`TTS API hatası (${response.status}): ${errorText}`)
