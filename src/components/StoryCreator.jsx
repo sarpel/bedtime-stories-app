@@ -148,13 +148,33 @@ export default function StoryCreator({
   }
 
   const handleAddCategories = () => {
+    // Don’t proceed if the input is empty or only whitespace
     if (!categoryInput.trim()) return
-    const parts = categoryInput.split(',').map(c => c.trim()).filter(c => c.length >= 2 && c.length <= 24)
+
+    // Split on commas, trim, lowercase, and dedupe within the input
+    // ...
+    const parts = categoryInput
+      .split(',')
+      .map(c => c.trim().toLowerCase())
+      .filter((c, index, arr) =>
+        c.length >= 2 &&
+        c.length <= 24 &&
+        arr.indexOf(c) === index
+      )
+
     if (parts.length === 0) return
+
     const merged = [...categories]
     parts.forEach(p => {
-      if (!merged.includes(p) && merged.length < 10) merged.push(p)
+      // Avoid case-insensitive duplicates against existing categories
+      if (
+        merged.length < 10 &&
+        !merged.some(m => m.toLowerCase() === p.toLowerCase())
+      ) {
+        merged.push(p)
+      }
     })
+
     setCategories(merged)
     setCategoryInput('')
   }
@@ -220,7 +240,19 @@ export default function StoryCreator({
                   {getReadingTime(story)} dk okuma
                 </Badge>
                 {categories.map(cat => (
-                  <Badge key={cat} variant="outline" className="flex items-center gap-1 text-xs cursor-pointer" onClick={() => handleRemoveCategory(cat)} title="Kaldır">
+
+                  <Badge
+                    key={cat}
+                    variant="outline"
+                    className="flex items-center gap-1 text-xs cursor-pointer"
+                    onClick={() => handleRemoveCategory(cat)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleRemoveCategory(cat)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${cat} kategorisini kaldır`}
+                    title="Kaldır"
+                  >
+
                     #{cat}
                   </Badge>
                 ))}

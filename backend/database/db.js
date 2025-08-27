@@ -40,10 +40,27 @@ function initDatabase() {
       story_type TEXT NOT NULL,
       custom_topic TEXT,
   categories TEXT, -- JSON array (örn: ["macera","uyku"])
+      profile_id INTEGER, -- Hangi profil için oluşturulduğu
       is_favorite INTEGER DEFAULT 0,
       is_shared INTEGER DEFAULT 0,
       share_id TEXT UNIQUE,
       shared_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (profile_id) REFERENCES profiles(id)
+    )
+  `);
+
+  // Profiles tablosu
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS profiles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      age INTEGER,
+      gender TEXT, -- 'girl', 'boy', 'other'
+      preferences TEXT, -- JSON object with story preferences
+      custom_prompt TEXT, -- Profile-specific prompt
+      is_active INTEGER DEFAULT 0, -- Only one profile can be active
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
@@ -60,7 +77,7 @@ function initDatabase() {
     }
   }
 
-  // categories sütununu ekle (migration)
+
   try {
     db.exec(`ALTER TABLE stories ADD COLUMN categories TEXT`);
     console.log('categories sütunu eklendi');
@@ -70,15 +87,6 @@ function initDatabase() {
     }
   }
 
-  // Sharing sütunlarını varolan tabloya ekle (eğer yoksa)
-  try {
-    db.exec(`ALTER TABLE stories ADD COLUMN is_shared INTEGER DEFAULT 0`);
-    console.log('is_shared sütunu eklendi');
-  } catch (error) {
-    if (!error.message.includes('duplicate column name')) {
-      console.log('is_shared sütunu zaten mevcut');
-    }
-  }
 
   try {
     db.exec(`ALTER TABLE stories ADD COLUMN share_id TEXT`);
@@ -378,6 +386,15 @@ const statements = {
   `),
   getMaxQueuePos: db.prepare(`
     SELECT COALESCE(MAX(position), 0) as maxpos FROM queue
+  `),
+
+  searchStoriesByTitle: db.prepare(`
+    SELECT s.*, a.file_name, a.file_path, a.voice_id
+    FROM stories s
+    LEFT JOIN audio_files a ON s.id = a.story_id
+    WHERE s.custom_topic LIKE ? OR s.story_type LIKE ?
+    ORDER BY s.created_at DESC
+    LIMIT ?
   `),
 };
 
@@ -740,6 +757,50 @@ const storyDb = {
     }
   },
 
+  // Ana arama metodu - FTS ve fallback LIKE araması
+  searchStories(query, options = {}) {
+    try {
+      if (!query || typeof query !== 'string' || query.trim().length === 0) {
+        return [];
+      }
+
+      const { limit = MAX_SEARCH_LIMIT, useFTS = true } = options;
+      const searchTerm = query.trim();
+      const effectiveLimit = Math.min(limit, MAX_SEARCH_LIMIT);
+
+      // FTS arama öncelikli
+      if (useFTS) {
+        try {
+          // FTS5 query - escape special characters and use Unicode-safe handling
+          const ftsQuery = searchTerm
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          if (ftsQuery.length > 0) {
+            const rows = statements.searchStoriesFTS.all(ftsQuery, effectiveLimit);
+            const results = this.processStoryRows(rows);
+            if (results.length > 0) {
+              return results;
+            }
+          }
+        } catch (ftsError) {
+          console.log('FTS search failed, falling back to basic search:', ftsError.message);
+        }
+      }
+
+      // Fallback: LIKE search on both title and content
+      const likePattern = `%${searchTerm}%`;
+      const rows = statements.searchStoriesByContent.all(likePattern, effectiveLimit);
+
+      return this.processStoryRows(rows);
+    } catch (error) {
+      console.error('Arama hatası:', error);
+      throw error;
+    }
+  },
+
+
   // Helper function to process story rows consistently
   processStoryRows(rows) {
     const storiesMap = new Map();
@@ -778,6 +839,104 @@ const storyDb = {
   // Utility functions
   getAudioDir() {
     return AUDIO_DIR;
+  },
+
+  // Profile management functions
+  createProfile(name, age, gender, preferences = {}, customPrompt = '') {
+    const stmt = db.prepare(`
+      INSERT INTO profiles (name, age, gender, preferences, custom_prompt)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    const result = stmt.run(name, age, gender, JSON.stringify(preferences), customPrompt);
+    return result.lastInsertRowid;
+  },
+
+  getProfiles() {
+    const stmt = db.prepare('SELECT * FROM profiles ORDER BY created_at DESC');
+    return stmt.all().map(row => ({
+      ...row,
+      preferences: row.preferences ? JSON.parse(row.preferences) : {}
+    }));
+  },
+
+  getProfile(id) {
+    const stmt = db.prepare('SELECT * FROM profiles WHERE id = ?');
+    const row = stmt.get(id);
+    if (row) {
+      return {
+        ...row,
+        preferences: row.preferences ? JSON.parse(row.preferences) : {}
+      };
+    }
+    return null;
+  },
+
+  updateProfile(id, updates) {
+    const fields = [];
+    const values = [];
+
+    if (updates.name !== undefined) {
+      fields.push('name = ?');
+      values.push(updates.name);
+    }
+    if (updates.age !== undefined) {
+      fields.push('age = ?');
+      values.push(updates.age);
+    }
+    if (updates.gender !== undefined) {
+      fields.push('gender = ?');
+      values.push(updates.gender);
+    }
+    if (updates.preferences !== undefined) {
+      fields.push('preferences = ?');
+      values.push(JSON.stringify(updates.preferences));
+    }
+    if (updates.customPrompt !== undefined) {
+      fields.push('custom_prompt = ?');
+      values.push(updates.customPrompt);
+    }
+
+    if (fields.length > 0) {
+      fields.push('updated_at = CURRENT_TIMESTAMP');
+      const stmt = db.prepare(`UPDATE profiles SET ${fields.join(', ')} WHERE id = ?`);
+      values.push(id);
+      return stmt.run(...values);
+    }
+    return null;
+  },
+
+  deleteProfile(id) {
+    // Önce profile ait storyleri güncelle (profile_id'yi null yap)
+    const updateStoriesStmt = db.prepare('UPDATE stories SET profile_id = NULL WHERE profile_id = ?');
+    updateStoriesStmt.run(id);
+
+    // Profile'i sil
+    const deleteStmt = db.prepare('DELETE FROM profiles WHERE id = ?');
+    return deleteStmt.run(id);
+  },
+
+  setActiveProfile(id) {
+    // Tüm profilleri inactive yap
+    db.prepare('UPDATE profiles SET is_active = 0').run();
+
+    // Belirtilen profili active yap
+    if (id) {
+      const stmt = db.prepare('UPDATE profiles SET is_active = 1 WHERE id = ?');
+      return stmt.run(id);
+    }
+    return null;
+  },
+
+  getActiveProfile() {
+    const stmt = db.prepare('SELECT * FROM profiles WHERE is_active = 1 LIMIT 1');
+    const row = stmt.get();
+    if (row) {
+      return {
+        ...row,
+        preferences: row.preferences ? JSON.parse(row.preferences) : {}
+      };
+    }
+    return null;
   },
 
   close() {

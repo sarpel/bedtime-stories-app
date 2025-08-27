@@ -318,17 +318,33 @@ export default function StoryQueuePanel({
         }
       }
     } catch { /* ignore */ }
-  }, [onRemoteStatusChange])
+  }, []) // onRemoteStatusChange kaldırıldı
 
   useEffect(() => {
     let id;
-    const start = () => { refreshRemote(); id = setInterval(refreshRemote, 5000); };
+    const start = () => {
+      refreshRemote();
+      id = setInterval(refreshRemote, 5000);
+    };
     const stop = () => { if (id) clearInterval(id); id = null; };
     const onVis = () => (document.hidden ? stop() : start());
     onVis();
     document.addEventListener('visibilitychange', onVis);
     return () => { stop(); document.removeEventListener('visibilitychange', onVis); };
   }, [refreshRemote])
+
+  // onRemoteStatusChange değiştiğinde sadece bu effect çalışsın
+  useEffect(() => {
+    if (remoteStatus.playing !== false || remoteStatus.storyId) {
+      if (onRemoteStatusChange) {
+        try {
+          onRemoteStatusChange(remoteStatus)
+        } catch (e) {
+          console.warn('Remote status callback error:', e)
+        }
+      }
+    }
+  }, [onRemoteStatusChange, remoteStatus])
 
   async function remotePlayToggle(storyId) {
     if (!storyId) return

@@ -114,6 +114,7 @@ export const getDefaultSettings = () => ({
   customPrompt: '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.',
   customInstructions: '',
   storyLength: 'short',
+  theme: 'system', // 'light', 'dark', or 'system'
   voiceSettings: {
     speed: 0.9,
     pitch: 1.0,

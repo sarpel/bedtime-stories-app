@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
-import { Brain, Volume2, MessageSquare, Save, RotateCcw, Settings as SettingsIcon } from 'lucide-react'
+import { Brain, Volume2, MessageSquare, Save, RotateCcw, Settings as SettingsIcon, User } from 'lucide-react'
 import { getDefaultSettings } from '@/services/configService.js'
 import VoiceSelector from './VoiceSelector.jsx'
+import ProfileSelector from './ProfileSelector.jsx'
 import PropTypes from 'prop-types'
 // Audio quality ve background music imports kaldırıldı - sadece basit ayarlar
 
@@ -111,7 +112,7 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
 
         <CardContent className="p-3">
           <Tabs defaultValue="llm" className="space-y-3">
-            <TabsList className="grid w-full grid-cols-3 h-8">
+            <TabsList className="grid w-full grid-cols-4 h-8">
               <TabsTrigger value="llm" className="flex items-center gap-1 text-xs">
                 <Brain className="h-3 w-3" />
                 <span className="hidden sm:inline">LLM</span>
@@ -123,6 +124,10 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
               <TabsTrigger value="content" className="flex items-center gap-1 text-xs">
                 <MessageSquare className="h-3 w-3" />
                 <span className="hidden sm:inline">İçerik</span>
+              </TabsTrigger>
+              <TabsTrigger value="profiles" className="flex items-center gap-1 text-xs">
+                <User className="h-3 w-3" />
+                <span className="hidden sm:inline">Profiller</span>
               </TabsTrigger>
             </TabsList>
 
@@ -625,6 +630,27 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                     </div>
 
                     <div className="space-y-1">
+                      <Label htmlFor="theme" className="text-xs">Tema</Label>
+                      <Select
+                        value={localSettings.theme || 'system'}
+                        onValueChange={(value) => updateSetting('theme', value)}
+                      >
+                        <SelectTrigger className="h-7 text-xs w-full">
+                          <SelectValue placeholder="Seçin" />
+                        </SelectTrigger>
+                        <SelectContent
+                          className="z-[200] min-w-[var(--radix-select-trigger-width)] w-[var(--radix-select-trigger-width)]"
+                          position="popper"
+                          onCloseAutoFocus={(e) => e.preventDefault()}
+                        >
+                          <SelectItem value="light" className="text-xs">Açık</SelectItem>
+                          <SelectItem value="dark" className="text-xs">Koyu</SelectItem>
+                          <SelectItem value="system" className="text-xs">Sistem</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1">
                       <Label htmlFor="custom-prompt" className="text-xs">Özel Prompt</Label>
                       <Textarea
                         id="custom-prompt"
@@ -681,6 +707,18 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
                     </div>
                   </div>
                 </Card>
+              </div>
+            </TabsContent>
+
+            {/* Profiles Settings */}
+            <TabsContent value="profiles" className="space-y-3">
+              <div className="mx-auto space-y-3">
+                <ProfileSelector
+                  onProfileSelect={(profile) => {
+                    // Profil seçildiğinde ayarları güncelle
+                    console.log('Profil seçildi:', profile)
+                  }}
+                />
               </div>
             </TabsContent>
           </Tabs>
