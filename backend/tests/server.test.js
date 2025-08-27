@@ -6,6 +6,7 @@ jest.mock('axios');
 
 describe('API endpoints', () => {
   let app;
+  let testStoryIds = []; // Track created test stories for cleanup
 
   const loadApp = () => {
     delete require.cache[require.resolve('../server')];
@@ -14,6 +15,20 @@ describe('API endpoints', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+  
+  afterEach(() => {
+    // Clean up test stories after each test
+    const storyDb = require('../database/db');
+    for (const storyId of testStoryIds) {
+      try {
+        storyDb.deleteStory(storyId);
+        console.log(`Cleaned up test story ID: ${storyId}`);
+      } catch (error) {
+        console.warn(`Failed to clean up test story ${storyId}:`, error.message);
+      }
+    }
+    testStoryIds = []; // Reset array
   });
 
   describe('/api/llm', () => {

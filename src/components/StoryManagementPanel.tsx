@@ -268,7 +268,7 @@ const StoryManagementPanel: React.FC<StoryManagementPanelProps> = ({
                               <Edit className="h-2 w-2" />
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
+                          <DialogContent className="w-full max-w-[95vw] sm:max-w-md md:max-w-lg max-h-[95vh] overflow-y-auto scrollbar-thin">
                             <DialogHeader>
                               <DialogTitle>Masalı Düzenle</DialogTitle>
                             </DialogHeader>
@@ -299,9 +299,7 @@ const StoryManagementPanel: React.FC<StoryManagementPanelProps> = ({
                           onClick={(e) => {
                             e.preventDefault()
                             e.stopPropagation()
-                            if (window.confirm('Bu masalı silmek istediğinizden emin misiniz?')) {
-                              onDeleteStory?.(story.id)
-                            }
+                            onDeleteStory?.(story.id)
                           }}
                         >
                           <Trash2 className="h-3 w-3" />

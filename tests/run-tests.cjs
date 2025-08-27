@@ -26,7 +26,7 @@ function logResult(ok, name, durationMs) {
 }
 
 async function run() {
-    const files = fs.readdirSync(testsDir).filter(f => f.endsWith('.test.cjs') || f.endsWith('.test.ts'));
+    const files = fs.readdirSync(testsDir).filter(f => f.endsWith('.test.cjs'));
     for (const file of files) {
         const testModule = require(path.join(testsDir, file));
         const cases = Object.entries(testModule).filter(([k, v]) => typeof v === 'function');

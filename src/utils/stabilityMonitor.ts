@@ -3,6 +3,16 @@
  * Reduced memory usage and logging for 512MB RAM constraint
  */
 
+// Extend the global Performance interface to include memory property
+declare global {
+  interface Performance {
+    memory?: {
+      usedJSHeapSize: number;
+      jsHeapSizeLimit: number;
+    };
+  }
+}
+
 import { stabilityLogger } from './logger.ts'
 import safeLocalStorage from './safeLocalStorage.ts'
 
@@ -193,9 +203,9 @@ class StabilityMonitor {
 
   monitorPerformance(): void {
     // Monitor memory usage (less frequent for Pi Zero - every 60 seconds)
-    if (typeof performance !== 'undefined' && (performance as any).memory) {
+    if (typeof performance !== 'undefined' && performance.memory) {
       this.memoryCheckInterval = setInterval(() => {
-        const memoryUsage = ((performance as any).memory.usedJSHeapSize / (performance as any).memory.jsHeapSizeLimit) * 100
+        const memoryUsage = (performance.memory!.usedJSHeapSize / performance.memory!.jsHeapSizeLimit) * 100
 
         if (memoryUsage > 70) { // Lowered threshold for Pi Zero
           stabilityLogger.warn(`High memory usage: ${memoryUsage.toFixed(1)}%`)

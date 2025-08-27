@@ -145,7 +145,7 @@ export default function AnalyticsDashboard({ onClose }: AnalyticsDashboardProps)
     return (
       <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-2">
         <div ref={panelRef}>
-          <Card className="w-full max-w-2xl sm:max-w-3xl max-h-[90vh] overflow-hidden scrollbar-thin border shadow-lg">
+          <Card className="w-full max-w-[95vw] sm:max-w-md md:max-w-lg max-h-[95vh] overflow-y-auto scrollbar-thin">
             <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-3 z-10">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -173,7 +173,7 @@ export default function AnalyticsDashboard({ onClose }: AnalyticsDashboardProps)
     return (
       <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-2">
         <div ref={panelRef}>
-          <Card className="w-full max-w-2xl sm:max-w-3xl max-h-[90vh] overflow-hidden scrollbar-thin border shadow-lg">
+          <Card className="w-full max-w-[95vw] sm:max-w-md md:max-w-lg max-h-[95vh] overflow-y-auto scrollbar-thin">
             <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-3 z-10">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -200,7 +200,7 @@ export default function AnalyticsDashboard({ onClose }: AnalyticsDashboardProps)
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-2">
       <div ref={panelRef}>
-        <Card className="w-full max-w-3xl sm:max-w-4xl max-h-[90vh] overflow-hidden scrollbar-thin border shadow-lg">
+        <Card className="w-full max-w-[95vw] sm:max-w-md md:max-w-lg max-h-[95vh] overflow-y-auto scrollbar-thin">
         <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-3 z-10">
           <div className="flex items-center justify-between gap-2">
             <CardTitle className="text-base font-semibold flex items-center gap-2">

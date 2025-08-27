@@ -892,7 +892,7 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
 
         {/* Edit Dialog */}
         <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="w-full max-w-[95vw] sm:max-w-md md:max-w-lg max-h-[95vh] overflow-y-auto scrollbar-thin">
             <DialogHeader>
               <DialogTitle>Masalı Düzenle</DialogTitle>
             </DialogHeader>

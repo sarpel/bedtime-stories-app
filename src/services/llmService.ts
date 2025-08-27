@@ -1,4 +1,5 @@
 import { getStoryTypePrompt } from '@/utils/storyTypes.js'
+import { buildEnhancedPrompt } from '@/utils/enhancedStoryTypes.js'
 import { config } from './configService.js'
 import { storyCache } from '@/utils/cache.js'
 import { logger } from '@/utils/logger.js'
@@ -222,7 +223,8 @@ export class LLMService {
 
       onProgress?.(10)
 
-      const prompt = this.buildPrompt(storyType, customTopic, seriesInfo)
+      // Use enhanced prompt system
+      const prompt = buildEnhancedPrompt(storyType || 'general', customTopic, this.activeProfile, seriesInfo)
       onProgress?.(30)
 
       // İstek backend proxy'imize yönlendirilir (aynı origin, dev'de Vite proxy)

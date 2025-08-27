@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button.tsx'
 import { Card, CardContent } from '@/components/ui/card.tsx'
-import { Moon, Settings, Heart, AlertCircle, BookOpen, BarChart3, Zap, Play, Square, ListMusic, X, Search } from 'lucide-react'
+import { Moon, Settings, Heart, AlertCircle, BookOpen, BarChart3, Play, Square, ListMusic, X, Search } from 'lucide-react'
 import SettingsPanel from './components/Settings.tsx'
 import StoryCreator from './components/StoryCreator.tsx'
 import FavoritesPanel from './components/FavoritesPanel.tsx'
 import StoryManagementPanel from './components/StoryManagementPanel.tsx'
 import AnalyticsDashboard from './components/AnalyticsDashboard.tsx'
-import PerformanceMonitor from './components/PerformanceMonitor.tsx'
 import StoryQueuePanel from './components/StoryQueuePanel.tsx'
 import SearchPanel from './components/SearchPanel.tsx'
 import { LLMService } from './services/llmService.ts'
@@ -110,7 +109,6 @@ function App() {
   const [showApiKeyHelp, setShowApiKeyHelp] = useState<boolean>(false)
   const [showStoryManagement, setShowStoryManagement] = useState<boolean>(false)
   const [showAnalytics, setShowAnalytics] = useState<boolean>(false)
-  const [showPerformanceMonitor, setShowPerformanceMonitor] = useState<boolean>(false)
   const [showSearch, setShowSearch] = useState<boolean>(false)
   // Son oluşturulan masalın geçmiş ID'si
   const [currentStoryId, setCurrentStoryId] = useState<string | number | null>(null)
@@ -384,24 +382,38 @@ function App() {
   // Hybrid delete function
   const hybridDeleteStory = async (id: string | number) => {
     try {
+      console.log('Deleting story with ID:', id)
+      
       // Eğer dbStories'te varsa veritabanından sil
-      const dbStory = dbStories.find(s => s.id === id)
+      const dbStory = dbStories.find(s => s.id === id || String(s.id) === String(id))
       if (dbStory) {
+        console.log('Found story in database, deleting from DB:', dbStory.id)
         await deleteDbStory(id)
         // State'i güncelle
         await loadStories()
+        toast.success('Masal başarıyla silindi')
       } else {
+        console.log('Story not found in database, removing from localStorage')
         // Backward compatibility için localStorage
         removeFromHistory(Number(id))
+        toast.success('Masal geçmişten kaldırıldı')
       }
     } catch (error) {
       console.error('Masal silme hatası:', error)
+      toast.error('Masal silinirken hata oluştu: ' + (error instanceof Error ? error.message : 'Bilinmeyen hata'))
+      
       // Fallback to localStorage
-      removeFromHistory(Number(id))
+      try {
+        removeFromHistory(Number(id))
+        toast.success('Masal yerel geçmişten kaldırıldı')
+      } catch (fallbackError) {
+        console.error('Fallback silme hatası:', fallbackError)
+        toast.error('Masal silinemedi')
+      }
     }
   }
 
-  const generateStory = async (categories: string[] = []) => {
+  const generateStory = async () => {
     // Hem selectedStoryType hem de customTopic boşsa masal oluşturma
     if (!selectedStoryType && !customTopic.trim()) {
       setError('Lütfen bir masal türü seçin veya özel bir konu yazın.')
@@ -465,7 +477,7 @@ function App() {
 
       // Veritabanına kaydet
       try {
-  const dbStory = await createDbStory(story, storyTypeToUse, topicToUse, categories)
+        const dbStory = await createDbStory(story, storyTypeToUse, topicToUse)
         setCurrentStoryId(dbStory.id || null)
         // Seriye ekle (eğer seri seçilmişse)
         if (selectedSeriesId && dbStory.id) {
@@ -797,16 +809,6 @@ function App() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowPerformanceMonitor(true)}
-              className="gap-1 px-2 h-8 text-xs"
-              title="Performans Monitörü"
-            >
-              <Zap className="h-3 w-3" />
-              <span className="hidden lg:inline">Performans</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
               onClick={() => setShowSettings(!showSettings)}
               className="gap-1 px-2 h-8 text-xs"
             >
@@ -1024,13 +1026,6 @@ function App() {
           <AnalyticsDashboard onClose={() => setShowAnalytics(false)} />
         )}
 
-        {/* Performance Monitor */}
-        {showPerformanceMonitor && (
-          <PerformanceMonitor
-            isOpen={showPerformanceMonitor}
-            onClose={() => setShowPerformanceMonitor(false)}
-          />
-        )}
 
         {/* Search Panel */}
         {showSearch && (

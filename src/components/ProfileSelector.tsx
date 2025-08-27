@@ -45,9 +45,9 @@ const ProfileSelector = ({ onProfileSelect, selectedProfileId }: ProfileSelector
     customPrompt: ''
   })
 
-  const updateFormData = useCallback((field: string, value: string) => {
+  const updateFormData = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-  }, [])
+  }
 
   const handleCreateProfile = async () => {
     if (!formData.name || !formData.age || !formData.gender) {
@@ -199,7 +199,7 @@ interface ProfileFormProps {
                 Yeni Profil
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="w-full max-w-[95vw] sm:max-w-md md:max-w-lg max-h-[95vh] overflow-y-auto scrollbar-thin">
               <DialogHeader>
                 <DialogTitle>Yeni Profil Oluştur</DialogTitle>
               </DialogHeader>
@@ -291,7 +291,7 @@ interface ProfileFormProps {
 
       {/* Edit Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent>
+        <DialogContent className="w-full max-w-[95vw] sm:max-w-md md:max-w-lg max-h-[95vh] overflow-y-auto scrollbar-thin">
           <DialogHeader>
             <DialogTitle>Profili Düzenle</DialogTitle>
           </DialogHeader>

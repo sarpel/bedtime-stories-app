@@ -40,6 +40,7 @@ function initDatabase() {
       story_type TEXT NOT NULL,
       custom_topic TEXT,
   categories TEXT, -- JSON array (örn: ["macera","uyku"])
+      content_hash TEXT, -- SHA256 hash of story content for duplicate detection
       profile_id INTEGER, -- Hangi profil için oluşturulduğu
       series_id INTEGER, -- Seri ID'si (NULL ise tekil hikaye)
       series_order INTEGER, -- Serideki sıra (NULL ise tekil hikaye)
@@ -104,6 +105,68 @@ function initDatabase() {
     if (!error.message.includes('duplicate column name')) {
       console.log('categories sütunu zaten mevcut');
     }
+  }
+  
+  // content_hash sütununu ekle (migration)
+  try {
+    db.exec(`ALTER TABLE stories ADD COLUMN content_hash TEXT`);
+    console.log('content_hash sütunu eklendi');
+  } catch (error) {
+    if (!error.message.includes('duplicate column name')) {
+      console.log('content_hash sütunu zaten mevcut');
+    }
+  }
+  
+  // Mevcut hikayelere content_hash ekle (one-time migration)
+  try {
+    const storiesWithoutHash = db.prepare('SELECT id, story_text, story_type, custom_topic FROM stories WHERE content_hash IS NULL').all();
+    if (storiesWithoutHash.length > 0) {
+      console.log(`${storiesWithoutHash.length} hikaye için content_hash hesaplanıyor...`);
+      const updateHashStmt = db.prepare('UPDATE stories SET content_hash = ? WHERE id = ?');
+      const deleteStoryStmt = db.prepare('DELETE FROM stories WHERE id = ?');
+      const seenHashes = new Set();
+      let duplicatesRemoved = 0;
+      
+      const tx = db.transaction((stories) => {
+        for (const story of stories) {
+          const contentForHash = `${story.story_text.trim()}|${story.story_type}|${story.custom_topic || ''}`;
+          const contentHash = crypto.createHash('sha256').update(contentForHash, 'utf8').digest('hex');
+          
+          if (seenHashes.has(contentHash)) {
+            // This is a duplicate, remove it
+            deleteStoryStmt.run(story.id);
+            duplicatesRemoved++;
+            console.log(`Removed duplicate story ID: ${story.id}`);
+          } else {
+            // First occurrence, update with hash
+            seenHashes.add(contentHash);
+            updateHashStmt.run(contentHash, story.id);
+          }
+        }
+      });
+      tx(storiesWithoutHash);
+      console.log(`Content hash migration completed. Removed ${duplicatesRemoved} duplicates.`);
+    }
+    
+    // Create unique index after migration is complete
+    try {
+      // Check if index already exists
+      const indexExists = db.prepare(`
+        SELECT COUNT(*) as count FROM sqlite_master 
+        WHERE type='index' AND name='idx_stories_content_hash'
+      `).get();
+      
+      if (indexExists.count === 0) {
+        db.exec(`CREATE UNIQUE INDEX idx_stories_content_hash ON stories (content_hash)`);
+        console.log('Content hash unique index created successfully');
+      } else {
+        console.log('Content hash unique index already exists');
+      }
+    } catch (indexError) {
+      console.log('Content hash index creation error:', indexError.message);
+    }
+  } catch (error) {
+    console.log('Content hash migration error:', error.message);
   }
 
   // profile_id sütununu ekle (migration)
@@ -195,7 +258,7 @@ function initDatabase() {
     )
   `);
 
-  // İndeksler performans için
+  // İndeksler performans için (content_hash hariç - migration sonrası yapılacak)
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_stories_type ON stories (story_type);
     CREATE INDEX IF NOT EXISTS idx_stories_created ON stories (created_at DESC);
@@ -309,8 +372,12 @@ initDatabase();
 const statements = {
   // Story operations
   insertStory: db.prepare(`
-  INSERT INTO stories (story_text, story_type, custom_topic, categories)
-  VALUES (?, ?, ?, ?)
+  INSERT INTO stories (story_text, story_type, custom_topic, categories, content_hash)
+  VALUES (?, ?, ?, ?, ?)
+  `),
+  
+  getStoryByHash: db.prepare(`
+    SELECT * FROM stories WHERE content_hash = ?
   `),
 
   getStoryById: db.prepare(`
@@ -458,8 +525,19 @@ const storyDb = {
   // Story operations
   createStory(storyText, storyType, customTopic = null, categories = []) {
     try {
+      // Create unique content hash from story text + type + topic
+      const contentForHash = `${storyText.trim()}|${storyType}|${customTopic || ''}`;
+      const contentHash = crypto.createHash('sha256').update(contentForHash, 'utf8').digest('hex');
+      
+      // Check for existing story with same hash
+      const existingStory = statements.getStoryByHash.get(contentHash);
+      if (existingStory) {
+        console.log('Duplicate story detected, returning existing ID:', existingStory.id);
+        return existingStory.id;
+      }
+      
       const categoriesValue = Array.isArray(categories) ? JSON.stringify(categories) : (categories || null);
-      const result = statements.insertStory.run(storyText, storyType, customTopic, categoriesValue);
+      const result = statements.insertStory.run(storyText, storyType, customTopic, categoriesValue, contentHash);
       return result.lastInsertRowid;
     } catch (error) {
       console.error('Masal oluşturma hatası:', error);

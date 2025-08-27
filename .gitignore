@@ -13,7 +13,7 @@ docs/Feature_Proposals.md
 dist/
 build/
 .augment/
-
+docs/
 # GitHub prompts (development specific)
 .github/prompts
 

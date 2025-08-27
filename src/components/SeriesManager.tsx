@@ -58,9 +58,9 @@ const SeriesManager = ({ onSeriesSelect, onContinueSeries, selectedSeriesId }: S
     characterInfo: ''
   })
 
-  const updateFormData = useCallback((field: string, value: string) => {
+  const updateFormData = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-  }, [])
+  }
   const [selectedSeriesStories, setSelectedSeriesStories] = useState<Story[]>([])
   const [showStoriesDialog, setShowStoriesDialog] = useState(false)
 
@@ -198,7 +198,7 @@ const SeriesManager = ({ onSeriesSelect, onContinueSeries, selectedSeriesId }: S
                 Yeni Seri
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="w-full max-w-[95vw] sm:max-w-md md:max-w-lg max-h-[95vh] overflow-y-auto scrollbar-thin">
               <DialogHeader>
                 <DialogTitle>Yeni Seri Oluştur</DialogTitle>
               </DialogHeader>
@@ -286,7 +286,7 @@ const SeriesManager = ({ onSeriesSelect, onContinueSeries, selectedSeriesId }: S
 
       {/* Edit Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent>
+        <DialogContent className="w-full max-w-[95vw] sm:max-w-md md:max-w-lg max-h-[95vh] overflow-y-auto scrollbar-thin">
           <DialogHeader>
             <DialogTitle>Seriyi Düzenle</DialogTitle>
           </DialogHeader>
@@ -304,7 +304,7 @@ const SeriesManager = ({ onSeriesSelect, onContinueSeries, selectedSeriesId }: S
 
       {/* Stories Dialog */}
       <Dialog open={showStoriesDialog} onOpenChange={setShowStoriesDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="w-full max-w-[95vw] sm:max-w-md md:max-w-lg max-h-[95vh] overflow-y-auto scrollbar-thin">
           <DialogHeader>
             <DialogTitle>Serinin Hikayeleri</DialogTitle>
           </DialogHeader>

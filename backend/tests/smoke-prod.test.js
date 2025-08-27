@@ -9,10 +9,25 @@ jest.mock('axios')
 
 describe('Production smoke test', () => {
   let app
+  let testStoryIds = [] // Track created test stories for cleanup
   beforeAll(() => {
     process.env.NODE_ENV = 'production'
     delete require.cache[require.resolve('../server')]
     app = require('../server')
+  })
+  
+  afterEach(async () => {
+    // Clean up test stories after each test
+    const storyDb = require('../database/db')
+    for (const storyId of testStoryIds) {
+      try {
+        storyDb.deleteStory(storyId)
+        console.log(`Cleaned up test story ID: ${storyId}`)
+      } catch (error) {
+        console.warn(`Failed to clean up test story ${storyId}:`, error.message)
+      }
+    }
+    testStoryIds = [] // Reset array
   })
 
   test('create story → tts stream → audio saved & static served', async () => {
@@ -27,6 +42,7 @@ describe('Production smoke test', () => {
     expect(createRes.status).toBe(201)
     const storyId = createRes.body.id
     expect(storyId).toBeGreaterThan(0)
+    testStoryIds.push(storyId) // Track for cleanup
 
     // 2) Mock ElevenLabs stream and call TTS
     process.env.ELEVENLABS_API_KEY = 'key'

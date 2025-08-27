@@ -1,4 +1,15 @@
 // NOTE: If the implementation file path differs (e.g., stabilityMonitor.js), adjust the import below accordingly.
+
+// Extend the global Performance interface to include memory property
+declare global {
+  interface Performance {
+    memory?: {
+      usedJSHeapSize: number;
+      jsHeapSizeLimit: number;
+    };
+  }
+}
+
 /**
  * Tests for StabilityMonitor (Pi Zero optimized)
  *

@@ -99,8 +99,7 @@ export default defineConfig(({ mode }) => {
               './src/utils/share'
             ],
             'app-monitoring': [
-              './src/utils/stabilityMonitor',
-              './src/components/PerformanceMonitor'
+              './src/utils/stabilityMonitor'
             ]
           },
           // Optimize chunk naming for production
