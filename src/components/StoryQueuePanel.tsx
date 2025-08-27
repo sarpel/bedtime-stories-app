@@ -1,15 +1,15 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
+import { Button } from '@/components/ui/button.jsx'
+import { Badge } from '@/components/ui/badge.jsx'
+import { Separator } from '@/components/ui/separator.jsx'
 import { BookOpen, Heart, X, GripVertical, Settings, Volume2, Play, Pause, Square, SkipForward, SkipBack, Shuffle, Repeat2, Plus, Edit, Trash2, Radio } from 'lucide-react'
-import AudioControls from './AudioControls'
-import { getStoryTypeLabel } from '@/utils/storyTypes'
-import { getStoryTitle } from '@/utils/titleGenerator'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import AudioControls from './AudioControls.jsx'
+import { getStoryTypeLabel } from '@/utils/storyTypes.js'
+import { getStoryTitle } from '@/utils/titleGenerator.js'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog.jsx'
+import { Input } from '@/components/ui/input.jsx'
+import { ScrollArea } from '@/components/ui/scroll-area.jsx'
 import {
   DndContext,
   closestCenter,
@@ -20,90 +20,10 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 // CSS util kullanılmıyor, kaldırıldı
-import { queueService } from '@/services/queueService'
-import { getBestTitle } from '@/services/titleService'
-
-interface Story {
-  id?: string | number
-  story?: string
-  story_text?: string
-  story_type?: string
-  storyType?: string
-  custom_topic?: string // Changed from string | null to string to match getStoryTitle
-  customTopic?: string // Changed from string | null to string to match getStoryTitle
-  created_at?: string
-  createdAt?: string
-  audio?: {
-    file_name: string
-  }
-  audioUrl?: string | null
-  is_favorite?: boolean | number
-}
-
-interface RemoteStatus {
-  playing: boolean
-  storyId?: string | number
-}
-
-interface StoryQueuePanelProps {
-  stories: Story[]
-  onUpdateStory: (id: string | number, updates: Partial<Story>) => Promise<void>
-  onSelectStory: (story: Story) => void
-  onShowStoryManagement: () => void
-  onToggleFavorite: (story: Story) => void
-  isFavorite: (story: Story) => boolean
-  onGenerateAudio: (story: Story) => void
-  isGeneratingAudio: (storyId: string | number) => boolean
-  // Audio props
-  audioIsPlaying: boolean
-  audioIsPaused: boolean
-  audioProgress: number
-  audioDuration: number
-  audioVolume: number
-  audioIsMuted: boolean
-  audioPlaybackRate: number
-  audioCurrentStoryId: string | number | null
-  playAudio: (audioUrl: string, storyId: string | number) => void
-  stopAudio: () => void
-  audioToggleMute: () => void
-  setVolumeLevel: (level: number) => void
-  setPlaybackSpeed: (rate: number) => void
-  seekTo: (percentage: number) => void
-  getDbAudioUrl: (fileName: string) => string
-  setOnEnded: (callback: (() => void) | null) => void
-  onRemoteStatusChange?: (status: RemoteStatus) => void
-}
+import { queueService } from '@/services/queueService.js'
+import { getBestTitle } from '@/services/titleService.js'
 
 // Sortable Story Item Component
-interface SortableStoryItemProps {
-  story: Story
-  titleMap: Record<string, string>
-  onToggleFavorite: (story: Story) => void
-  onRemoveFromQueue: (story: Story) => void
-  onEditStory: (story: Story) => void
-  onSelectStory: (story: Story) => void
-  isFavorite: (story: Story) => boolean
-  onGenerateAudio: (story: Story) => void
-  isGeneratingAudio: (storyId: string | number) => boolean
-  audioIsPlaying: boolean
-  audioIsPaused: boolean
-  audioProgress: number
-  audioDuration: number
-  audioVolume: number
-  audioIsMuted: boolean
-  audioPlaybackRate: number
-  audioCurrentStoryId: string | number | null
-  playAudio: (audioUrl: string, storyId: string | number) => void
-  stopAudio: () => void
-  audioToggleMute: () => void
-  setVolumeLevel: (level: number) => void
-  setPlaybackSpeed: (rate: number) => void
-  seekTo: (percentage: number) => void
-  getDbAudioUrl: (fileName: string) => string
-  onRemotePlay?: (storyId: string | number) => void
-  remoteStatus: RemoteStatus
-}
-
 function SortableStoryItem({
   story,
   titleMap,
@@ -131,13 +51,13 @@ function SortableStoryItem({
   getDbAudioUrl,
   onRemotePlay,
   remoteStatus
-}: SortableStoryItemProps) {
+}) {
   const {
     attributes,
     listeners,
     setNodeRef,
     isDragging,
-  } = useSortable({ id: story.id || `story-${Date.now()}` })
+  } = useSortable({ id: story.id })
   // Transform değerini sürükleme animasyonunda style ile kullanmıyoruz; dnd-kit class temelli geçiş yeterli
   const isCurrent = audioCurrentStoryId === story.id
 
@@ -149,7 +69,7 @@ function SortableStoryItem({
       onClick={() => onSelectStory?.(story)}
       role="button"
       tabIndex={0}
-      onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { onSelectStory?.(story) } }}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { onSelectStory?.(story) } }}
     >
       {/* Drag Handle - Mobile: positioned differently */}
       <div
@@ -165,10 +85,10 @@ function SortableStoryItem({
       <div className="flex-1 min-w-0 w-full sm:w-auto">
         <div className="flex flex-wrap sm:flex-nowrap items-center gap-0.5 mb-0.5 sm:mb-0.5">
           <span className="font-medium text-[11px] sm:text-[10px] truncate max-w-40">
-            {titleMap?.[story.id || ''] || getStoryTitle(story)}
+            {titleMap?.[story.id] || getStoryTitle(story)}
           </span>
           <Badge variant="secondary" className="text-[11px] sm:text-[9px] px-1.5 sm:px-1 py-0.5 h-4 sm:h-3 leading-none">
-            {getStoryTypeLabel(story.story_type || story.storyType || '')}
+            {getStoryTypeLabel(story.story_type || story.storyType)}
           </Badge>
           {(story.custom_topic || story.customTopic) && (
             <Badge variant="outline" className="text-[11px] sm:text-[9px] px-1.5 sm:px-1 py-0.5 h-4 sm:h-3 leading-none max-w-24 truncate">
@@ -176,14 +96,14 @@ function SortableStoryItem({
             </Badge>
           )}
           <span className="text-[11px] sm:text-[9px] text-muted-foreground font-mono shrink-0">
-            {new Date((story.created_at || story.createdAt || Date.now())).toLocaleDateString('tr-TR', {
+            {new Date(story.created_at || story.createdAt).toLocaleDateString('tr-TR', {
               day: '2-digit',
               month: '2-digit'
             })}
           </span>
         </div>
         <p className="text-[11px] sm:text-[10px] text-muted-foreground truncate leading-tight">
-          {(story.story_text || story.story || '').substring(0, 50)}...
+          {(story.story_text || story.story).substring(0, 50)}...
         </p>
       </div>
 
@@ -193,7 +113,7 @@ function SortableStoryItem({
         <Button
           variant="ghost"
           size="sm"
-          onClick={async (e: React.MouseEvent) => {
+          onClick={async (e) => {
             e.preventDefault()
             e.stopPropagation()
 
@@ -239,8 +159,8 @@ function SortableStoryItem({
         {(story.audio || story.audioUrl) && (
           <div className="flex items-center">
             <AudioControls
-              storyId={String(story.id || '')}
-              audioUrl={story.audio?.file_name ? getDbAudioUrl(story.audio.file_name) : story.audioUrl || null}
+              storyId={story.id}
+              audioUrl={story.audio ? getDbAudioUrl(story.audio.file_name) : story.audioUrl}
               isPlaying={audioIsPlaying}
               isPaused={audioIsPaused}
               progress={audioProgress}
@@ -248,9 +168,8 @@ function SortableStoryItem({
               volume={audioVolume}
               isMuted={audioIsMuted}
               playbackRate={audioPlaybackRate}
-              currentStoryId={String(audioCurrentStoryId || '')}
+              currentStoryId={audioCurrentStoryId}
               onPlay={playAudio}
-              onPause={stopAudio}
               onStop={stopAudio}
               onToggleMute={audioToggleMute}
               onVolumeChange={setVolumeLevel}
@@ -265,10 +184,10 @@ function SortableStoryItem({
           <Button
             variant="ghost"
             size="sm"
-            onClick={async (e: React.MouseEvent) => {
+            onClick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
-              onRemotePlay?.(story.id || '');
+              onRemotePlay?.(story.id);
             }}
             className={`h-5 w-5 p-0 ${remoteStatus.playing && remoteStatus.storyId === story.id ? 'text-primary' : ''}`}
             title="Cihaz hoparlöründe çal"
@@ -283,12 +202,12 @@ function SortableStoryItem({
             variant="outline"
             size="sm"
             onClick={() => onGenerateAudio(story)}
-            disabled={isGeneratingAudio(story.id || '')}
+            disabled={isGeneratingAudio}
             className="h-7 px-2 text-xs"
             title="Hikayeyi seslendir"
           >
             <Volume2 className="h-3 w-3 mr-1" />
-            {isGeneratingAudio(story.id || '') ? 'Ses...' : 'Seslendir'}
+            {isGeneratingAudio ? 'Ses...' : 'Seslendir'}
           </Button>
         )}
 
@@ -296,7 +215,7 @@ function SortableStoryItem({
         <Button
           variant="ghost"
           size="sm"
-          onClick={(e: React.MouseEvent) => {
+          onClick={(e) => {
             e.preventDefault()
             e.stopPropagation()
             onEditStory?.(story)
@@ -311,7 +230,7 @@ function SortableStoryItem({
         <Button
           variant="ghost"
           size="sm"
-          onClick={(e: React.MouseEvent) => {
+          onClick={(e) => {
             e.preventDefault()
             e.stopPropagation()
             onSelectStory?.(story)
@@ -326,10 +245,10 @@ function SortableStoryItem({
         <Button
           variant="ghost"
           size="sm"
-          onClick={(e: React.MouseEvent) => {
+          onClick={(e) => {
             e.preventDefault()
             e.stopPropagation()
-            onRemoveFromQueue?.(story)
+            onRemoveFromQueue?.(story.id)
           }}
           className="h-5 w-5 p-0 hover:bg-destructive/10 hover:text-destructive"
           title="Kuyruktan çıkar"
@@ -341,48 +260,47 @@ function SortableStoryItem({
   )
 }
 
-export default function StoryQueuePanel(props: StoryQueuePanelProps) {
-  const {
-    stories,
-    onUpdateStory,
-    onSelectStory,
-    onShowStoryManagement,
-    onToggleFavorite,
-    isFavorite,
-    onGenerateAudio,
-    isGeneratingAudio,
-    // Audio props
-    audioIsPlaying,
-    audioIsPaused,
-    audioProgress,
-    audioDuration,
-    audioVolume,
-    audioIsMuted,
-    audioPlaybackRate,
-    audioCurrentStoryId,
-    playAudio,
-    stopAudio,
-    audioToggleMute,
-    setVolumeLevel,
-    setPlaybackSpeed,
-    seekTo,
-    getDbAudioUrl,
-    // setOnEnded fonksiyonu App'ten pekala geçirilebilir; burada props yerine window üzerinden erişmeyelim
-    setOnEnded,
-    onRemoteStatusChange // App seviyesine remote durumunu yükseltmek için opsiyonel callback
-  } = props;
+export default function StoryQueuePanel({
+  stories,
+  onUpdateStory,
+  onSelectStory,
+  onShowStoryManagement,
+  onToggleFavorite,
+  isFavorite,
+  onGenerateAudio,
+  isGeneratingAudio,
+  // Audio props
+  audioIsPlaying,
+  audioIsPaused,
+  audioProgress,
+  audioDuration,
+  audioVolume,
+  audioIsMuted,
+  audioPlaybackRate,
+  audioCurrentStoryId,
+  playAudio,
+  stopAudio,
+  audioToggleMute,
+  setVolumeLevel,
+  setPlaybackSpeed,
+  seekTo,
+  getDbAudioUrl,
+  // setOnEnded fonksiyonu App'ten pekala geçirilebilir; burada props yerine window üzerinden erişmeyelim
+  setOnEnded,
+  onRemoteStatusChange // App seviyesine remote durumunu yükseltmek için opsiyonel callback
+}) {
   const [localStories, setLocalStories] = useState(stories)
-  const [queue, setQueue] = useState<Story[]>([]) // gerçek çalma kuyruğu (story objeleri)
+  const [queue, setQueue] = useState([]) // gerçek çalma kuyruğu (story objeleri)
   const [currentIndex, setCurrentIndex] = useState(-1)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [search, setSearch] = useState('')
-  const [editTarget, setEditTarget] = useState<Story | null>(null)
+  const [editTarget, setEditTarget] = useState(null)
   const [editText, setEditText] = useState('')
   const [editTopic, setEditTopic] = useState('')
   const [shuffle, setShuffle] = useState(false)
   const [repeatAll, setRepeatAll] = useState(true)
-  const [titles, setTitles] = useState<Record<string, string>>({})
-  const [remoteStatus, setRemoteStatus] = useState<RemoteStatus>({ playing: false })
+  const [titles, setTitles] = useState({})
+  const [remoteStatus, setRemoteStatus] = useState({ playing: false })
   const [remoteLoading, setRemoteLoading] = useState(false)
 
   const refreshRemote = useCallback(async () => {
@@ -403,12 +321,12 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
   }, []) // onRemoteStatusChange kaldırıldı
 
   useEffect(() => {
-    let id: number | null = null;
+    let id;
     const start = () => {
       refreshRemote();
-      id = window.setInterval(refreshRemote, 5000);
+      id = setInterval(refreshRemote, 5000);
     };
-    const stop = () => { if (id) window.clearInterval(id); id = null; };
+    const stop = () => { if (id) clearInterval(id); id = null; };
     const onVis = () => (document.hidden ? stop() : start());
     onVis();
     document.addEventListener('visibilitychange', onVis);
@@ -428,7 +346,7 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
     }
   }, [onRemoteStatusChange, remoteStatus])
 
-  async function remotePlayToggle(storyId: string | number) {
+  async function remotePlayToggle(storyId) {
     if (!storyId) return
     setRemoteLoading(true)
     try {
@@ -452,7 +370,7 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
     })
   )
 
-  function handleDragEnd(event: any) {
+  function handleDragEnd(event) {
     const { active, over } = event
     if (!over) return
 
@@ -464,7 +382,7 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
       setQueue(newQueue)
       persistQueue(newQueue)
       // DB senkron
-      try { queueService.setQueueIds(newQueue.map(s => s.id).filter(id => id !== undefined) as string[]) } catch { /* queue sync optional */ }
+      try { queueService.setQueueIds(newQueue.map(s => s.id)) } catch { /* queue sync optional */ }
       if (import.meta.env?.DEV) console.log('Kuyruk sırası güncellendi:', newQueue.map(s => s.id))
     }
   }
@@ -481,7 +399,7 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
       if (raw) {
         const ids = JSON.parse(raw)
         const mapped = ids
-          .map((id: string | number) => (localStories || []).find((s) => s.id === id))
+          .map((id) => (localStories || []).find((s) => s.id === id))
           .filter(Boolean)
         if (mapped.length > 0) {
           setQueue(mapped)
@@ -497,6 +415,7 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
     } catch (e) {
       console.error('Kuyruk yükleme hatası:', e)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localStories && localStories.length])
 
   // stories değişince kuyruktaki objeleri güncelle (ör. audio eklenmiş olabilir)
@@ -533,7 +452,7 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
     let alive = true
     const run = async () => {
       for (const item of queue) {
-        const key = item.id || ''
+        const key = item.id
         if (titles[key]) continue
         try {
           const t = await getBestTitle(item)
@@ -548,14 +467,14 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
     return () => { alive = false }
   }, [queue, titles])
 
-  const persistQueue = (items: Story[]) => {
+  const persistQueue = (items) => {
     try {
       const ids = items.map((s) => s.id)
       localStorage.setItem('bedtime-queue-v1', JSON.stringify(ids))
     } catch (err) { console.warn('Queue persist failed', err) }
   }
 
-  const playAtIndex = (idx: number) => {
+  const playAtIndex = (idx) => {
     if (!queue || idx < 0 || idx >= queue.length) return
     const item = queue[idx]
     const audioUrl = item.audio ? getDbAudioUrl(item.audio.file_name) : item.audioUrl
@@ -565,7 +484,7 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
       return
     }
     setCurrentIndex(idx)
-    playAudio(audioUrl, item.id || '')
+    playAudio(audioUrl, item.id)
   }
 
   const next = () => {
@@ -626,22 +545,23 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
   useEffect(() => {
     if (!setOnEnded) return
     setOnEnded(() => next)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue, currentIndex, shuffle, repeatAll, setOnEnded])
 
-  const addToQueue = (story: Story) => {
+  const addToQueue = (story) => {
     if (!story) return
     if (queue.find((s) => s.id === story.id)) return
     const updated = [...queue, story]
     setQueue(updated)
     persistQueue(updated)
-    try { if (story.id) queueService.add(String(story.id)) } catch { /* queue sync optional */ }
+    try { queueService.add(story.id) } catch { /* queue sync optional */ }
   }
 
-  const removeFromQueue = (id: string | number) => {
+  const removeFromQueue = (id) => {
     const updated = queue.filter((s) => s.id !== id)
     setQueue(updated)
     persistQueue(updated)
-    try { queueService.remove(String(id)) } catch { /* queue sync optional */ }
+    try { queueService.remove(id) } catch { /* queue sync optional */ }
     if (currentIndex !== -1) {
       const idx = queue.findIndex((s) => s.id === id)
       if (idx !== -1 && idx <= currentIndex) {
@@ -725,7 +645,7 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
                 }
                 setCurrentIndex(target)
                 const item = queue[target]
-                if (item && item.id) remotePlayToggle(item.id)
+                if (item) remotePlayToggle(item.id)
               }}
               disabled={remoteLoading || queue.length < 2}
               title="Önceki (Uzaktan)"
@@ -743,7 +663,7 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
                 }
                 setCurrentIndex(target)
                 const item = queue[target]
-                if (item && item.id) remotePlayToggle(item.id)
+                if (item) remotePlayToggle(item.id)
               }}
               disabled={remoteLoading || queue.length < 2}
               title="Sonraki (Uzaktan)"
@@ -753,7 +673,7 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
               size="sm"
               onClick={() => {
                 if (remoteStatus.playing) {
-                  if (remoteStatus.storyId) remotePlayToggle(remoteStatus.storyId)
+                  remotePlayToggle(remoteStatus.storyId)
                 }
               }}
               disabled={!remoteStatus.playing || remoteLoading}
@@ -787,17 +707,17 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={displayStories.map(story => story.id || '')}
+                items={displayStories.map(story => story.id)}
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-1 sm:space-y-1 max-h-[35vh] sm:max-h-80 overflow-y-auto pr-1 sm:pr-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
                   {displayStories.map((story) => (
                     <SortableStoryItem
-                      key={story.id || ''}
+                      key={story.id}
                       story={story}
                       titleMap={titles}
                       onToggleFavorite={onToggleFavorite}
-                      onRemoveFromQueue={(s: Story) => removeFromQueue(s.id || '')}
+                      onRemoveFromQueue={removeFromQueue}
                       onEditStory={(s) => {
                         setEditTarget(s)
                         setEditText(s.story_text || s.story || '')
@@ -862,12 +782,12 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
                     <div key={s.id} className="flex items-start justify-between gap-2 p-2 rounded hover:bg-muted/40">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="text-[10px] px-1.5 h-4">{getStoryTypeLabel(s.story_type || s.storyType || '')}</Badge>
+                          <Badge variant="secondary" className="text-[10px] px-1.5 h-4">{getStoryTypeLabel(s.story_type || s.storyType)}</Badge>
                           {(s.custom_topic || s.customTopic) && (
                             <Badge variant="outline" className="text-[10px] px-1.5 h-4">{s.custom_topic || s.customTopic}</Badge>
                           )}
                         </div>
-                        <div className="text-xs text-muted-foreground truncate max-w-[36ch]">{(s.story_text || s.story || '').slice(0, 100)}...</div>
+                        <div className="text-xs text-muted-foreground truncate max-w-[36ch]">{(s.story_text || s.story).slice(0, 100)}...</div>
                       </div>
                       <div className="shrink-0 flex items-center gap-2">
                         {(s.audio || s.audioUrl) ? (
@@ -890,7 +810,7 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
 
         {/* Edit Dialog */}
         <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
-          <DialogContent className="w-full max-w-[95vw] sm:max-w-md md:max-w-lg max-h-[95vh] overflow-y-auto scrollbar-thin">
+          <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Masalı Düzenle</DialogTitle>
             </DialogHeader>
@@ -905,10 +825,7 @@ export default function StoryQueuePanel(props: StoryQueuePanelProps) {
               <Button onClick={async () => {
                 if (!editTarget || !onUpdateStory) { setEditTarget(null); return }
                 try {
-                  await onUpdateStory(editTarget.id || '', {
-                    story_text: editText,
-                    custom_topic: editTopic
-                  })
+                  await onUpdateStory(editTarget.id, { story: editText, customTopic: editTopic })
                   // local queue güncelle
                   const updated = queue.map((s) => s.id === editTarget.id ? { ...s, story_text: editText, story: editText, custom_topic: editTopic, customTopic: editTopic } : s)
                   setQueue(updated)

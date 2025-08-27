@@ -1,120 +1,59 @@
 import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button.tsx'
-import { Card, CardContent } from '@/components/ui/card.tsx'
-import { Moon, Settings, Heart, AlertCircle, BookOpen, BarChart3, Play, Square, ListMusic, X, Search } from 'lucide-react'
-import SettingsPanel from './components/Settings.tsx'
-import StoryCreator from './components/StoryCreator.tsx'
-import FavoritesPanel from './components/FavoritesPanel.tsx'
-import StoryManagementPanel from './components/StoryManagementPanel.tsx'
-import AnalyticsDashboard from './components/AnalyticsDashboard.tsx'
-import StoryQueuePanel from './components/StoryQueuePanel.tsx'
-import SearchPanel from './components/SearchPanel.tsx'
-import { LLMService } from './services/llmService.ts'
-import { TTSService } from './services/ttsService.ts'
-import { getDefaultSettings } from './services/configService.ts'
-import analyticsService from './services/analyticsService.ts'
-import useFavorites from './hooks/useFavorites.ts'
-import { useStoryHistory } from './hooks/useStoryHistory.ts'
-import { useStoryDatabase } from './hooks/useStoryDatabase.ts'
-import { useAudioPlayer } from './hooks/useAudioPlayer.ts'
-import { useIsMobile } from './hooks/use-mobile.ts'
-// Profiles feature removed
-import useSeries from './hooks/useSeries.ts'
-import ApiKeyHelp from './components/ApiKeyHelp.tsx'
-import safeLocalStorage from './utils/safeLocalStorage'
+import { Button } from '@/components/ui/button.jsx'
+import { Card, CardContent } from '@/components/ui/card.jsx'
+import { Moon, Settings, Heart, AlertCircle, BookOpen, BarChart3, Zap, Play, Square, ListMusic, X, Search } from 'lucide-react'
+import SettingsPanel from './components/Settings.jsx'
+import StoryCreator from './components/StoryCreator.jsx'
+import FavoritesPanel from './components/FavoritesPanel.jsx'
+import StoryManagementPanel from './components/StoryManagementPanel.jsx'
+import AnalyticsDashboard from './components/AnalyticsDashboard.jsx'
+import PerformanceMonitor from './components/PerformanceMonitor.jsx'
+import StoryQueuePanel from './components/StoryQueuePanel.jsx'
+import SearchPanel from './components/SearchPanel.jsx'
+import { LLMService } from './services/llmService.js'
+import { TTSService } from './services/ttsService.js'
+import { getDefaultSettings } from './services/configService.js'
+import analyticsService from './services/analyticsService.js'
+import useFavorites from './hooks/useFavorites.js'
+import { useStoryHistory } from './hooks/useStoryHistory.js'
+import { useStoryDatabase } from './hooks/useStoryDatabase.js'
+import { useAudioPlayer } from './hooks/useAudioPlayer.js'
+import { useIsMobile } from './hooks/use-mobile.js'
+import useProfiles from './hooks/useProfiles.js'
+import ApiKeyHelp from './components/ApiKeyHelp.jsx'
+import safeLocalStorage from './utils/safeLocalStorage.js'
 // Pi Zero optimizations
-import { logger } from './utils/logger'
-import stabilityMonitor from './utils/stabilityMonitor'
+import { logger } from './utils/logger.js'
+import stabilityMonitor from './utils/stabilityMonitor.js'
 import './App.css'
-import { Toaster } from '@/components/ui/sonner.tsx'
+import { Toaster } from '@/components/ui/sonner.jsx'
 import { toast } from 'sonner'
-
-// TypeScript interfaces
-interface RemotePlaybackState {
-  playing: boolean
-  storyId?: string | number
-  file?: string
-}
-
-interface Series {
-  id: string | number
-  title: string
-  description?: string
-  created_at?: string
-  story_count?: number
-}
-
-interface SeriesInfo {
-  title: string
-  description?: string
-  previousStories?: Array<{
-    id?: string | number
-    story_text: string
-    title?: string
-  }>
-}
-
-// Profile type removed
-
-interface Story {
-  id?: string | number
-  story?: string
-  story_text?: string
-  story_type?: string
-  storyType?: string
-  custom_topic?: string | null
-  customTopic?: string | null
-  created_at?: string
-  createdAt?: string
-  audio?: {
-    file_name?: string
-  } | null
-  audioUrl?: string | null
-  is_favorite?: boolean | number
-  storyId?: string | number
-  series_id?: string | number
-}
-
-interface AppSettings {
-  theme?: string
-  openaiLLM?: any
-  geminiLLM?: any
-  elevenlabs?: any
-  geminiTTS?: any
-  llmSettings?: any
-  voiceSettings?: any
-  [key: string]: any
-}
 
 function App() {
   const isMobile = useIsMobile()
-  const [story, setStory] = useState<string>('')
-  const [isGenerating, setIsGenerating] = useState<boolean>(false)
-  const [audioUrl, setAudioUrl] = useState<string>('')
-  const [progress, setProgress] = useState<number>(0)
-  const [showSettings, setShowSettings] = useState<boolean>(false)
-  const [isGeneratingAudio, setIsGeneratingAudio] = useState<boolean>(false)
-  const [selectedStoryType, setSelectedStoryType] = useState<string>('')
-  const [customTopic, setCustomTopic] = useState<string>('')
-  const [error, setError] = useState<string>('')
-  const [showFavorites, setShowFavorites] = useState<boolean>(false)
-  const [showApiKeyHelp, setShowApiKeyHelp] = useState<boolean>(false)
-  const [showStoryManagement, setShowStoryManagement] = useState<boolean>(false)
-  const [showAnalytics, setShowAnalytics] = useState<boolean>(false)
-  const [showSearch, setShowSearch] = useState<boolean>(false)
+  const [story, setStory] = useState('')
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [audioUrl, setAudioUrl] = useState('')
+  const [progress, setProgress] = useState(0)
+  const [showSettings, setShowSettings] = useState(false)
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false)
+  const [selectedStoryType, setSelectedStoryType] = useState('')
+  const [customTopic, setCustomTopic] = useState('')
+  const [error, setError] = useState('')
+  const [showFavorites, setShowFavorites] = useState(false)
+  const [showApiKeyHelp, setShowApiKeyHelp] = useState(false)
+  const [showStoryManagement, setShowStoryManagement] = useState(false)
+  const [showAnalytics, setShowAnalytics] = useState(false)
+  const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false)
+  const [showSearch, setShowSearch] = useState(false)
   // Son oluşturulan masalın geçmiş ID'si
-  const [currentStoryId, setCurrentStoryId] = useState<string | number | null>(null)
+  const [currentStoryId, setCurrentStoryId] = useState(null)
   // Remote playback state (StoryQueuePanel'den bubble up)
-  const [remotePlayback, setRemotePlayback] = useState<RemotePlaybackState>({ playing: false })
-  const [remoteProgressPct, setRemoteProgressPct] = useState<number>(0) // bilinmiyorsa animasyonlu placeholder
-  const [showMiniPlayer, setShowMiniPlayer] = useState<boolean>(false)
-  // Seri yönetimi için state'ler
-  const [selectedSeriesId, setSelectedSeriesId] = useState<string | number | null>(null)
-  const [selectedSeries, setSelectedSeries] = useState<Series | null>(null)
+  const [remotePlayback, setRemotePlayback] = useState({ playing: false })
+  const [remoteProgressPct, setRemoteProgressPct] = useState(0) // bilinmiyorsa animasyonlu placeholder
+  const [showMiniPlayer, setShowMiniPlayer] = useState(false)
 
-  // Profiles feature removed
-
-  const [settings, setSettings] = useState<AppSettings>(() => {
+  const [settings, setSettings] = useState(() => {
     // localStorage'dan ayarları güvenli şekilde yükle
     const savedSettings = safeLocalStorage.get('bedtime-stories-settings')
     const defaults = getDefaultSettings()
@@ -140,7 +79,7 @@ function App() {
   })
 
   // Ayarları localStorage'a kaydet
-  const updateSettings = (newSettings: AppSettings) => {
+  const updateSettings = (newSettings) => {
     try {
       console.log('🔧 App updateSettings:', newSettings)
 
@@ -167,7 +106,7 @@ function App() {
 
   // Tema uygulamasını yönet
   useEffect(() => {
-    const applyTheme = (theme: string) => {
+    const applyTheme = (theme) => {
       const root = document.documentElement
 
       if (theme === 'dark') {
@@ -177,9 +116,8 @@ function App() {
       } else if (theme === 'system') {
         // Sistem temasını kontrol et
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-        const handleSystemThemeChange = (e: MediaQueryListEvent | MediaQueryList) => {
-          const isDark = 'matches' in e ? e.matches : (e as MediaQueryList).matches
-          if ('matches' in e ? e.matches : (e as MediaQueryList).matches) {
+        const handleSystemThemeChange = (e) => {
+          if (e.matches) {
             root.classList.add('dark')
           } else {
             root.classList.remove('dark')
@@ -200,7 +138,15 @@ function App() {
     return cleanup
   }, [settings.theme])
 
-  // Profiles feature removed - no active profile
+  // Aktif profil değiştiğinde settings'i güncelle
+  useEffect(() => {
+    if (activeProfile) {
+      updateSettings({
+        ...settings,
+        activeProfile: activeProfile
+      })
+    }
+  }, [activeProfile])
 
   // Favori masallar hook'u
   const {
@@ -224,57 +170,37 @@ function App() {
     getAudioUrl: getDbAudioUrl
   } = useStoryDatabase()
 
-  // Seri yönetimi için hook
+  // Profiller hook'u
   const {
-    series: allSeries,
-    isLoading: seriesLoading,
-    createSeries,
-    updateSeries,
-    deleteSeries,
-    addStoryToSeries,
-    getSeriesStories
-  } = useSeries()
+    profiles,
+    activeProfile,
+    isLoading: profilesLoading,
+    createProfile,
+    updateProfile,
+    deleteProfile,
+    setActiveProfileById
+  } = useProfiles()
 
   // Enhanced toggle favorite function with proper state management
-  const handleToggleFavorite = async (storyData: Story) => {
+  const handleToggleFavorite = async (storyData) => {
     try {
-      console.log('🎯 App.tsx - Favori toggle başlatılıyor:', storyData)
+      console.log('🎯 App.jsx - Favori toggle başlatılıyor:', storyData)
+      const result = await toggleFavorite(storyData)
 
-      // Ensure story is not empty
-      if (!storyData.story || storyData.story.trim().length === 0) {
-        console.error('Story is empty, cannot toggle favorite')
-        return false
-      }
-
-      // Create a properly typed story object that matches useFavorites Story interface
-      const typedStoryData = {
-        id: storyData.id,
-        story: storyData.story,
-        storyType: storyData.storyType || 'custom',
-        customTopic: storyData.custom_topic || storyData.customTopic || null,
-        audioUrl: storyData.audioUrl,
-        story_text: storyData.story_text,
-        story_type: storyData.story_type,
-        custom_topic: storyData.custom_topic,
-        created_at: storyData.created_at,
-        audio: storyData.audio && storyData.audio.file_name ? { file_name: storyData.audio.file_name } : undefined,
-        is_favorite: storyData.is_favorite
-      }
-
-      const result = await toggleFavorite(typedStoryData)      // Analytics: Track favorite action
+      // Analytics: Track favorite action
       if (result?.action && storyData.story) {
         const storyId = storyData.id || currentStoryId
-        analyticsService.trackFavoriteAction(String(storyId), result.action)
+        analyticsService.trackFavoriteAction(storyId, result.action)
       }
 
-      console.log('🎯 App.tsx - Favori toggle tamamlandı:', result ? result.action : 'undefined')
+      console.log('🎯 App.jsx - Favori toggle tamamlandı:', result ? result.action : 'undefined')
 
       // toggleFavorite zaten state'i güncelliyor, gereksiz refresh yok
-      console.log('🎯 App.tsx - Yeni favori sayısı:', favorites.length)
+      console.log('🎯 App.jsx - Yeni favori sayısı:', favorites.length)
 
       return result
     } catch (error) {
-      console.error('🎯 App.tsx - Favori toggle hatası:', error)
+      console.error('🎯 App.jsx - Favori toggle hatası:', error)
       return false
     }
   }
@@ -302,28 +228,20 @@ function App() {
   // Advanced Audio Features kaldırıldı - çalışmayan download/bookmark özellikleri
 
   // Hybrid update function - veritabanı varsa onu kullan, yoksa localStorage
-  const hybridUpdateStory = async (id: string | number, updates: Partial<Story>) => {
+  const hybridUpdateStory = async (id, updates) => {
     try {
       // Eğer dbStories'te varsa veritabanından güncelle
       const dbStory = dbStories.find(s => s.id === id)
       if (dbStory) {
-        await updateDbStory(id, updates.story || '', dbStory.story_type || 'custom', updates.custom_topic)
+        await updateDbStory(id, updates.story, dbStory.story_type, updates.customTopic)
       } else {
         // Backward compatibility için localStorage
-        updateStory(Number(id), {
-          story: updates.story || '',
-          storyType: updates.story_type || 'custom',
-          customTopic: updates.custom_topic || null
-        })
+        updateStory(id, updates)
       }
     } catch (error) {
       console.error('Masal güncelleme hatası:', error)
       // Fallback to localStorage
-      updateStory(Number(id), {
-        story: updates.story || '',
-        storyType: updates.story_type || 'custom',
-        customTopic: updates.custom_topic || null
-      })
+      updateStory(id, updates)
     }
   }
 
@@ -342,60 +260,44 @@ function App() {
   }, [])
 
   // Story text değişikliği için fonksiyon
-  const handleStoryChange = (newStory: string) => {
+  const handleStoryChange = (newStory) => {
     setStory(newStory)
 
     // Eğer mevcut bir story ID'si varsa, veritabanını güncelle
     if (currentStoryId) {
       hybridUpdateStory(currentStoryId, {
         story: newStory,
-        custom_topic: customTopic
+        customTopic
       })
     }
   }
 
   // Hybrid delete function
-  const hybridDeleteStory = async (id: string | number) => {
+  const hybridDeleteStory = async (id) => {
     try {
-      console.log('Deleting story with ID:', id)
-      
       // Eğer dbStories'te varsa veritabanından sil
-      const dbStory = dbStories.find(s => s.id === id || String(s.id) === String(id))
+      const dbStory = dbStories.find(s => s.id === id)
       if (dbStory) {
-        console.log('Found story in database, deleting from DB:', dbStory.id)
         await deleteDbStory(id)
-        // State'i güncelle
-        await loadStories()
-        toast.success('Masal başarıyla silindi')
       } else {
-        console.log('Story not found in database, removing from localStorage')
         // Backward compatibility için localStorage
-        removeFromHistory(Number(id))
-        toast.success('Masal geçmişten kaldırıldı')
+        removeFromHistory(id)
       }
     } catch (error) {
       console.error('Masal silme hatası:', error)
-      toast.error('Masal silinirken hata oluştu: ' + (error instanceof Error ? error.message : 'Bilinmeyen hata'))
-      
       // Fallback to localStorage
-      try {
-        removeFromHistory(Number(id))
-        toast.success('Masal yerel geçmişten kaldırıldı')
-      } catch (fallbackError) {
-        console.error('Fallback silme hatası:', fallbackError)
-        toast.error('Masal silinemedi')
-      }
+      removeFromHistory(id)
     }
   }
 
-  const generateStory = async () => {
+  const generateStory = async (categories = []) => {
     // Hem selectedStoryType hem de customTopic boşsa masal oluşturma
     if (!selectedStoryType && !customTopic.trim()) {
       setError('Lütfen bir masal türü seçin veya özel bir konu yazın.')
       return
     }
 
-    if (import.meta.env.DEV) console.log('[App] generateStory:start', {
+    if (import.meta.env?.DEV) console.log('[App] generateStory:start', {
       selectedStoryType,
       customTopicLen: customTopic.length
     })
@@ -407,30 +309,24 @@ function App() {
     const startTime = Date.now()
 
     try {
-      const llmService = new LLMService(settings)
-      if (import.meta.env.DEV) console.log('[App] LLMService:created')
+      // Aktif profili settings'e dahil et
+      const settingsWithProfile = {
+        ...settings,
+        activeProfile: activeProfile
+      }
+      const llmService = new LLMService(settingsWithProfile)
+      if (import.meta.env?.DEV) console.log('[App] LLMService:created')
 
       // Eğer customTopic varsa onu kullan, yoksa selectedStoryType kullan
       const storyTypeToUse = customTopic.trim() ? 'custom' : selectedStoryType
       const topicToUse = customTopic.trim() || ''
-      if (import.meta.env.DEV) console.log('[App] request:prepared', { storyTypeToUse, topicToUseLen: topicToUse.length })
-
-      // Seri bilgisini hazırla
-      let seriesInfo = null
-      if (selectedSeriesId && selectedSeries) {
-        const previousStories = await getSeriesStories(String(selectedSeriesId))
-        seriesInfo = {
-          title: selectedSeries.title,
-          description: selectedSeries.description || '',
-          previousStories: previousStories.filter((s: Story) => s.id !== currentStoryId) // Mevcut hikayeyi hariç tut
-        }
-      }
+      if (import.meta.env?.DEV) console.log('[App] request:prepared', { storyTypeToUse, topicToUseLen: topicToUse.length })
 
       let story = await llmService.generateStory((progressValue) => {
         setProgress(progressValue)
-        if (import.meta.env.DEV) console.log('[App] progress:', progressValue)
-      }, storyTypeToUse, topicToUse, seriesInfo)
-      if (import.meta.env.DEV) console.log('[App] response:received', { length: story?.length || 0 })
+        if (import.meta.env?.DEV) console.log('[App] progress:', progressValue)
+      }, storyTypeToUse, topicToUse)
+      if (import.meta.env?.DEV) console.log('[App] response:received', { length: story?.length || 0 })
 
       // Validate story response
       if (!story || (typeof story === 'string' && story.trim().length < 50)) {
@@ -438,27 +334,19 @@ function App() {
       }
 
       setStory(story)
-      if (import.meta.env.DEV) console.log('[App] story:set', { length: story?.length || 0 })
+      if (import.meta.env?.DEV) console.log('[App] story:set', { length: story?.length || 0 })
 
       // Analytics: Track successful story generation
       const duration = Date.now() - startTime
       analyticsService.trackStoryGeneration(storyTypeToUse, topicToUse, true, duration)
-      if (import.meta.env.DEV) console.log('[App] analytics:storyGeneration:success', { duration })
+      if (import.meta.env?.DEV) console.log('[App] analytics:storyGeneration:success', { duration })
 
       // Veritabanına kaydet
       try {
-        const dbStory = await createDbStory(story, storyTypeToUse, topicToUse)
-        setCurrentStoryId(dbStory.id || null)
-        // Seriye ekle (eğer seri seçilmişse)
-        if (selectedSeriesId && dbStory.id) {
-          try {
-            await addStoryToSeries(String(selectedSeriesId), String(dbStory.id || ''), selectedSeries?.title || '')
-            console.log('Masal seriye eklendi:', selectedSeriesId)
-          } catch (seriesError) {
-            console.error('Seriye ekleme hatası:', seriesError)
-            // Seri hatası ana işlemi etkilemesin
-          }
-        }
+  const dbStory = await createDbStory(story, storyTypeToUse, topicToUse, categories)
+        setCurrentStoryId(dbStory.id)
+        console.log('Masal veritabanına kaydedildi:', dbStory.id)
+        console.log('[App] db:createStory:success', { id: dbStory.id })
 
         // Show success toast after successful story creation and database save
         toast.success('Masal oluşturma tamamlandı', { description: 'Yeni masal hazır.' })
@@ -466,7 +354,7 @@ function App() {
         // Yeni story eklenmesi favorileri etkilemez, gereksiz refresh yok
       } catch (dbError) {
         console.error('Veritabanına kaydetme hatası:', dbError)
-        console.log('[App] db:createStory:error', { message: (dbError as Error)?.message })
+        console.log('[App] db:createStory:error', { message: dbError?.message })
 
         // Show error to user
         toast.error('Veritabanına kaydetme başarısız', {
@@ -476,28 +364,27 @@ function App() {
 
     } catch (error) {
       console.error('Story generation failed:', error)
-      console.log('[App] generateStory:error', { message: (error as Error)?.message })
+      console.log('[App] generateStory:error', { message: error?.message })
 
       // Analytics: Track failed story generation
       const duration = Date.now() - startTime
       const storyTypeToUse = customTopic.trim() ? 'custom' : selectedStoryType
       const topicToUse = customTopic.trim() || ''
-      const errorMessage = (error as Error).message
-      analyticsService.trackStoryGeneration(storyTypeToUse, topicToUse, false, duration, errorMessage)
-      analyticsService.trackError('story_generation', errorMessage, { storyType: storyTypeToUse, customTopic: topicToUse })
+      analyticsService.trackStoryGeneration(storyTypeToUse, topicToUse, false, duration, error.message)
+      analyticsService.trackError('story_generation', error.message, { storyType: storyTypeToUse, customTopic: topicToUse })
 
       // Show user-friendly error message
-      let userErrorMessage = 'Masal oluşturulurken bir hata oluştu.'
+      let errorMessage = 'Masal oluşturulurken bir hata oluştu.'
 
-      if (errorMessage.includes('OpenAI ayarları eksik') || errorMessage.includes('API anahtarı eksik')) {
-        userErrorMessage = 'Sunucu konfigürasyonu eksik. Lütfen sistem yöneticisine başvurun.'
-      } else if (errorMessage.includes('API hatası') || errorMessage.includes('backend/.env')) {
-        userErrorMessage = 'Sunucu ayarları eksik. Lütfen .env dosyasındaki API anahtarlarını kontrol edin.'
-      } else if (errorMessage.includes('yanıtından masal metni çıkarılamadı')) {
-        userErrorMessage = 'API yanıtı işlenirken hata oluştu. Lütfen tekrar deneyin.'
+      if (error.message.includes('OpenAI ayarları eksik') || error.message.includes('API anahtarı eksik')) {
+        errorMessage = 'Sunucu konfigürasyonu eksik. Lütfen sistem yöneticisine başvurun.'
+      } else if (error.message.includes('API hatası') || error.message.includes('backend/.env')) {
+        errorMessage = 'Sunucu ayarları eksik. Lütfen .env dosyasındaki API anahtarlarını kontrol edin.'
+      } else if (error.message.includes('yanıtından masal metni çıkarılamadı')) {
+        errorMessage = 'API yanıtı işlenirken hata oluştu. Lütfen tekrar deneyin.'
       }
 
-      setError(userErrorMessage)
+      setError(errorMessage)
 
       // Clear story on error
       setStory('')
@@ -509,7 +396,7 @@ function App() {
   }
 
   // Generate audio for any story by ID (for Story Management Panel)
-  const generateAudioForStory = async (storyInput: Story | string | number, storyTextParam?: string): Promise<void> => {
+  const generateAudioForStory = async (storyInput, storyTextParam) => {
     // Handle both story object and separate parameters for backward compatibility
     const storyId = typeof storyInput === 'object' ? storyInput.id : storyInput
     const storyText = typeof storyInput === 'object' ? (storyInput.story_text || storyInput.story) : storyTextParam
@@ -538,11 +425,11 @@ function App() {
       // Story ID'si ile ses oluştur (veritabanına kaydedilir)
       const audioUrl = await ttsService.generateAudio(storyText, (progressValue) => {
         setProgress(progressValue)
-      }, String(storyId))
+      }, storyId)
 
       // Analytics: Track successful audio generation
       const duration = Date.now() - startTime
-      analyticsService.trackAudioGeneration(String(storyId || 'unknown'), settings.voiceId || 'default', true, duration)
+      analyticsService.trackAudioGeneration(storyId, settings.voiceId || 'default', true, duration)
 
       console.log('Audio generated for story:', storyId, audioUrl)
 
@@ -557,17 +444,17 @@ function App() {
 
       // Analytics: Track failed audio generation
       const duration = Date.now() - startTime
-      analyticsService.trackAudioGeneration(String(storyId || 'unknown'), settings.voiceId || 'default', false, duration, (error as Error).message)
-      analyticsService.trackError('audio_generation', (error as Error).message, { storyId })
+      analyticsService.trackAudioGeneration(storyId, settings.voiceId || 'default', false, duration, error.message)
+      analyticsService.trackError('audio_generation', error.message, { storyId })
 
       // Show user-friendly error message
       let errorMessage = 'Ses oluşturulurken bir hata oluştu.'
 
-      if ((error as Error).message.includes('ElevenLabs ayarları eksik') || (error as Error).message.includes('API anahtarı eksik') || (error as Error).message.includes('backend/.env')) {
+      if (error.message.includes('ElevenLabs ayarları eksik') || error.message.includes('API anahtarı eksik') || error.message.includes('backend/.env')) {
         errorMessage = 'Sunucu konfigürasyonu eksik. Lütfen sistem yöneticisine başvurun.'
-      } else if ((error as Error).message.includes('API hatası') || (error as Error).message.includes('401')) {
+      } else if (error.message.includes('API hatası') || error.message.includes('401')) {
         errorMessage = 'TTS servisi yanıt vermiyor. Lütfen daha sonra tekrar deneyin.'
-      } else if ((error as Error).message.includes('ses dosyası çıkarılamadı')) {
+      } else if (error.message.includes('ses dosyası çıkarılamadı')) {
         errorMessage = 'Ses dosyası işlenirken hata oluştu. Lütfen tekrar deneyin.'
       }
 
@@ -576,11 +463,6 @@ function App() {
       setIsGeneratingAudio(false)
       setProgress(0)
     }
-  }
-
-  // Wrapper function for components that expect (story: Story) => void
-  const generateAudioForStoryWrapper = (story: Story): void => {
-    generateAudioForStory(story)
   }
 
   const generateAudio = async () => {
@@ -598,17 +480,17 @@ function App() {
       // Story ID'si ile ses oluştur (veritabanına kaydedilir)
       const audioUrl = await ttsService.generateAudio(story, (progressValue) => {
         setProgress(progressValue)
-      }, String(currentStoryId))
+      }, currentStoryId)
 
       setAudioUrl(audioUrl)
 
       // Analytics: Track successful audio generation
       const duration = Date.now() - startTime
-      analyticsService.trackAudioGeneration(String(currentStoryId), settings.voiceId || 'default', true, duration)
+      analyticsService.trackAudioGeneration(currentStoryId, settings.voiceId || 'default', true, duration)
 
       // Backward compatibility için localStorage'a da kaydet
       if (currentStoryId) {
-        updateStoryAudio(Number(currentStoryId), audioUrl)
+        updateStoryAudio(currentStoryId, audioUrl)
       }
 
       // Ses dosyası eklenmesi favorileri etkilemez, gereksiz refresh yok
@@ -621,17 +503,17 @@ function App() {
 
       // Analytics: Track failed audio generation
       const duration = Date.now() - startTime
-      analyticsService.trackAudioGeneration(String(currentStoryId), settings.voiceId || 'default', false, duration, (error as Error).message)
-      analyticsService.trackError('audio_generation', (error as Error).message, { storyId: String(currentStoryId) })
+      analyticsService.trackAudioGeneration(currentStoryId, settings.voiceId || 'default', false, duration, error.message)
+      analyticsService.trackError('audio_generation', error.message, { storyId: currentStoryId })
 
       // Show user-friendly error message
       let errorMessage = 'Ses oluşturulurken bir hata oluştu.'
 
-      if ((error as Error).message.includes('ElevenLabs ayarları eksik') || (error as Error).message.includes('API anahtarı eksik') || (error as Error).message.includes('backend/.env')) {
+      if (error.message.includes('ElevenLabs ayarları eksik') || error.message.includes('API anahtarı eksik') || error.message.includes('backend/.env')) {
         errorMessage = 'Sunucu konfigürasyonu eksik. Lütfen sistem yöneticisine başvurun.'
-      } else if ((error as Error).message.includes('API hatası') || (error as Error).message.includes('401')) {
+      } else if (error.message.includes('API hatası') || error.message.includes('401')) {
         errorMessage = 'TTS servisi yanıt vermiyor. Lütfen daha sonra tekrar deneyin.'
-      } else if ((error as Error).message.includes('ses dosyası çıkarılamadı')) {
+      } else if (error.message.includes('ses dosyası çıkarılamadı')) {
         errorMessage = 'Ses dosyası işlenirken hata oluştu. Lütfen tekrar deneyin.'
       }
 
@@ -648,27 +530,6 @@ function App() {
     setAudioUrl('')
     setCurrentStoryId(null)
     setError('')
-  }
-
-  // Seri seçimi için fonksiyon
-  const handleSeriesSelect = (series: Series | null) => {
-    if (series) {
-      setSelectedSeriesId(series.id)
-      setSelectedSeries(series)
-      toast.success(`"${series.title}" serisi seçildi`)
-    } else {
-      setSelectedSeriesId(null)
-      setSelectedSeries(null)
-      toast.info('Seri seçimi temizlendi')
-    }
-  }
-
-  // Seri devamı için fonksiyon
-  const handleContinueSeries = (story: Story, seriesStories: Series[]) => {
-    setStory(story.story_text || story.story || '')
-    setSelectedSeriesId(story.series_id || null)
-    setSelectedSeries(seriesStories.find((s) => s.id === story.series_id) || null)
-    toast.success('Seri devamı yüklendi')
   }
 
   // Save story manually when user clicks save button
@@ -693,7 +554,7 @@ function App() {
       const topicToUse = customTopic.trim() || ''
 
       const dbStory = await createDbStory(story, storyTypeToUse, topicToUse)
-      setCurrentStoryId(dbStory.id || null)
+      setCurrentStoryId(dbStory.id)
       console.log('Masal manuel olarak kaydedildi:', dbStory.id)
 
       // Favorileri refresh etme - restart prevention
@@ -721,7 +582,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Toaster richColors position="top-right" closeButton toastOptions={{ duration: 4000 }} />
+      <Toaster richColors position="top-right" closeButton duration={4000} />
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-2 sm:px-4 py-3 sm:py-4 flex items-center justify-between">
@@ -779,6 +640,16 @@ function App() {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setShowPerformanceMonitor(true)}
+              className="gap-1 px-2 h-8 text-xs"
+              title="Performans Monitörü"
+            >
+              <Zap className="h-3 w-3" />
+              <span className="hidden lg:inline">Performans</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setShowSettings(!showSettings)}
               className="gap-1 px-2 h-8 text-xs"
             >
@@ -794,7 +665,7 @@ function App() {
         <StoryCreator
           selectedType={selectedStoryType}
           customTopic={customTopic}
-          storyId={currentStoryId?.toString()}
+          storyId={currentStoryId}
           onTypeChange={setSelectedStoryType}
           onCustomTopicChange={setCustomTopic}
           onGenerateStory={generateStory}
@@ -808,7 +679,7 @@ function App() {
           isPlaying={audioIsPlaying}
           audioProgress={audioProgress}
           audioDuration={audioDuration}
-          onPlayAudio={() => playAudio(audioUrl, String(currentStoryId || ''))}
+          onPlayAudio={() => playAudio(audioUrl, currentStoryId)}
           onPauseAudio={pauseAudio}
           onStopAudio={stopAudio}
           onToggleMute={audioToggleMute}
@@ -817,18 +688,15 @@ function App() {
           onToggleFavorite={async () => {
             if (story) {
               await handleToggleFavorite({
-                story: story,
-                storyType: selectedStoryType || 'custom',
-                customTopic: customTopic || null,
+                story,
+                storyType: selectedStoryType,
+                customTopic,
                 audioUrl
               })
             }
           }}
           onClearStory={clearStory}
           onSaveStory={saveStory}
-          onSeriesSelect={handleSeriesSelect}
-          onContinueSeries={handleContinueSeries}
-          selectedSeriesId={selectedSeriesId?.toString() || ''}
         />
 
         {/* Error Display */}
@@ -859,64 +727,22 @@ function App() {
           <StoryManagementPanel
             isOpen={showStoryManagement}
             history={dbStories.length > 0 ? dbStories.map(dbStory => ({
-              id: String(dbStory.id || ''),
-              story: dbStory.story_text || '',
-              storyType: dbStory.story_type || '',
-              customTopic: dbStory.custom_topic || '',
-              createdAt: dbStory.created_at || '',
-              audioUrl: dbStory.audio ? (getDbAudioUrl(dbStory.audio.file_name) || undefined) : undefined,
+              id: dbStory.id,
+              story: dbStory.story_text,
+              storyType: dbStory.story_type,
+              customTopic: dbStory.custom_topic,
+              createdAt: dbStory.created_at,
+              audioUrl: dbStory.audio ? getDbAudioUrl(dbStory.audio.file_name) : null,
               audioGenerated: !!dbStory.audio
-            })) : history.map(h => ({
-              id: String(h.id || ''),
-              story: h.story || '',
-              storyType: h.storyType || '',
-              customTopic: h.customTopic || '',
-              createdAt: h.createdAt || '',
-              audioUrl: h.audioUrl || undefined,
-              audioGenerated: false
-            }))}
-            onUpdateStory={(storyId: string, newText: string) => {
-              hybridUpdateStory(storyId, { story: newText })
-            }}
+            })) : history}
+            onUpdateStory={hybridUpdateStory}
             onDeleteStory={hybridDeleteStory}
+            onClearHistory={clearHistory}
             onClose={() => setShowStoryManagement(false)}
-            onToggleFavorite={async (story: { story: string; story_type?: string; custom_topic?: string }) => {
-              await handleToggleFavorite({
-                story: story.story,
-                storyType: story.story_type || 'custom',
-                customTopic: story.custom_topic || null,
-                audioUrl: undefined
-              })
-            }}
-            isFavorite={(story: Story) => isFavorite({
-              id: story.id || '',
-              story: story.story || '',
-              storyType: story.storyType || '',
-              customTopic: story.custom_topic,
-              audioUrl: story.audioUrl,
-              story_text: story.story,
-              story_type: story.storyType,
-              custom_topic: story.custom_topic,
-              created_at: story.createdAt,
-              audio: story.audio ? { file_name: story.audio.file_name || '' } : undefined,
-              is_favorite: false
-            })}
-            onGenerateAudio={(story: Story) => {
-              generateAudioForStory({
-                id: story.id,
-                story: story.story,
-                story_text: story.story,
-                story_type: story.storyType,
-                custom_topic: story.custom_topic,
-                created_at: story.created_at,
-                audio: story.audio && story.audio.file_name ? { file_name: story.audio.file_name } : undefined,
-                audioUrl: story.audioUrl,
-                is_favorite: false
-              }).catch(error => {
-                console.error('Audio generation error:', error)
-                setError('Ses oluşturma hatası oluştu')
-              })
-            }}
+            settings={settings}
+            onToggleFavorite={handleToggleFavorite}
+            isFavorite={isFavorite}
+            onGenerateAudio={generateAudioForStory}
             isGeneratingAudio={isGeneratingAudio}
             // Audio control props
             audioIsPlaying={audioIsPlaying}
@@ -926,21 +752,21 @@ function App() {
             audioVolume={audioVolume}
             audioIsMuted={audioIsMuted}
             audioPlaybackRate={audioPlaybackRate}
-            audioCurrentStoryId={String(audioCurrentStoryId || '')}
+            audioCurrentStoryId={audioCurrentStoryId}
             playAudio={playAudio}
             stopAudio={stopAudio}
             audioToggleMute={audioToggleMute}
             setVolumeLevel={setVolumeLevel}
             setPlaybackSpeed={setPlaybackSpeed}
             seekTo={seekTo}
-            getDbAudioUrl={(fileName: string) => getDbAudioUrl(fileName) || ''}
+            getDbAudioUrl={getDbAudioUrl}
           />
         )}
 
         {/* Settings Panel */}
         {showSettings && (
           <SettingsPanel
-            settings={settings as any}
+            settings={settings}
             onSettingsChange={updateSettings}
             onClose={() => setShowSettings(false)}
           />
@@ -949,20 +775,8 @@ function App() {
         {/* Favorites Panel */}
         {showFavorites && (
           <FavoritesPanel
-            favorites={favorites.map(fav => ({
-              id: fav.id,
-              story: fav.story,
-              story_text: fav.story,
-              story_type: fav.storyType,
-              storyType: fav.storyType,
-              custom_topic: fav.customTopic || undefined,
-              customTopic: fav.customTopic || undefined,
-              created_at: fav.createdAt,
-              createdAt: fav.createdAt,
-              audioUrl: fav.audioUrl || undefined,
-              title: fav.customTopic || fav.storyType || 'Favori Masal'
-            }))}
-            onRemove={async (id: string) => {
+            favorites={favorites}
+            onRemove={async (id) => {
               removeFavorite(id)
               await refreshFavorites()
             }}
@@ -975,7 +789,7 @@ function App() {
             audioVolume={audioVolume}
             audioIsMuted={audioIsMuted}
             audioPlaybackRate={audioPlaybackRate}
-            audioCurrentStoryId={String(audioCurrentStoryId || '')}
+            audioCurrentStoryId={audioCurrentStoryId}
             playAudio={playAudio}
             stopAudio={stopAudio}
             audioToggleMute={audioToggleMute}
@@ -996,13 +810,20 @@ function App() {
           <AnalyticsDashboard onClose={() => setShowAnalytics(false)} />
         )}
 
+        {/* Performance Monitor */}
+        {showPerformanceMonitor && (
+          <PerformanceMonitor
+            isOpen={showPerformanceMonitor}
+            onClose={() => setShowPerformanceMonitor(false)}
+          />
+        )}
 
         {/* Search Panel */}
         {showSearch && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <SearchPanel
               onClose={() => setShowSearch(false)}
-              onStorySelect={(story: any) => {
+              onStorySelect={(story) => {
                 setStory(story.story_text || story.story)
                 setSelectedStoryType(story.story_type || story.storyType)
                 setCustomTopic(story.custom_topic || story.customTopic || '')
@@ -1014,19 +835,7 @@ function App() {
                 setShowSearch(false)
                 toast.success('Masal seçildi')
               }}
-              favorites={favorites.map(fav => ({
-                id: fav.id,
-                story: fav.story,
-                story_text: fav.story,
-                story_type: fav.storyType,
-                storyType: fav.storyType,
-                custom_topic: fav.customTopic || undefined,
-                customTopic: fav.customTopic || undefined,
-                created_at: fav.createdAt,
-                createdAt: fav.createdAt,
-                audioUrl: fav.audioUrl || undefined,
-                title: fav.customTopic || fav.storyType || 'Favori Masal'
-              })) as any}
+              favorites={favorites}
               onToggleFavorite={handleToggleFavorite}
               onDeleteStory={hybridDeleteStory}
             />
@@ -1038,35 +847,23 @@ function App() {
           <StoryQueuePanel
             stories={dbStories.length > 0 ? dbStories.map(dbStory => ({
               id: dbStory.id,
-              story: dbStory.story_text || '',
-              story_text: dbStory.story_text || '',
-              storyType: dbStory.story_type || '',
-              story_type: dbStory.story_type || '',
-              customTopic: dbStory.custom_topic || '',
-              custom_topic: dbStory.custom_topic || '',
-              createdAt: dbStory.created_at || '',
-              created_at: dbStory.created_at || '',
+              story: dbStory.story_text,
+              story_text: dbStory.story_text,
+              storyType: dbStory.story_type,
+              story_type: dbStory.story_type,
+              customTopic: dbStory.custom_topic,
+              custom_topic: dbStory.custom_topic,
+              createdAt: dbStory.created_at,
+              created_at: dbStory.created_at,
               audioUrl: dbStory.audio ? getDbAudioUrl(dbStory.audio.file_name) : null,
               audio: dbStory.audio,
               audioGenerated: !!dbStory.audio
-            })) : history.map(h => ({
-              id: h.id,
-              story: h.story || '',
-              story_text: h.story || '',
-              storyType: h.storyType || '',
-              story_type: h.storyType || '',
-              customTopic: h.customTopic || '',
-              custom_topic: h.customTopic || '',
-              createdAt: h.createdAt || '',
-              created_at: h.createdAt || '',
-              audioUrl: h.audioUrl || null,
-              audio: undefined,
-              audioGenerated: false
-            }))}
+            })) : history}
+            onDeleteStory={hybridDeleteStory}
             onUpdateStory={hybridUpdateStory}
             onSelectStory={(story) => {
-              setStory(story.story_text || story.story || '')
-              setSelectedStoryType(story.story_type || story.storyType || '')
+              setStory(story.story_text || story.story)
+              setSelectedStoryType(story.story_type || story.storyType)
               setCustomTopic(story.custom_topic || story.customTopic || '')
               const audioSrc = story.audio ? getDbAudioUrl(story.audio.file_name) : story.audioUrl;
               if (audioSrc) {
@@ -1075,21 +872,9 @@ function App() {
             }}
             onShowStoryManagement={() => setShowStoryManagement(true)}
             onToggleFavorite={handleToggleFavorite}
-            isFavorite={(story: Story) => isFavorite({
-              id: story.id?.toString() || '',
-              story: story.story || '',
-              storyType: story.storyType || '',
-              customTopic: story.custom_topic,
-              audioUrl: story.audioUrl,
-              story_text: story.story_text,
-              story_type: story.story_type,
-              custom_topic: story.custom_topic,
-              created_at: story.created_at,
-              audio: story.audio && story.audio.file_name ? { file_name: story.audio.file_name } : undefined,
-              is_favorite: story.is_favorite
-            })}
+            isFavorite={isFavorite}
             onGenerateAudio={generateAudioForStory}
-            isGeneratingAudio={(storyId: string | number) => isGeneratingAudio}
+            isGeneratingAudio={isGeneratingAudio}
             // Audio control props
             audioIsPlaying={audioIsPlaying}
             audioIsPaused={audioIsPaused}
@@ -1098,14 +883,14 @@ function App() {
             audioVolume={audioVolume}
             audioIsMuted={audioIsMuted}
             audioPlaybackRate={audioPlaybackRate}
-            audioCurrentStoryId={String(audioCurrentStoryId || '')}
-            playAudio={(audioUrl: string, storyId: string | number) => playAudio(audioUrl, String(storyId))}
+            audioCurrentStoryId={audioCurrentStoryId}
+            playAudio={playAudio}
             stopAudio={stopAudio}
             audioToggleMute={audioToggleMute}
             setVolumeLevel={setVolumeLevel}
             setPlaybackSpeed={setPlaybackSpeed}
             seekTo={seekTo}
-            getDbAudioUrl={(fileName: string) => getDbAudioUrl(fileName) || ''}
+            getDbAudioUrl={getDbAudioUrl}
             setOnEnded={setOnEnded}
             onRemoteStatusChange={(st) => {
               setRemotePlayback(st)

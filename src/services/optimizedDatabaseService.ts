@@ -10,24 +10,7 @@ import { apiResponseCache } from '@/utils/cache.js'
 
 const API_BASE_URL = '/api'
 
-interface PerformanceMetrics {
-  queryCount: number
-  cacheHits: number
-  cacheMisses: number
-  averageQueryTime: number
-}
-
-interface CacheEntry {
-  data: any
-  timestamp: number
-  ttl: number
-}
-
 class OptimizedDatabaseService {
-  queryCache: any
-  pendingRequests: Map<string, Promise<any>>
-  performanceMetrics: PerformanceMetrics
-
   constructor() {
     this.queryCache = apiResponseCache
     this.pendingRequests = new Map() // Duplicate request prevention
@@ -40,7 +23,7 @@ class OptimizedDatabaseService {
   }
 
   // Cached fetch with duplicate request prevention
-  async cachedFetch(url: string, options: any = {}, cacheKey: string | null = null, cacheTTL: number = 300000): Promise<any> {
+  async cachedFetch(url, options = {}, cacheKey = null, cacheTTL = 300000) {
     const startTime = Date.now()
     const key = cacheKey || `${url}:${JSON.stringify(options)}`
     if (import.meta.env?.DEV) {
@@ -108,7 +91,7 @@ class OptimizedDatabaseService {
   }
 
   // Get all stories with optimizations
-  async getAllStories(useCache: boolean = true): Promise<any> {
+  async getAllStories(useCache = true) {
     const cacheKey = 'all-stories'
 
     if (!useCache) {
@@ -124,7 +107,7 @@ class OptimizedDatabaseService {
   }
 
   // Get stories by type with caching
-  async getStoriesByType(storyType: string, useCache: boolean = true): Promise<any> {
+  async getStoriesByType(storyType, useCache = true) {
     const cacheKey = `stories-by-type:${storyType}`
 
     if (!useCache) {
@@ -141,7 +124,7 @@ class OptimizedDatabaseService {
   }
 
   // Get single story with caching
-  async getStory(id: string, useCache: boolean = true): Promise<any> {
+  async getStory(id, useCache = true) {
     const cacheKey = `story:${id}`
 
     if (!useCache) {
@@ -157,7 +140,7 @@ class OptimizedDatabaseService {
   }
 
   // Batch create stories
-  async createStories(storiesData: any): Promise<any> {
+  async createStories(storiesData) {
     const response = await fetch(`${API_BASE_URL}/stories/batch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -175,7 +158,7 @@ class OptimizedDatabaseService {
   }
 
   // Create story with cache invalidation
-  async createStory(storyText: string, storyType: string, customTopic: string | null = null, categories: any[] = []): Promise<any> {
+  async createStory(storyText, storyType, customTopic = null, categories = []) {
     console.log('OptimizedDatabaseService.createStory called with:');
     console.log('storyText:', typeof storyText, storyText ? storyText.substring(0, 100) + '...' : 'null/undefined');
     console.log('storyType:', typeof storyType, storyType);
@@ -212,7 +195,7 @@ class OptimizedDatabaseService {
   }
 
   // Update story with cache invalidation
-  async updateStory(id: string, storyText: string, storyType: string, customTopic: string | null = null): Promise<any> {
+  async updateStory(id, storyText, storyType, customTopic = null) {
     console.log('[DB] updateStory:request', { id })
     const response = await fetch(`${API_BASE_URL}/stories/${id}`, {
       method: 'PUT',
@@ -240,7 +223,7 @@ class OptimizedDatabaseService {
   }
 
   // Delete story with cache invalidation
-  async deleteStory(id: string): Promise<any> {
+  async deleteStory(id) {
     console.log('[DB] deleteStory:request', { id })
     const response = await fetch(`${API_BASE_URL}/stories/${id}`, {
       method: 'DELETE'
@@ -260,7 +243,7 @@ class OptimizedDatabaseService {
   }
 
   // Batch delete stories
-  async deleteStories(ids: string[]): Promise<any> {
+  async deleteStories(ids) {
     const response = await fetch(`${API_BASE_URL}/stories/batch`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -272,14 +255,14 @@ class OptimizedDatabaseService {
     }
 
     // Invalidate specific caches
-    ids.forEach((id: string) => this.queryCache.delete(`story:${id}`))
+    ids.forEach(id => this.queryCache.delete(`story:${id}`))
     this.invalidateStoryCaches()
 
     return response.json()
   }
 
   // Update story favorite status
-  async updateStoryFavorite(id: string, isFavorite: boolean): Promise<any> {
+  async updateStoryFavorite(id, isFavorite) {
     const response = await fetch(`${API_BASE_URL}/stories/${id}/favorite`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -322,7 +305,7 @@ class OptimizedDatabaseService {
   }
 
   // Search stories with caching
-  async searchStories(query: string, options: any = {}): Promise<any> {
+  async searchStories(query, options = {}) {
     const cacheKey = `search:${query}:${JSON.stringify(options)}`
 
     const searchParams = new URLSearchParams({
@@ -339,19 +322,19 @@ class OptimizedDatabaseService {
   }
 
   // Audio operations
-  getAudioUrl(fileName: string): string | null {
+  getAudioUrl(fileName) {
     if (!fileName) return null
     // Static audio files are served at /audio (not under /api)
     return `/audio/${fileName}`
   }
 
   // Cache management
-  invalidateStoryCaches(): void {
+  invalidateStoryCaches() {
     // Remove all story-related caches
-    const keysToDelete: string[] = []
+    const keysToDelete = []
 
     // Collect cache keys to delete
-    this.queryCache.cache.forEach((_: any, key: string) => {
+    this.queryCache.cache.forEach((_, key) => {
       if (key.startsWith('all-stories') ||
         key.startsWith('stories-by-type') ||
         key.startsWith('recent-stories') ||
@@ -361,7 +344,7 @@ class OptimizedDatabaseService {
     })
 
     // Delete the keys
-    keysToDelete.forEach((key: string) => this.queryCache.delete(key))
+    keysToDelete.forEach(key => this.queryCache.delete(key))
   }
 
   clearAllCaches() {
@@ -412,7 +395,7 @@ class OptimizedDatabaseService {
         try {
           // Masalın zaten var olup olmadığını kontrol et
           const existingStories = await this.getAllStories(false) // No cache for migration
-          const exists = existingStories.some((existing: any) =>
+          const exists = existingStories.some(existing =>
             existing.story_text === story.story &&
             existing.story_type === story.storyType
           )

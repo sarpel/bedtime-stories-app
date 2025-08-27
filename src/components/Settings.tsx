@@ -1,101 +1,38 @@
 import { useState, useRef, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Slider } from '@/components/ui/slider'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
-import { Brain, Volume2, MessageSquare, Save, RotateCcw, Settings as SettingsIcon } from 'lucide-react'
-import { getDefaultSettings } from '@/services/configService'
-import VoiceSelector from './VoiceSelector'
-// Profile feature removed from Settings
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx'
+import { Input } from '@/components/ui/input.jsx'
+import { Label } from '@/components/ui/label.jsx'
+import { Textarea } from '@/components/ui/textarea.jsx'
+import { Button } from '@/components/ui/button.jsx'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
+import { Slider } from '@/components/ui/slider.jsx'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
+import { Badge } from '@/components/ui/badge.jsx'
+import { Brain, Volume2, MessageSquare, Save, RotateCcw, Settings as SettingsIcon, User } from 'lucide-react'
+import { getDefaultSettings } from '@/services/configService.js'
+import VoiceSelector from './VoiceSelector.jsx'
+import ProfileSelector from './ProfileSelector.jsx'
+import PropTypes from 'prop-types'
 // Audio quality ve background music imports kaldırıldı - sadece basit ayarlar
 
-interface VoiceSettings {
-  speed: number
-  pitch: number
-  volume: number
-  stability: number
-  similarityBoost: number
-}
-
-interface LLMSettings {
-  temperature: number
-  maxTokens: number
-}
-
-interface SettingsObject {
-  llmProvider: string
-  openaiLLM: {
-    endpoint: string
-    modelId: string
-    apiKey: string
-  }
-  geminiLLM: {
-    endpoint: string
-    modelId: string
-    apiKey: string
-  }
-  llmEndpoint: string
-  llmModelId: string
-  llmApiKey: string
-  ttsProvider: string
-  elevenlabs: {
-    endpoint: string
-    modelId: string
-    voiceId: string
-    apiKey: string
-  }
-  geminiTTS: {
-    endpoint: string
-    modelId: string
-    voiceId: string
-    apiKey: string
-  }
-  ttsEndpoint: string
-  ttsModelId: string
-  voiceId: string
-  ttsApiKey: string
-  customPrompt: string
-  customInstructions: string
-  storyLength: string
-  theme: string
-  voiceSettings: VoiceSettings
-  llmSettings: LLMSettings
-  [key: string]: any // Allow dynamic property access
-}
-
-interface SettingsProps {
-  settings: SettingsObject
-  onSettingsChange: (settings: SettingsObject) => void
-  onClose: () => void
-}
-
-export default function Settings({ settings, onSettingsChange, onClose }: SettingsProps) {
+export default function Settings({ settings, onSettingsChange, onClose }) {
   const [localSettings, setLocalSettings] = useState(settings)
-  const panelRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef(null)
 
   // Click outside handler
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event) => {
       // Settings panel içindeki tıklamalarda panel'i kapatma
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+      if (panelRef.current && !panelRef.current.contains(event.target)) {
         // Dropdown/Select content'leri portal olarak body'e render edilir
-        // Bu tıklamaları ignore et - daha geniş detection
-        const isDropdownClick = (event.target as Element)?.closest('[data-radix-select-content]') ||
-          (event.target as Element)?.closest('[data-radix-popper-content-wrapper]') ||
-          (event.target as Element)?.closest('[data-radix-select-viewport]') ||
-          (event.target as Element)?.closest('[role="listbox"]') ||
-          (event.target as Element)?.closest('[role="option"]') ||
-          (event.target as Element)?.closest('.select-content') ||
-          (event.target as Element)?.closest('[data-state="open"]') ||
-          (event.target as Element)?.closest('[data-radix-select-trigger]') ||
-          (event.target as Element)?.closest('[data-radix-select-content]') ||
-          (event.target as Element)?.closest('[data-radix-popper-content]') ||
-          (event.target as Element)?.closest('[data-radix-collection-item]')
+        // Bu tıklamaları ignore et
+        const isDropdownClick = event.target.closest('[data-radix-select-content]') ||
+          event.target.closest('[data-radix-popper-content-wrapper]') ||
+          event.target.closest('[data-radix-select-viewport]') ||
+          event.target.closest('[role="listbox"]') ||
+          event.target.closest('[role="option"]') ||
+          event.target.closest('.select-content') ||
+          event.target.closest('[data-state="open"]')
 
         if (!isDropdownClick) {
           onClose()
@@ -103,7 +40,7 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
       }
     }
 
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         onClose()
       }
@@ -119,12 +56,12 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
   }, [onClose])
 
 
-  const updateSetting = (path: string, value: any) => {
+  const updateSetting = (path, value) => {
     try {
       console.log('🔧 Settings updateSetting:', path, value, localSettings)
       const newSettings = { ...localSettings }
       const keys = path.split('.')
-      let current: any = newSettings
+      let current = newSettings
 
       for (let i = 0; i < keys.length - 1; i++) {
         if (!current[keys[i]]) {
@@ -154,8 +91,7 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-2">
-      <div ref={panelRef}>
-        <Card className="w-full max-w-[95vw] sm:max-w-md md:max-w-lg max-h-[95vh] overflow-y-auto scrollbar-thin">
+      <Card ref={panelRef} className="w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto scrollbar-thin border shadow-lg">
         <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold">Ayarlar</CardTitle>
@@ -176,7 +112,7 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
 
         <CardContent className="p-3">
           <Tabs defaultValue="llm" className="space-y-3">
-            <TabsList className="grid w-full grid-cols-3 h-8">
+            <TabsList className="grid w-full grid-cols-4 h-8">
               <TabsTrigger value="llm" className="flex items-center gap-1 text-xs">
                 <Brain className="h-3 w-3" />
                 <span className="hidden sm:inline">LLM</span>
@@ -188,6 +124,10 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
               <TabsTrigger value="content" className="flex items-center gap-1 text-xs">
                 <MessageSquare className="h-3 w-3" />
                 <span className="hidden sm:inline">İçerik</span>
+              </TabsTrigger>
+              <TabsTrigger value="profiles" className="flex items-center gap-1 text-xs">
+                <User className="h-3 w-3" />
+                <span className="hidden sm:inline">Profiller</span>
               </TabsTrigger>
             </TabsList>
 
@@ -526,7 +466,7 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
                   <VoiceSelector
                     selectedVoiceId={localSettings.elevenlabs?.voiceId || localSettings.voiceId || 'xsGHrtxT5AdDzYXTQT0d'}
                     settings={localSettings}
-                    onVoiceChange={(voiceId: string) => {
+                    onVoiceChange={(voiceId) => {
                       // UI seçimi ile textbox senkron: iki yerde de sakla
                       updateSetting('voiceId', voiceId)
                       updateSetting('elevenlabs.voiceId', voiceId)
@@ -770,11 +710,26 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
               </div>
             </TabsContent>
 
-            {/* Profiles tab removed */}
+            {/* Profiles Settings */}
+            <TabsContent value="profiles" className="space-y-3">
+              <div className="mx-auto space-y-3">
+                <ProfileSelector
+                  onProfileSelect={(profile) => {
+                    // Profil seçildiğinde ayarları güncelle
+                    console.log('Profil seçildi:', profile)
+                  }}
+                />
+              </div>
+            </TabsContent>
           </Tabs>
         </CardContent>
-        </Card>
-      </div>
+      </Card>
     </div>
   )
+}
+
+Settings.propTypes = {
+  settings: PropTypes.object.isRequired,
+  onSettingsChange: PropTypes.func.isRequired,
+  onClose: PropTypes.func.isRequired,
 }

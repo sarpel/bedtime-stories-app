@@ -1,77 +1,11 @@
 import { getStoryTypePrompt } from '@/utils/storyTypes.js'
-import { buildEnhancedPrompt } from '@/utils/enhancedStoryTypes.js'
 import { config } from './configService.js'
 import { storyCache } from '@/utils/cache.js'
 import { logger } from '@/utils/logger.js'
 
-interface LLMSettings {
-  temperature?: number
-  maxTokens?: number
-}
-
-
-interface SeriesInfo {
-  title: string
-  description: string
-  previousStories?: Array<{
-    title?: string
-    story_text: string
-  }>
-}
-
-interface LLMServiceSettings {
-  llmProvider?: string
-  llmEndpoint?: string
-  llmModelId?: string
-  llmApiKey?: string
-  openaiLLM?: {
-    endpoint?: string
-    modelId?: string
-    apiKey?: string
-  }
-  geminiLLM?: {
-    endpoint?: string
-    modelId?: string
-    apiKey?: string
-  }
-  customPrompt?: string
-  customInstructions?: string
-  storyLength?: 'short' | 'medium' | 'long'
-  llmSettings?: LLMSettings
-}
-
-interface LLMResponse {
-  text?: string
-  output?: any
-  candidates?: Array<{
-    output_text?: string
-    content?: {
-      parts?: Array<string | { text?: string }>
-    }
-  }>
-  choices?: Array<{
-    message?: { content: string }
-    text?: string
-  }>
-  content?: Array<{ text: string }>
-  response?: string
-}
-
-type ProgressCallback = (progress: number) => void
-
 // LLM Service for story generation
 export class LLMService {
-  provider: string
-  endpoint: string
-  modelId: string
-  apiKey: string
-  customPrompt: string
-  customInstructions: string
-  storyLength: 'short' | 'medium' | 'long'
-  temperature: number
-  maxTokens: number
-
-  constructor(settings: LLMServiceSettings) {
+  constructor(settings) {
     this.provider = settings.llmProvider || 'openai'
 
     if (this.provider === 'openai') {
@@ -84,20 +18,18 @@ export class LLMService {
       this.endpoint = settings.geminiLLM?.endpoint || config.geminiLLM.endpoint
       this.modelId = settings.geminiLLM?.modelId || config.geminiLLM.model
       this.apiKey = settings.geminiLLM?.apiKey || config.geminiLLM.apiKey
-    } else {
-      // Default fallback
-      this.endpoint = config.openai.endpoint
-      this.modelId = config.openai.model
-      this.apiKey = config.openai.apiKey
     }
 
     // Kullanıcı ayarları
-    this.customPrompt = settings.customPrompt || ''
+    this.customPrompt = settings.customPrompt
     this.customInstructions = settings.customInstructions || ''
-    this.storyLength = settings.storyLength || 'medium'
+    this.storyLength = settings.storyLength
     this.temperature = settings.llmSettings?.temperature ?? 0.9
     // Yanıtların kısalmaması için maxTokens sabit 5000
     this.maxTokens = 5000
+
+    // Aktif profil bilgisi
+    this.activeProfile = settings.activeProfile || null
 
     // Debug: init logs (kimlik bilgisi ve tam prompt loglama yok)
     try {
@@ -111,11 +43,12 @@ export class LLMService {
         hasCustomPrompt: !!this.customPrompt,
         customPromptLen: this.customPrompt?.length || 0,
         hasCustomInstructions: !!this.customInstructions,
-        customInstructionsLen: this.customInstructions?.length || 0
+        customInstructionsLen: this.customInstructions?.length || 0,
+        hasActiveProfile: !!this.activeProfile
       })
     } catch (initErr) {
       // Init logging failed; safe to ignore in production
-      logger.debug('LLM Service init log error', 'LLMService', { error: (initErr as Error)?.message })
+      logger.debug('LLM Service init log error', 'LLMService', { error: initErr?.message })
     }
   }
 
@@ -130,9 +63,21 @@ export class LLMService {
   }
 
   // Build the complete prompt
-  buildPrompt(storyType: string | null = null, customTopic: string = '', seriesInfo: SeriesInfo | null = null): string {
+  buildPrompt(storyType = null, customTopic = '') {
     const lengthInstruction = this.getStoryLengthInstruction()
-    // Profile-specific instructions removed
+
+    // Aktif profil bilgisini ekle
+    let profileInfo = ''
+    if (this.activeProfile) {
+      const { name, age, gender } = this.activeProfile
+      const genderText = gender === 'girl' ? 'kız' : gender === 'boy' ? 'erkek' : 'çocuk'
+      profileInfo = `\nBu masal ${name} adlı ${age} yaşındaki ${genderText} çocuğu için yazılıyor.`
+
+      // Özel prompt varsa ekle
+      if (this.activeProfile.custom_prompt) {
+        profileInfo += `\nÖzel istekler: ${this.activeProfile.custom_prompt}`
+      }
+    }
 
     // Masal türü bilgisini ekle
     let storyTypeText = ''
@@ -144,35 +89,22 @@ export class LLMService {
       }
     }
 
-    // Seri bilgisini ekle
-    let seriesText = ''
-    if (seriesInfo) {
-      seriesText = `\n\nBu masal "${seriesInfo.title}" adlı serinin bir parçası. Seri hakkında bilgiler:\n${seriesInfo.description}\n\nÖnceki masallar:`
-      if (seriesInfo.previousStories && seriesInfo.previousStories.length > 0) {
-        seriesInfo.previousStories.forEach((story, index) => {
-          seriesText += `\n${index + 1}. ${story.title || `Masal ${index + 1}`}: ${story.story_text.substring(0, 200)}...`
-        })
-        seriesText += `\n\nBu yeni masal, önceki masalların karakterlerini ve olay örgüsünü devam ettirmeli. Karakter tutarlılığı çok önemlidir.`
-      } else {
-        seriesText += `\nBu serinin ilk masalı. Gelecek masalların temelini oluşturacak karakterleri ve ortamı tanıt.`
-      }
-    }
-
     const extraInstructions = (this.customInstructions?.trim())
       ? `\n\nEk talimatlar:\n${this.customInstructions.trim()}`
       : ''
 
-    const prompt = `${this.customPrompt}${storyTypeText}${seriesText}\n\n${lengthInstruction}\n\nMasal Türkçe olmalı ve şu özellikleri içermeli:\n- 5 yaşındaki bir çocuk için uygun\n- Eğitici ve pozitif değerler içeren\n- Uyku vakti için rahatlatıcı\n- Hayal gücünü geliştiren${extraInstructions}\n\nMasalı şimdi yaz:`
+    const prompt = `${this.customPrompt}${profileInfo}${storyTypeText}\n\n${lengthInstruction}\n\nMasal Türkçe olmalı ve şu özellikleri içermeli:\n- 5 yaşındaki bir kız çocuğu için uygun\n- Eğitici ve pozitif değerler içeren\n- Uyku vakti için rahatlatıcı\n- Hayal gücünü geliştiren${extraInstructions}\n\nMasalı şimdi yaz:`
     console.log('[LLMService:buildPrompt]', {
       storyType,
       customTopic,
+      hasActiveProfile: !!this.activeProfile,
       promptLen: prompt.length
     })
     return prompt
   }
 
   // Generate story using custom LLM endpoint
-  async generateStory(onProgress: ProgressCallback, storyType: string | null = null, customTopic: string = '', seriesInfo: SeriesInfo | null = null): Promise<string> {
+  async generateStory(onProgress, storyType = null, customTopic = '') {
     try {
       // Model kontrolü
       if (!this.modelId) {
@@ -184,7 +116,7 @@ export class LLMService {
         llmSettings: { temperature: this.temperature, maxTokens: this.maxTokens },
         customPrompt: this.customPrompt
       }
-      const cachedStory = storyCache.getStory(storyType || '', customTopic, cacheKeyMeta)
+      const cachedStory = storyCache.getStory(storyType, customTopic, cacheKeyMeta)
 
       if (cachedStory) {
         console.log('[LLMService:cacheHit]', {
@@ -198,8 +130,7 @@ export class LLMService {
 
       onProgress?.(10)
 
-      // Use enhanced prompt system
-      const prompt = buildEnhancedPrompt(storyType || 'general', customTopic, seriesInfo)
+      const prompt = this.buildPrompt(storyType, customTopic)
       onProgress?.(30)
 
       // İstek backend proxy'imize yönlendirilir (aynı origin, dev'de Vite proxy)
@@ -262,7 +193,7 @@ export class LLMService {
       onProgress?.(100)
 
       // Önbellekle
-      storyCache.setStory(storyType || '', customTopic, cacheKeyMeta, story)
+      storyCache.setStory(storyType, customTopic, cacheKeyMeta, story)
       console.log('[LLMService:cacheSet]', {
         storyType,
         customTopic,
@@ -272,13 +203,13 @@ export class LLMService {
       return story
 
     } catch (error) {
-      console.error('[LLMService:error]', { message: (error as Error).message })
+      console.error('[LLMService:error]', { message: error.message })
       throw error
     }
   }
 
   // Prepare request body for different LLM providers
-  prepareRequestBody(prompt: string): object {
+  prepareRequestBody(prompt) {
     // OpenAI Responses API format (güncellendi)
     if (this.endpoint.includes('responses') || this.endpoint.includes('/api/llm')) {
       return {
@@ -340,12 +271,12 @@ export class LLMService {
   }
 
   // Extract story from different response formats
-  extractStoryFromResponse(data: any): string {
+  extractStoryFromResponse(data) {
     // OpenAI Responses API format (yeni) - output bir array olabilir
     if (data?.output) {
       if (Array.isArray(data.output) && data.output.length > 0) {
         // output array'inde text content'i ara
-        const textContent = data.output.find((item: any) =>
+        const textContent = data.output.find(item =>
           item?.type === 'text' || typeof item === 'string' || item?.content
         );
         if (textContent) {
@@ -368,7 +299,7 @@ export class LLMService {
       const parts = first.content && Array.isArray(first.content.parts) ? first.content.parts : []
       if (parts.length) {
         const joined = parts
-          .map((p: any) => (typeof p === 'string' ? p : (p?.text || '')))
+          .map(p => (typeof p === 'string' ? p : (p?.text || '')))
           .join('')
           .trim()
         if (joined) return joined

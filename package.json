@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently --names \"FRONTEND,BACKEND\" --prefix-colors \"cyan,magenta\" \"vite\" \"node backend/server.js\"",
+    "dev:frontend": "vite",
+    "dev:backend": "node backend/server.js",
     "build": "tsc && vite build --mode production",
     "start": "node backend/server.js",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx --max-warnings=0",

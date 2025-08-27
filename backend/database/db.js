@@ -40,35 +40,31 @@ function initDatabase() {
       story_type TEXT NOT NULL,
       custom_topic TEXT,
   categories TEXT, -- JSON array (örn: ["macera","uyku"])
-      content_hash TEXT, -- SHA256 hash of story content for duplicate detection
-      series_id INTEGER, -- Seri ID'si (NULL ise tekil hikaye)
-      series_order INTEGER, -- Serideki sıra (NULL ise tekil hikaye)
-      series_title TEXT, -- Serinin başlığı
+      profile_id INTEGER, -- Hangi profil için oluşturulduğu
       is_favorite INTEGER DEFAULT 0,
       is_shared INTEGER DEFAULT 0,
       share_id TEXT UNIQUE,
       shared_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (series_id) REFERENCES series(id)
+      FOREIGN KEY (profile_id) REFERENCES profiles(id)
     )
   `);
 
-  // Series tablosu
+  // Profiles tablosu
   db.exec(`
-    CREATE TABLE IF NOT EXISTS series (
+    CREATE TABLE IF NOT EXISTS profiles (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      description TEXT,
-      character_info TEXT, -- JSON object: karakter bilgileri ve tutarlılığı için
-      is_active INTEGER DEFAULT 1,
+      name TEXT NOT NULL,
+      age INTEGER,
+      gender TEXT, -- 'girl', 'boy', 'other'
+      preferences TEXT, -- JSON object with story preferences
+      custom_prompt TEXT, -- Profile-specific prompt
+      is_active INTEGER DEFAULT 0, -- Only one profile can be active
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      -- profile removed
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
-
-  // Profiles feature removed: profiles table no longer created
 
   // is_favorite sütununu varolan tabloya ekle (eğer yoksa)
   try {
@@ -81,7 +77,7 @@ function initDatabase() {
     }
   }
 
-  // categories sütununu ekle (migration)
+
   try {
     db.exec(`ALTER TABLE stories ADD COLUMN categories TEXT`);
     console.log('categories sütunu eklendi');
@@ -90,98 +86,7 @@ function initDatabase() {
       console.log('categories sütunu zaten mevcut');
     }
   }
-  
-  // content_hash sütununu ekle (migration)
-  try {
-    db.exec(`ALTER TABLE stories ADD COLUMN content_hash TEXT`);
-    console.log('content_hash sütunu eklendi');
-  } catch (error) {
-    if (!error.message.includes('duplicate column name')) {
-      console.log('content_hash sütunu zaten mevcut');
-    }
-  }
-  
-  // Mevcut hikayelere content_hash ekle (one-time migration)
-  try {
-    const storiesWithoutHash = db.prepare('SELECT id, story_text, story_type, custom_topic FROM stories WHERE content_hash IS NULL').all();
-    if (storiesWithoutHash.length > 0) {
-      console.log(`${storiesWithoutHash.length} hikaye için content_hash hesaplanıyor...`);
-      const updateHashStmt = db.prepare('UPDATE stories SET content_hash = ? WHERE id = ?');
-      const deleteStoryStmt = db.prepare('DELETE FROM stories WHERE id = ?');
-      const seenHashes = new Set();
-      let duplicatesRemoved = 0;
-      
-      const tx = db.transaction((stories) => {
-        for (const story of stories) {
-          const contentForHash = `${story.story_text.trim()}|${story.story_type}|${story.custom_topic || ''}`;
-          const contentHash = crypto.createHash('sha256').update(contentForHash, 'utf8').digest('hex');
-          
-          if (seenHashes.has(contentHash)) {
-            // This is a duplicate, remove it
-            deleteStoryStmt.run(story.id);
-            duplicatesRemoved++;
-            console.log(`Removed duplicate story ID: ${story.id}`);
-          } else {
-            // First occurrence, update with hash
-            seenHashes.add(contentHash);
-            updateHashStmt.run(contentHash, story.id);
-          }
-        }
-      });
-      tx(storiesWithoutHash);
-      console.log(`Content hash migration completed. Removed ${duplicatesRemoved} duplicates.`);
-    }
-    
-    // Create unique index after migration is complete
-    try {
-      // Check if index already exists
-      const indexExists = db.prepare(`
-        SELECT COUNT(*) as count FROM sqlite_master 
-        WHERE type='index' AND name='idx_stories_content_hash'
-      `).get();
-      
-      if (indexExists.count === 0) {
-        db.exec(`CREATE UNIQUE INDEX idx_stories_content_hash ON stories (content_hash)`);
-        console.log('Content hash unique index created successfully');
-      } else {
-        console.log('Content hash unique index already exists');
-      }
-    } catch (indexError) {
-      console.log('Content hash index creation error:', indexError.message);
-    }
-  } catch (error) {
-    console.log('Content hash migration error:', error.message);
-  }
 
-  // Profiles feature removed: no profile_id migration
-
-  // Seri sütunlarını ekle (migration)
-  try {
-    db.exec(`ALTER TABLE stories ADD COLUMN series_id INTEGER REFERENCES series(id)`);
-    console.log('series_id sütunu eklendi');
-  } catch (error) {
-    if (!error.message.includes('duplicate column name')) {
-      console.log('series_id sütunu zaten mevcut');
-    }
-  }
-
-  try {
-    db.exec(`ALTER TABLE stories ADD COLUMN series_order INTEGER`);
-    console.log('series_order sütunu eklendi');
-  } catch (error) {
-    if (!error.message.includes('duplicate column name')) {
-      console.log('series_order sütunu zaten mevcut');
-    }
-  }
-
-  try {
-    db.exec(`ALTER TABLE stories ADD COLUMN series_title TEXT`);
-    console.log('series_title sütunu eklendi');
-  } catch (error) {
-    if (!error.message.includes('duplicate column name')) {
-      console.log('series_title sütunu zaten mevcut');
-    }
-  }
 
   try {
     db.exec(`ALTER TABLE stories ADD COLUMN share_id TEXT`);
@@ -234,7 +139,7 @@ function initDatabase() {
     )
   `);
 
-  // İndeksler performans için (content_hash hariç - migration sonrası yapılacak)
+  // İndeksler performans için
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_stories_type ON stories (story_type);
     CREATE INDEX IF NOT EXISTS idx_stories_created ON stories (created_at DESC);
@@ -348,12 +253,8 @@ initDatabase();
 const statements = {
   // Story operations
   insertStory: db.prepare(`
-  INSERT INTO stories (story_text, story_type, custom_topic, categories, content_hash)
-  VALUES (?, ?, ?, ?, ?)
-  `),
-  
-  getStoryByHash: db.prepare(`
-    SELECT * FROM stories WHERE content_hash = ?
+  INSERT INTO stories (story_text, story_type, custom_topic, categories)
+  VALUES (?, ?, ?, ?)
   `),
 
   getStoryById: db.prepare(`
@@ -486,6 +387,15 @@ const statements = {
   getMaxQueuePos: db.prepare(`
     SELECT COALESCE(MAX(position), 0) as maxpos FROM queue
   `),
+
+  searchStoriesByTitle: db.prepare(`
+    SELECT s.*, a.file_name, a.file_path, a.voice_id
+    FROM stories s
+    LEFT JOIN audio_files a ON s.id = a.story_id
+    WHERE s.custom_topic LIKE ? OR s.story_type LIKE ?
+    ORDER BY s.created_at DESC
+    LIMIT ?
+  `),
 };
 
 // Arama için maksimum limit sabiti
@@ -501,19 +411,8 @@ const storyDb = {
   // Story operations
   createStory(storyText, storyType, customTopic = null, categories = []) {
     try {
-      // Create unique content hash from story text + type + topic
-      const contentForHash = `${storyText.trim()}|${storyType}|${customTopic || ''}`;
-      const contentHash = crypto.createHash('sha256').update(contentForHash, 'utf8').digest('hex');
-      
-      // Check for existing story with same hash
-      const existingStory = statements.getStoryByHash.get(contentHash);
-      if (existingStory) {
-        console.log('Duplicate story detected, returning existing ID:', existingStory.id);
-        return existingStory.id;
-      }
-      
       const categoriesValue = Array.isArray(categories) ? JSON.stringify(categories) : (categories || null);
-      const result = statements.insertStory.run(storyText, storyType, customTopic, categoriesValue, contentHash);
+      const result = statements.insertStory.run(storyText, storyType, customTopic, categoriesValue);
       return result.lastInsertRowid;
     } catch (error) {
       console.error('Masal oluşturma hatası:', error);
@@ -901,6 +800,7 @@ const storyDb = {
     }
   },
 
+
   // Helper function to process story rows consistently
   processStoryRows(rows) {
     const storiesMap = new Map();
@@ -941,103 +841,102 @@ const storyDb = {
     return AUDIO_DIR;
   },
 
-  // Profile feature removed: profile management functions deleted
-
-  // Series management functions
-  createSeries(title, description = '', characterInfo = {}) {
+  // Profile management functions
+  createProfile(name, age, gender, preferences = {}, customPrompt = '') {
     const stmt = db.prepare(`
-      INSERT INTO series (title, description, character_info)
-      VALUES (?, ?, ?)
+      INSERT INTO profiles (name, age, gender, preferences, custom_prompt)
+      VALUES (?, ?, ?, ?, ?)
     `);
-    const result = stmt.run(title, description, JSON.stringify(characterInfo));
+    const result = stmt.run(name, age, gender, JSON.stringify(preferences), customPrompt);
     return result.lastInsertRowid;
   },
 
-  getSeries() {
-    const stmt = db.prepare(`
-      SELECT s.*, COUNT(st.id) as story_count
-      FROM series s
-      LEFT JOIN stories st ON s.id = st.series_id
-      GROUP BY s.id
-      ORDER BY s.created_at DESC
-    `);
+  getProfiles() {
+    const stmt = db.prepare('SELECT * FROM profiles ORDER BY created_at DESC');
     return stmt.all().map(row => ({
       ...row,
-      character_info: row.character_info ? JSON.parse(row.character_info) : {}
+      preferences: row.preferences ? JSON.parse(row.preferences) : {}
     }));
   },
 
-  getSeriesById(id) {
-    const stmt = db.prepare('SELECT * FROM series WHERE id = ?');
+  getProfile(id) {
+    const stmt = db.prepare('SELECT * FROM profiles WHERE id = ?');
     const row = stmt.get(id);
     if (row) {
       return {
         ...row,
-        character_info: row.character_info ? JSON.parse(row.character_info) : {}
+        preferences: row.preferences ? JSON.parse(row.preferences) : {}
       };
     }
     return null;
   },
 
-  updateSeries(id, updates) {
+  updateProfile(id, updates) {
     const fields = [];
     const values = [];
 
-    if (updates.title !== undefined) {
-      fields.push('title = ?');
-      values.push(updates.title);
+    if (updates.name !== undefined) {
+      fields.push('name = ?');
+      values.push(updates.name);
     }
-    if (updates.description !== undefined) {
-      fields.push('description = ?');
-      values.push(updates.description);
+    if (updates.age !== undefined) {
+      fields.push('age = ?');
+      values.push(updates.age);
     }
-    if (updates.characterInfo !== undefined) {
-      fields.push('character_info = ?');
-      values.push(JSON.stringify(updates.characterInfo));
+    if (updates.gender !== undefined) {
+      fields.push('gender = ?');
+      values.push(updates.gender);
+    }
+    if (updates.preferences !== undefined) {
+      fields.push('preferences = ?');
+      values.push(JSON.stringify(updates.preferences));
+    }
+    if (updates.customPrompt !== undefined) {
+      fields.push('custom_prompt = ?');
+      values.push(updates.customPrompt);
     }
 
     if (fields.length > 0) {
       fields.push('updated_at = CURRENT_TIMESTAMP');
-      const stmt = db.prepare(`UPDATE series SET ${fields.join(', ')} WHERE id = ?`);
+      const stmt = db.prepare(`UPDATE profiles SET ${fields.join(', ')} WHERE id = ?`);
       values.push(id);
       return stmt.run(...values);
     }
     return null;
   },
 
-  deleteSeries(id) {
-    // Önce seriye ait tüm hikayeleri güncelle (series_id'yi null yap)
-    const updateStoriesStmt = db.prepare('UPDATE stories SET series_id = NULL, series_order = NULL, series_title = NULL WHERE series_id = ?');
+  deleteProfile(id) {
+    // Önce profile ait storyleri güncelle (profile_id'yi null yap)
+    const updateStoriesStmt = db.prepare('UPDATE stories SET profile_id = NULL WHERE profile_id = ?');
     updateStoriesStmt.run(id);
 
-    // Seriyi sil
-    const deleteStmt = db.prepare('DELETE FROM series WHERE id = ?');
+    // Profile'i sil
+    const deleteStmt = db.prepare('DELETE FROM profiles WHERE id = ?');
     return deleteStmt.run(id);
   },
 
-  getStoriesBySeries(seriesId) {
-    const stmt = db.prepare(`
-      SELECT * FROM stories
-      WHERE series_id = ?
-      ORDER BY series_order ASC, created_at ASC
-    `);
-    return stmt.all(seriesId);
+  setActiveProfile(id) {
+    // Tüm profilleri inactive yap
+    db.prepare('UPDATE profiles SET is_active = 0').run();
+
+    // Belirtilen profili active yap
+    if (id) {
+      const stmt = db.prepare('UPDATE profiles SET is_active = 1 WHERE id = ?');
+      return stmt.run(id);
+    }
+    return null;
   },
 
-  addStoryToSeries(storyId, seriesId, seriesTitle, order = null) {
-    // Serideki maksimum order'ı bul
-    if (order === null) {
-      const maxOrderStmt = db.prepare('SELECT MAX(series_order) as max_order FROM stories WHERE series_id = ?');
-      const result = maxOrderStmt.get(seriesId);
-      order = (result.max_order || 0) + 1;
+  getActiveProfile() {
+    const stmt = db.prepare('SELECT * FROM profiles WHERE is_active = 1 LIMIT 1');
+    const row = stmt.get();
+    if (row) {
+      return {
+        ...row,
+        preferences: row.preferences ? JSON.parse(row.preferences) : {}
+      };
     }
-
-    const stmt = db.prepare(`
-      UPDATE stories
-      SET series_id = ?, series_title = ?, series_order = ?
-      WHERE id = ?
-    `);
-    return stmt.run(seriesId, seriesTitle, order, storyId);
+    return null;
   },
 
   close() {
@@ -1047,20 +946,5 @@ const storyDb = {
 
 // Veritabanını başlat
 initDatabase();
-
-// Database maintenance integration
-const DatabaseMaintenance = require('./maintenance');
-
-// Export maintenance functions
-storyDb.maintenance = {
-  vacuum: () => new DatabaseMaintenance().vacuum(),
-  analyze: () => new DatabaseMaintenance().analyze(),
-  reindex: () => new DatabaseMaintenance().reindex(),
-  cleanup: () => new DatabaseMaintenance().cleanup(),
-  integrityCheck: () => new DatabaseMaintenance().integrityCheck(),
-  getStats: () => new DatabaseMaintenance().getStats(),
-  fullMaintenance: () => new DatabaseMaintenance().fullMaintenance(),
-  optimize: () => new DatabaseMaintenance().optimize()
-};
 
 module.exports = storyDb;
