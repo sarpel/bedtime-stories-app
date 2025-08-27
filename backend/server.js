@@ -243,15 +243,17 @@ try {
       }
     }));
 
-    // Catch-all handler for SPA routing (only for non-API routes)
-    app.get(/^(?!\/api|\/audio|\/health).*/, (req, res, next) => {
-      // Send index.html for all other routes (SPA)
-      if (fs.existsSync(indexPath)) {
-        res.sendFile(indexPath);
-      } else {
-        next();
-      }
-    });
+    // Catch-all handler for SPA routing (only for non-API routes) - PRODUCTION ONLY
+    if (isProduction) {
+      app.get(/^(?!\/api|\/audio|\/health).*/, (req, res, next) => {
+        // Send index.html for all other routes (SPA)
+        if (fs.existsSync(indexPath)) {
+          res.sendFile(indexPath);
+        } else {
+          next();
+        }
+      });
+    }
 
     // /assets fallback: root/assets yoksa dist/assets mount et
     if (!fs.existsSync(rootAssetsPath) && fs.existsSync(distAssetsPath)) {
@@ -830,7 +832,7 @@ app.put('/api/stories/:id', (req, res) => {
       return res.status(400).json({ error: 'Geçersiz masal ID\'si.' });
     }
 
-  const { storyText, storyType, customTopic, categories } = req.body;
+  const { storyText, storyType, customTopic } = req.body;
 
     // Input validation
     if (!storyText || !storyType) {
@@ -1389,6 +1391,120 @@ app.post('/api/profiles/active', (req, res) => {
   } catch (error) {
     logger.error('Aktif profil ayarlama hatası:', error);
     res.status(500).json({ error: 'Aktif profil ayarlanırken hata oluştu' });
+  }
+});
+
+// Series API endpoints
+app.get('/api/series', (req, res) => {
+  try {
+    const series = storyDb.getSeries();
+    res.json({ series });
+  } catch (error) {
+    logger.error('Serileri getirme hatası:', error);
+    res.status(500).json({ error: 'Seriler yüklenirken hata oluştu' });
+  }
+});
+
+app.post('/api/series', (req, res) => {
+  try {
+    const { title, description, profileId, characterInfo } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ error: 'Seri başlığı zorunludur' });
+    }
+
+    const seriesId = storyDb.createSeries(title, description || '', profileId, characterInfo || {});
+    const series = storyDb.getSeriesById(seriesId);
+
+    res.json({ series });
+  } catch (error) {
+    logger.error('Seri oluşturma hatası:', error);
+    res.status(500).json({ error: 'Seri oluştururken hata oluştu' });
+  }
+});
+
+app.get('/api/series/:id', (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const series = storyDb.getSeriesById(id);
+
+    if (!series) {
+      return res.status(404).json({ error: 'Seri bulunamadı' });
+    }
+
+    res.json({ series });
+  } catch (error) {
+    logger.error('Seri getirme hatası:', error);
+    res.status(500).json({ error: 'Seri yüklenirken hata oluştu' });
+  }
+});
+
+app.put('/api/series/:id', (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const updates = req.body;
+
+    const result = storyDb.updateSeries(id, updates);
+
+    if (!result) {
+      return res.status(404).json({ error: 'Seri bulunamadı' });
+    }
+
+    const series = storyDb.getSeriesById(id);
+    res.json({ series });
+  } catch (error) {
+    logger.error('Seri güncelleme hatası:', error);
+    res.status(500).json({ error: 'Seri güncellerken hata oluştu' });
+  }
+});
+
+app.delete('/api/series/:id', (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const result = storyDb.deleteSeries(id);
+
+    if (!result.changes) {
+      return res.status(404).json({ error: 'Seri bulunamadı' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Seri silme hatası:', error);
+    res.status(500).json({ error: 'Seri silerken hata oluştu' });
+  }
+});
+
+app.get('/api/series/:id/stories', (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const stories = storyDb.getStoriesBySeries(id);
+
+    res.json({ stories });
+  } catch (error) {
+    logger.error('Seri hikayelerini getirme hatası:', error);
+    res.status(500).json({ error: 'Seri hikayeleri yüklenirken hata oluştu' });
+  }
+});
+
+app.post('/api/series/:id/add-story', (req, res) => {
+  try {
+    const seriesId = parseInt(req.params.id);
+    const { storyId, seriesTitle } = req.body;
+
+    if (!storyId || !seriesTitle) {
+      return res.status(400).json({ error: 'Hikaye ID ve seri başlığı zorunludur' });
+    }
+
+    const result = storyDb.addStoryToSeries(storyId, seriesId, seriesTitle);
+
+    if (!result.changes) {
+      return res.status(404).json({ error: 'Hikaye bulunamadı' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Hikayeyi seriye ekleme hatası:', error);
+    res.status(500).json({ error: 'Hikaye seriye eklenirken hata oluştu' });
   }
 });
 

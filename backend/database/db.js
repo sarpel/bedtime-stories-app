@@ -41,10 +41,29 @@ function initDatabase() {
       custom_topic TEXT,
   categories TEXT, -- JSON array (örn: ["macera","uyku"])
       profile_id INTEGER, -- Hangi profil için oluşturulduğu
+      series_id INTEGER, -- Seri ID'si (NULL ise tekil hikaye)
+      series_order INTEGER, -- Serideki sıra (NULL ise tekil hikaye)
+      series_title TEXT, -- Serinin başlığı
       is_favorite INTEGER DEFAULT 0,
       is_shared INTEGER DEFAULT 0,
       share_id TEXT UNIQUE,
       shared_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (profile_id) REFERENCES profiles(id),
+      FOREIGN KEY (series_id) REFERENCES series(id)
+    )
+  `);
+
+  // Series tablosu
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS series (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      description TEXT,
+      profile_id INTEGER, -- Hangi profil için oluşturulduğu
+      character_info TEXT, -- JSON object: karakter bilgileri ve tutarlılığı için
+      is_active INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (profile_id) REFERENCES profiles(id)
@@ -94,6 +113,34 @@ function initDatabase() {
   } catch (error) {
     if (!error.message.includes('duplicate column name')) {
       console.log('profile_id sütunu zaten mevcut');
+    }
+  }
+
+  // Seri sütunlarını ekle (migration)
+  try {
+    db.exec(`ALTER TABLE stories ADD COLUMN series_id INTEGER REFERENCES series(id)`);
+    console.log('series_id sütunu eklendi');
+  } catch (error) {
+    if (!error.message.includes('duplicate column name')) {
+      console.log('series_id sütunu zaten mevcut');
+    }
+  }
+
+  try {
+    db.exec(`ALTER TABLE stories ADD COLUMN series_order INTEGER`);
+    console.log('series_order sütunu eklendi');
+  } catch (error) {
+    if (!error.message.includes('duplicate column name')) {
+      console.log('series_order sütunu zaten mevcut');
+    }
+  }
+
+  try {
+    db.exec(`ALTER TABLE stories ADD COLUMN series_title TEXT`);
+    console.log('series_title sütunu eklendi');
+  } catch (error) {
+    if (!error.message.includes('duplicate column name')) {
+      console.log('series_title sütunu zaten mevcut');
     }
   }
 
@@ -395,23 +442,6 @@ const statements = {
   `),
   getMaxQueuePos: db.prepare(`
     SELECT COALESCE(MAX(position), 0) as maxpos FROM queue
-  `),
-
-  searchStoriesByTitle: db.prepare(`
-    SELECT s.*, a.file_name, a.file_path, a.voice_id
-    FROM stories s
-    LEFT JOIN audio_files a ON s.id = a.story_id
-    WHERE s.custom_topic LIKE ? OR s.story_type LIKE ?
-    ORDER BY s.created_at DESC
-    LIMIT ?
-  `),
-  searchStoriesByContent: db.prepare(`
-    SELECT s.*, a.file_name, a.file_path, a.voice_id
-    FROM stories s
-    LEFT JOIN audio_files a ON s.id = a.story_id
-    WHERE s.story_text LIKE ?
-    ORDER BY s.created_at DESC
-    LIMIT ?
   `),
 };
 
@@ -741,22 +771,6 @@ const storyDb = {
     }
   },
 
-      if (useFTS) {
-        try {
-          // FTS5 query - escape special characters and use Unicode-safe handling
-          const ftsQuery = searchTerm
-            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-          if (ftsQuery.length > 0) {
-            const rows = statements.searchStoriesFTS.all(ftsQuery, limit);
-            return this.processStoryRows(rows);
-          }
-        } catch (ftsError) {
-          console.log('FTS search failed, falling back to basic search:', ftsError.message);
-        }
-      },
-
   searchStoriesByTitle(query, limit = MAX_SEARCH_LIMIT) {
     try {
       if (!query || typeof query !== 'string' || query.trim().length === 0) {
@@ -969,6 +983,103 @@ const storyDb = {
       };
     }
     return null;
+  },
+
+  // Series management functions
+  createSeries(title, description = '', profileId = null, characterInfo = {}) {
+    const stmt = db.prepare(`
+      INSERT INTO series (title, description, profile_id, character_info)
+      VALUES (?, ?, ?, ?)
+    `);
+    const result = stmt.run(title, description, profileId, JSON.stringify(characterInfo));
+    return result.lastInsertRowid;
+  },
+
+  getSeries() {
+    const stmt = db.prepare(`
+      SELECT s.*, COUNT(st.id) as story_count
+      FROM series s
+      LEFT JOIN stories st ON s.id = st.series_id
+      GROUP BY s.id
+      ORDER BY s.created_at DESC
+    `);
+    return stmt.all().map(row => ({
+      ...row,
+      character_info: row.character_info ? JSON.parse(row.character_info) : {}
+    }));
+  },
+
+  getSeriesById(id) {
+    const stmt = db.prepare('SELECT * FROM series WHERE id = ?');
+    const row = stmt.get(id);
+    if (row) {
+      return {
+        ...row,
+        character_info: row.character_info ? JSON.parse(row.character_info) : {}
+      };
+    }
+    return null;
+  },
+
+  updateSeries(id, updates) {
+    const fields = [];
+    const values = [];
+
+    if (updates.title !== undefined) {
+      fields.push('title = ?');
+      values.push(updates.title);
+    }
+    if (updates.description !== undefined) {
+      fields.push('description = ?');
+      values.push(updates.description);
+    }
+    if (updates.characterInfo !== undefined) {
+      fields.push('character_info = ?');
+      values.push(JSON.stringify(updates.characterInfo));
+    }
+
+    if (fields.length > 0) {
+      fields.push('updated_at = CURRENT_TIMESTAMP');
+      const stmt = db.prepare(`UPDATE series SET ${fields.join(', ')} WHERE id = ?`);
+      values.push(id);
+      return stmt.run(...values);
+    }
+    return null;
+  },
+
+  deleteSeries(id) {
+    // Önce seriye ait tüm hikayeleri güncelle (series_id'yi null yap)
+    const updateStoriesStmt = db.prepare('UPDATE stories SET series_id = NULL, series_order = NULL, series_title = NULL WHERE series_id = ?');
+    updateStoriesStmt.run(id);
+
+    // Seriyi sil
+    const deleteStmt = db.prepare('DELETE FROM series WHERE id = ?');
+    return deleteStmt.run(id);
+  },
+
+  getStoriesBySeries(seriesId) {
+    const stmt = db.prepare(`
+      SELECT * FROM stories
+      WHERE series_id = ?
+      ORDER BY series_order ASC, created_at ASC
+    `);
+    return stmt.all();
+  },
+
+  addStoryToSeries(storyId, seriesId, seriesTitle, order = null) {
+    // Serideki maksimum order'ı bul
+    if (order === null) {
+      const maxOrderStmt = db.prepare('SELECT MAX(series_order) as max_order FROM stories WHERE series_id = ?');
+      const result = maxOrderStmt.get(seriesId);
+      order = (result.max_order || 0) + 1;
+    }
+
+    const stmt = db.prepare(`
+      UPDATE stories
+      SET series_id = ?, series_title = ?, series_order = ?
+      WHERE id = ?
+    `);
+    return stmt.run(seriesId, seriesTitle, order, storyId);
   },
 
   close() {
