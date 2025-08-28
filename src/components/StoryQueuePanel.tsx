@@ -17,6 +17,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  DragEndEvent
 } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 // CSS util kullanılmıyor, kaldırıldı
@@ -42,7 +43,7 @@ interface Story {
 
 interface RemoteStatus {
   playing: boolean
-  storyId?: string
+  storyId?: string | number
 }
 
 interface SortableStoryItemProps {
@@ -379,13 +380,13 @@ export default function StoryQueuePanel({
   const [currentIndex, setCurrentIndex] = useState(-1)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [search, setSearch] = useState('')
-  const [editTarget, setEditTarget] = useState(null)
+  const [editTarget, setEditTarget] = useState<Story | null>(null)
   const [editText, setEditText] = useState('')
   const [editTopic, setEditTopic] = useState('')
   const [shuffle, setShuffle] = useState(false)
   const [repeatAll, setRepeatAll] = useState(true)
   const [titles, setTitles] = useState<{ [key: string]: string }>({})
-  const [remoteStatus, setRemoteStatus] = useState({ playing: false })
+  const [remoteStatus, setRemoteStatus] = useState<RemoteStatus>({ playing: false })
   const [remoteLoading, setRemoteLoading] = useState(false)
 
   const refreshRemote = useCallback(async () => {
@@ -406,7 +407,7 @@ export default function StoryQueuePanel({
   }, []) // onRemoteStatusChange kaldırıldı
 
   useEffect(() => {
-    let id;
+    let id: number | null = null;
     const start = () => {
       refreshRemote();
       id = setInterval(refreshRemote, 5000);
@@ -431,7 +432,7 @@ export default function StoryQueuePanel({
     }
   }, [onRemoteStatusChange, remoteStatus])
 
-  async function remotePlayToggle(storyId) {
+  async function remotePlayToggle(storyId: string | number) {
     if (!storyId) return
     setRemoteLoading(true)
     try {
@@ -455,7 +456,7 @@ export default function StoryQueuePanel({
     })
   )
 
-  function handleDragEnd(event) {
+  function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over) return
 
@@ -484,7 +485,7 @@ export default function StoryQueuePanel({
       if (raw) {
         const ids = JSON.parse(raw)
         const mapped = ids
-          .map((id) => (localStories || []).find((s) => s.id === id))
+          .map((id: string | number) => (localStories || []).find((s) => s.id === id))
           .filter(Boolean)
         if (mapped.length > 0) {
           setQueue(mapped)
@@ -552,14 +553,14 @@ export default function StoryQueuePanel({
     return () => { alive = false }
   }, [queue, titles])
 
-  const persistQueue = (items) => {
+  const persistQueue = (items: Story[]) => {
     try {
-      const ids = items.map((s) => s.id)
+      const ids = items.map((s: Story) => s.id)
       localStorage.setItem('bedtime-queue-v1', JSON.stringify(ids))
     } catch (err) { console.warn('Queue persist failed', err) }
   }
 
-  const playAtIndex = (idx) => {
+  const playAtIndex = (idx: number) => {
     if (!queue || idx < 0 || idx >= queue.length) return
     const item = queue[idx]
     const audioUrl = item.audio ? getDbAudioUrl(item.audio.file_name) : item.audioUrl
@@ -633,20 +634,20 @@ export default function StoryQueuePanel({
 
   }, [queue, currentIndex, shuffle, repeatAll, setOnEnded])
 
-  const addToQueue = (story) => {
+  const addToQueue = (story: Story) => {
     if (!story) return
     if (queue.find((s) => s.id === story.id)) return
     const updated = [...queue, story]
     setQueue(updated)
     persistQueue(updated)
-    try { queueService.add(story.id) } catch { /* queue sync optional */ }
+    try { if (story.id) queueService.add(String(story.id)) } catch { /* queue sync optional */ }
   }
 
-  const removeFromQueue = (id) => {
+  const removeFromQueue = (id: string | number) => {
     const updated = queue.filter((s) => s.id !== id)
     setQueue(updated)
     persistQueue(updated)
-    try { queueService.remove(id) } catch { /* queue sync optional */ }
+    try { queueService.remove(String(id)) } catch { /* queue sync optional */ }
     if (currentIndex !== -1) {
       const idx = queue.findIndex((s) => s.id === id)
       if (idx !== -1 && idx <= currentIndex) {
@@ -730,7 +731,7 @@ export default function StoryQueuePanel({
                 }
                 setCurrentIndex(target)
                 const item = queue[target]
-                if (item) remotePlayToggle(item.id)
+                if (item && item.id) remotePlayToggle(item.id)
               }}
               disabled={remoteLoading || queue.length < 2}
               title="Önceki (Uzaktan)"
@@ -748,7 +749,7 @@ export default function StoryQueuePanel({
                 }
                 setCurrentIndex(target)
                 const item = queue[target]
-                if (item) remotePlayToggle(item.id)
+                if (item && item.id) remotePlayToggle(item.id)
               }}
               disabled={remoteLoading || queue.length < 2}
               title="Sonraki (Uzaktan)"
@@ -757,7 +758,7 @@ export default function StoryQueuePanel({
               variant="outline"
               size="sm"
               onClick={() => {
-                if (remoteStatus.playing) {
+                if (remoteStatus.playing && remoteStatus.storyId) {
                   remotePlayToggle(remoteStatus.storyId)
                 }
               }}
@@ -908,7 +909,7 @@ export default function StoryQueuePanel({
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditTarget(null)}>Vazgeç</Button>
               <Button onClick={async () => {
-                if (!editTarget || !onUpdateStory) { setEditTarget(null); return }
+                if (!editTarget || !editTarget.id || !onUpdateStory) { setEditTarget(null); return }
                 try {
                   await onUpdateStory(editTarget.id, { story: editText, customTopic: editTopic })
                   // local queue güncelle

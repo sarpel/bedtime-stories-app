@@ -21,11 +21,11 @@ interface Favorite {
   story_text?: string;
   story_type?: string;
   storyType?: string;
-  custom_topic?: string;
-  customTopic?: string;
+  custom_topic?: string | null;
+  customTopic?: string | null;
   created_at?: string;
   createdAt?: string;
-  audioUrl?: string;
+  audioUrl?: string | null;
   title?: string; // Add title property
 }
 

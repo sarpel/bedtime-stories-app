@@ -12,7 +12,6 @@ import { Brain, Volume2, MessageSquare, Save, RotateCcw, Settings as SettingsIco
 import { getDefaultSettings } from '@/services/configService.js'
 import VoiceSelector from './VoiceSelector.jsx'
 import ProfileSelector from './ProfileSelector'
-import PropTypes from 'prop-types'
 // Audio quality ve background music imports kaldırıldı - sadece basit ayarlar
 
 interface SettingsData {
@@ -783,10 +782,4 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
       </div>
     </div>
   )
-}
-
-Settings.propTypes = {
-  settings: PropTypes.object.isRequired,
-  onSettingsChange: PropTypes.func.isRequired,
-  onClose: PropTypes.func.isRequired,
 }

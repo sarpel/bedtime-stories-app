@@ -8,18 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { User, Plus, Edit, Trash2, Check } from 'lucide-react'
 import { toast } from 'sonner'
-import useProfiles from '../hooks/useProfiles'
-
-interface Profile {
-  id: string
-  name: string
-  age: number
-  gender: 'male' | 'female' | 'other'
-  custom_prompt?: string
-  is_active: boolean
-  created_at?: string
-  updated_at?: string
-}
+import useProfiles, { Profile } from '../hooks/useProfiles'
 
 interface ProfileSelectorProps {
   onProfileSelect?: (profile: Profile) => void

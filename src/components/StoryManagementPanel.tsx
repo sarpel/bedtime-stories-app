@@ -23,6 +23,7 @@ interface StoryManagementPanelProps {
   isFavorite: (story: Story) => boolean;
   onGenerateAudio: (story: Story) => void;
   isGeneratingAudio: boolean;
+  onClearHistory: () => void;
   // Audio control props
   audioIsPlaying: boolean;
   audioIsPaused: boolean;

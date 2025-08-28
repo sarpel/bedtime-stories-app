@@ -143,8 +143,8 @@ export interface Story {
   storyType?: string;
   story_type?: string;
   // Custom topic - can be in different formats
-  customTopic?: string | null | undefined;
-  custom_topic?: string | null | undefined;
+  customTopic?: string | null;
+  custom_topic?: string | null;
   // Creation date - can be in different formats
   createdAt?: string;
   created_at?: string;

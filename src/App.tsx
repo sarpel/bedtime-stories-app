@@ -7,7 +7,6 @@ import StoryCreator from './components/StoryCreator.jsx'
 import FavoritesPanel from './components/FavoritesPanel.jsx'
 import StoryManagementPanel from './components/StoryManagementPanel.jsx'
 import AnalyticsDashboard from './components/AnalyticsDashboard.jsx'
-import PerformanceMonitor from './components/PerformanceMonitor.jsx'
 import StoryQueuePanel from './components/StoryQueuePanel.jsx'
 import SearchPanel from './components/SearchPanel.jsx'
 import { LLMService } from './services/llmService.js'
@@ -19,7 +18,7 @@ import { useStoryHistory } from './hooks/useStoryHistory.js'
 import { useStoryDatabase } from './hooks/useStoryDatabase.js'
 import { useAudioPlayer } from './hooks/useAudioPlayer.js'
 import { useIsMobile } from './hooks/use-mobile.js'
-import useProfiles from './hooks/useProfiles.ts'
+import useProfiles from './hooks/useProfiles'
 import ApiKeyHelp from './components/ApiKeyHelp.jsx'
 import safeLocalStorage from './utils/safeLocalStorage.js'
 // Pi Zero optimizations
@@ -30,15 +29,66 @@ import { Toaster } from '@/components/ui/sonner.jsx'
 import { toast } from 'sonner'
 import { Story } from './utils/storyTypes'
 
+// Import SettingsData from Settings component
+interface SettingsData {
+  llmProvider: string
+  openaiLLM: {
+    endpoint: string
+    modelId: string
+    apiKey: string
+  }
+  geminiLLM: {
+    endpoint: string
+    modelId: string
+    apiKey: string
+  }
+  llmEndpoint: string
+  llmModelId: string
+  llmApiKey: string
+  ttsProvider: string
+  elevenlabs: {
+    endpoint: string
+    modelId: string
+    voiceId: string
+    apiKey: string
+  }
+  geminiTTS: {
+    endpoint: string
+    modelId: string
+    voiceId: string
+    apiKey: string
+  }
+  ttsEndpoint: string
+  ttsModelId: string
+  voiceId: string
+  ttsApiKey: string
+  customPrompt: string
+  customInstructions: string
+  storyLength: string
+  theme: string
+  voiceSettings: {
+    speed: number
+    pitch: number
+    volume: number
+    stability: number
+    similarityBoost: number
+  }
+  llmSettings: {
+    temperature: number
+    maxTokens: number
+  }
+}
+
+// AppState extends SettingsData with additional app-specific properties
+interface AppState extends SettingsData {
+  activeProfile?: string;
+}
+
 // TypeScript interfaces
 interface RemotePlaybackState {
   playing: boolean;
   storyId?: string | number;
   file?: string;
-}
-
-interface SettingsState {
-  [key: string]: any; // Using any for now due to complex settings structure
 }
 
 function App() {
@@ -65,7 +115,7 @@ function App() {
   const [remoteProgressPct, setRemoteProgressPct] = useState<number>(0) // bilinmiyorsa animasyonlu placeholder
   const [showMiniPlayer, setShowMiniPlayer] = useState<boolean>(false)
 
-  const [settings, setSettings] = useState<SettingsState>(() => {
+  const [settings, setSettings] = useState<AppState>(() => {
     // localStorage'dan ayarları güvenli şekilde yükle
     const savedSettings = safeLocalStorage.get('bedtime-stories-settings')
     const defaults = getDefaultSettings()
@@ -91,7 +141,7 @@ function App() {
   })
 
   // Ayarları localStorage'a kaydet
-  const updateSettings = (newSettings: SettingsState) => {
+  const updateSettings = (newSettings: AppState) => {
     try {
       console.log('🔧 App updateSettings:', newSettings)
 
@@ -170,7 +220,7 @@ function App() {
     if (activeProfile) {
       updateSettings({
         ...settings,
-        activeProfile: activeProfile
+        activeProfile: activeProfile.id
       })
     }
   }, [activeProfile])
@@ -486,6 +536,7 @@ function App() {
     const storyId = story.id ? String(story.id) : undefined
     const storyText = story.story_text || story.story
     await generateAudioForStory(storyId, storyText)
+  }
   // Wrapper function for StoryQueuePanel compatibility
   const generateAudioForStoryId = async (storyId: string | number) => {
     // Find the story by ID to get the story text
@@ -494,6 +545,7 @@ function App() {
       const storyText = foundStory.story_text || foundStory.story
       await generateAudioForStory(String(storyId), storyText)
     }
+  }
   // Wrapper function for StoryQueuePanel playAudio compatibility
   const playAudioWrapper = (audioUrl: string, storyId: string | number) => {
     playAudio(audioUrl, String(storyId))
@@ -777,7 +829,6 @@ function App() {
             onDeleteStory={hybridDeleteStory}
             onClearHistory={clearHistory}
             onClose={() => setShowStoryManagement(false)}
-            settings={settings}
             onToggleFavorite={handleToggleFavorite}
             isFavorite={isFavorite}
             onGenerateAudio={generateAudioForStoryWrapper}
@@ -848,25 +899,17 @@ function App() {
           <AnalyticsDashboard onClose={() => setShowAnalytics(false)} />
         )}
 
-        {/* Performance Monitor */}
-        {showPerformanceMonitor && (
-          <PerformanceMonitor
-            isOpen={showPerformanceMonitor}
-            onClose={() => setShowPerformanceMonitor(false)}
-          />
-        )}
-
         {/* Search Panel */}
         {showSearch && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <SearchPanel
               onClose={() => setShowSearch(false)}
               onStorySelect={(story) => {
-                setStory(story.story_text || story.story)
-                setSelectedStoryType(story.story_type || story.storyType)
+                setStory(story.story_text || story.story || '')
+                setSelectedStoryType(story.story_type || story.storyType || '')
                 setCustomTopic(story.custom_topic || story.customTopic || '')
-                setCurrentStoryId(String(story.id))
-                const audioSrc = story.audio ? getDbAudioUrl(story.audio.file_name) : story.audioUrl;
+                setCurrentStoryId(String(story.id || ''))
+              const audioSrc = story.audio?.file_name ? getDbAudioUrl(story.audio.file_name) : null;
                 if (audioSrc) {
                   setAudioUrl(audioSrc)
                 }
@@ -885,19 +928,30 @@ function App() {
           <StoryQueuePanel
             stories={dbStories.length > 0 ? dbStories.map(dbStory => ({
               id: dbStory.id,
-              story: dbStory.story_text,
-              story_text: dbStory.story_text,
-              storyType: dbStory.story_type,
-              story_type: dbStory.story_type,
-              customTopic: dbStory.custom_topic,
-              custom_topic: dbStory.custom_topic,
-              createdAt: dbStory.created_at,
-              created_at: dbStory.created_at,
+              story: dbStory.story_text || '',
+              story_text: dbStory.story_text || '',
+              storyType: dbStory.story_type || '',
+              story_type: dbStory.story_type || '',
+              customTopic: dbStory.custom_topic ?? undefined,
+              custom_topic: dbStory.custom_topic ?? undefined,
+              createdAt: dbStory.created_at || '',
+              created_at: dbStory.created_at || '',
               audioUrl: dbStory.audio ? getDbAudioUrl(dbStory.audio.file_name) : null,
-              audio: dbStory.audio,
+              audio: dbStory.audio || undefined,
               audioGenerated: !!dbStory.audio
-            })) : history}
-            onDeleteStory={hybridDeleteStory}
+            })) : history.map(historyItem => ({
+              id: historyItem.id,
+              story: historyItem.story || '',
+              story_text: historyItem.story || '',
+              storyType: historyItem.storyType || '',
+              story_type: historyItem.storyType || '',
+              customTopic: historyItem.customTopic ?? undefined,
+              custom_topic: historyItem.customTopic ?? undefined,
+              createdAt: historyItem.createdAt || '',
+              created_at: historyItem.createdAt || '',
+              audioUrl: historyItem.audioUrl,
+              audioGenerated: historyItem.audioGenerated
+            }))}
             onUpdateStory={hybridUpdateStory}
             onSelectStory={(story) => {
               setStory(story.story_text || story.story)
@@ -922,7 +976,7 @@ function App() {
             audioIsMuted={audioIsMuted}
             audioPlaybackRate={audioPlaybackRate}
             audioCurrentStoryId={audioCurrentStoryId || ''}
-            playAudio={playAudio}
+            playAudio={playAudioWrapper}
             stopAudio={stopAudio}
             audioToggleMute={audioToggleMute}
             setVolumeLevel={setVolumeLevel}
