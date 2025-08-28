@@ -75,6 +75,13 @@ SETUP_*.md
 *.temp
 .cache/
 
+# JavaScript and JSX files that were converted to TypeScript/TSX (prevent Google Drive placeholders)
+backend/*.js
+backend/**/*.js
+src/**/*.js
+src/**/*.jsx
+!**/eslint.config.js
+
 # Package manager lock files (keep package-lock.json, ignore others)
 yarn.lock
 pnpm-lock.yaml
