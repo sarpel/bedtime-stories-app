@@ -6,7 +6,7 @@ import tseslint from '@typescript-eslint/eslint-plugin'
 import tsparser from '@typescript-eslint/parser'
 
 export default [
-  { ignores: ['dist', 'coverage', 'backend/coverage', 'backend/coverage/**'] },
+  { ignores: ['dist', 'coverage', 'backend/coverage', 'backend/coverage/**', 'backend/dist/**'] },
   {
     files: ['src/**/*.{js,jsx,ts,tsx}', '*.{js,ts}', 'scripts/**/*.{js,ts}'],
     languageOptions: {
@@ -33,8 +33,7 @@ export default [
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-require-imports': 'off',
       '@typescript-eslint/no-empty-object-type': 'off',
-      'react-hooks/exhaustive-deps': 'off',
-      'no-undef': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
       'react-refresh/only-export-components': [
         'warn',
         {
@@ -49,6 +48,33 @@ export default [
           ],
         },
       ],
+    },
+  },
+  // Backend TypeScript files
+  {
+    files: ['backend/**/*.{js,ts}'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: globals.node,
+      parser: tsparser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'commonjs',
+      },
+    },
+    plugins: {
+      '@typescript-eslint': tseslint,
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      ...tseslint.configs.recommended.rules,
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
+      'no-redeclare': 'off',
+      'no-console': 'off',
     },
   },
   {

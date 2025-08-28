@@ -1,10 +1,15 @@
 // eslint.config.js - Backend
-module.exports = [
+import js from '@eslint/js'
+import tseslint from '@typescript-eslint/eslint-plugin'
+import tsparser from '@typescript-eslint/parser'
+
+export default [
   {
-    files: ['**/*.js'],
+    files: ['**/*.{js,ts}'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'commonjs',
+      parser: tsparser,
       globals: {
         process: 'readonly',
         console: 'readonly',
@@ -17,25 +22,31 @@ module.exports = [
         global: 'readonly'
       }
     },
+    plugins: {
+      '@typescript-eslint': tseslint,
+    },
     rules: {
+      ...js.configs.recommended.rules,
+      ...tseslint.configs.recommended.rules,
       // Code quality
-      'no-unused-vars': ['error', { 
+      '@typescript-eslint/no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
-        varsIgnorePattern: '^[A-Z_]' 
+        varsIgnorePattern: '^[A-Z_]'
       }],
       'no-console': 'off', // We use logger in production
       'prefer-const': 'error',
       'no-var': 'error',
       'eqeqeq': 'error',
       'curly': 'error',
+      '@typescript-eslint/ban-ts-comment': 'off',
       'no-eval': 'error',
       'no-implied-eval': 'error',
       'no-new-func': 'error',
       'no-script-url': 'error',
-      
+
       // Performance
       'no-loop-func': 'error',
       'no-await-in-loop': 'warn'
     }
   }
-];
+]

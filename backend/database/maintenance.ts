@@ -234,7 +234,7 @@ class DatabaseMaintenance {
 
     try {
       const result = db.prepare('PRAGMA integrity_check;').get();
-// @ts-ignore
+// @ts-expect-error - SQLite pragma result typing
       const isValid = result['integrity_check'] === 'ok';
 
       if (isValid) {

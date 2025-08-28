@@ -3,7 +3,7 @@
 import Database from 'better-sqlite3';
 import * as path from 'path';
 import * as fs from 'fs';
-import * as crypto from 'crypto';
+import { randomBytes } from 'crypto';
 
 // Type definitions
 interface Story {
@@ -90,26 +90,7 @@ db.pragma('page_size = 4096'); // Optimal for Pi Zero's ARM architecture
 
 // Veritabanı tablolarını oluştur
 function initDatabase(): void {
-  // Stories tablosu
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS stories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      story_text TEXT NOT NULL,
-      story_type TEXT NOT NULL,
-      custom_topic TEXT,
-  categories TEXT, -- JSON array (örn: ["macera","uyku"])
-      profile_id INTEGER, -- Hangi profil için oluşturulduğu
-      is_favorite INTEGER DEFAULT 0,
-      is_shared INTEGER DEFAULT 0,
-      share_id TEXT UNIQUE,
-      shared_at DATETIME,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      FOREIGN KEY (profile_id) REFERENCES profiles(id)
-    )
-  `);
-
-  // Profiles tablosu
+  // Profiles tablosu (önce oluşturulmalı çünkü stories tablosu buna referans verir)
   db.exec(`
     CREATE TABLE IF NOT EXISTS profiles (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -121,6 +102,25 @@ function initDatabase(): void {
       is_active INTEGER DEFAULT 0, -- Only one profile can be active
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Stories tablosu
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS stories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      story_text TEXT NOT NULL,
+      story_type TEXT NOT NULL,
+      custom_topic TEXT,
+      categories TEXT, -- JSON array (örn: ["macera","uyku"])
+      profile_id INTEGER, -- Hangi profil için oluşturulduğu
+      is_favorite INTEGER DEFAULT 0,
+      is_shared INTEGER DEFAULT 0,
+      share_id TEXT UNIQUE,
+      shared_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (profile_id) REFERENCES profiles(id)
     )
   `);
 
@@ -465,7 +465,7 @@ const MAX_SEARCH_LIMIT = 50;
 
 // Utility function to generate unique share ID
 function generateShareId() {
-  return crypto.randomBytes(16).toString('hex');
+  return randomBytes(16).toString('hex');
 }
 
 // Database functions

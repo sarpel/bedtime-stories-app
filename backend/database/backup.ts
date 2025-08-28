@@ -20,7 +20,7 @@ function createBackup(): string {
     const sourceDb = new Database(DB_PATH, { readonly: true });
     const backupDb = new Database(backupPath);
 
-    // @ts-ignore
+    // @ts-expect-error - better-sqlite3 backup method typing
     sourceDb.backup(backupDb);
 
     sourceDb.close();
