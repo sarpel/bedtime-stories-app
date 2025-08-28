@@ -1,10 +1,15 @@
-// health-check.js
-const http = require('http');
+// health-check.ts
+import * as http from 'http';
 
-const PORT = process.env.PORT || 3001;
+const PORT: string | number = process.env.PORT || 3001;
+
+interface HealthCheckResult {
+  status: 'healthy';
+  data: any;
+}
 
 // Health check configuration
-const healthCheck = () => {
+const healthCheck = (): Promise<HealthCheckResult> => {
   const options = {
     hostname: 'localhost',
     port: PORT,
@@ -13,7 +18,7 @@ const healthCheck = () => {
     timeout: 5000
   };
 
-  return new Promise((resolve, reject) => {
+  return new Promise<HealthCheckResult>((resolve, reject) => {
     const req = http.request(options, (res) => {
       let data = '';
       res.on('data', (chunk) => {
@@ -55,4 +60,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = healthCheck;
+export default healthCheck;

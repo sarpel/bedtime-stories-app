@@ -1,35 +1,36 @@
-// database/backup.js
-const fs = require('fs');
-const path = require('path');
-const Database = require('better-sqlite3');
+// database/backup.ts
+import * as fs from 'fs';
+import * as path from 'path';
+import Database from 'better-sqlite3';
 
-const DB_PATH = process.env.DATABASE_PATH || './database/stories.db';
-const BACKUP_DIR = './database/backups';
+const DB_PATH: string = process.env.DATABASE_PATH || './database/stories.db';
+const BACKUP_DIR: string = './database/backups';
 
 // Ensure backup directory exists
 if (!fs.existsSync(BACKUP_DIR)) {
   fs.mkdirSync(BACKUP_DIR, { recursive: true });
 }
 
-function createBackup() {
+function createBackup(): string {
   try {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const backupPath = path.join(BACKUP_DIR, `stories-backup-${timestamp}.db`);
-    
+
     // Create backup using SQLite backup API
     const sourceDb = new Database(DB_PATH, { readonly: true });
     const backupDb = new Database(backupPath);
-    
+
+    // @ts-ignore
     sourceDb.backup(backupDb);
-    
+
     sourceDb.close();
     backupDb.close();
-    
+
     console.log(`Database backup created: ${backupPath}`);
-    
+
     // Clean up old backups (keep last 7 days)
     cleanupOldBackups();
-    
+
     return backupPath;
   } catch (error) {
     console.error('Backup failed:', error);
@@ -37,7 +38,7 @@ function createBackup() {
   }
 }
 
-function cleanupOldBackups() {
+function cleanupOldBackups(): void {
   try {
     const files = fs.readdirSync(BACKUP_DIR);
     const backupFiles = files
@@ -47,11 +48,11 @@ function cleanupOldBackups() {
         path: path.join(BACKUP_DIR, file),
         mtime: fs.statSync(path.join(BACKUP_DIR, file)).mtime
       }))
-      .sort((a, b) => b.mtime - a.mtime);
+      .sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
 
     // Keep only the 7 most recent backups
     const filesToDelete = backupFiles.slice(7);
-    
+
     filesToDelete.forEach(file => {
       fs.unlinkSync(file.path);
       console.log(`Deleted old backup: ${file.name}`);
@@ -61,21 +62,21 @@ function cleanupOldBackups() {
   }
 }
 
-function restoreBackup(backupPath) {
+function restoreBackup(backupPath: string): boolean {
   try {
     if (!fs.existsSync(backupPath)) {
       throw new Error(`Backup file not found: ${backupPath}`);
     }
-    
+
     // Create a backup of current database before restoring
     const currentBackupPath = path.join(BACKUP_DIR, `stories-pre-restore-${Date.now()}.db`);
     fs.copyFileSync(DB_PATH, currentBackupPath);
     console.log(`Current database backed up to: ${currentBackupPath}`);
-    
+
     // Restore the backup
     fs.copyFileSync(backupPath, DB_PATH);
     console.log(`Database restored from: ${backupPath}`);
-    
+
     return true;
   } catch (error) {
     console.error('Restore failed:', error);
@@ -86,7 +87,7 @@ function restoreBackup(backupPath) {
 // CLI interface
 if (require.main === module) {
   const command = process.argv[2];
-  
+
   switch (command) {
     case 'create':
       createBackup();
@@ -125,7 +126,7 @@ if (require.main === module) {
   }
 }
 
-module.exports = {
+export {
   createBackup,
   restoreBackup,
   cleanupOldBackups

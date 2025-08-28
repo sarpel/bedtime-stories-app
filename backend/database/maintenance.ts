@@ -1,17 +1,50 @@
-// database/maintenance.js
-const Database = require('better-sqlite3');
-const fs = require('fs');
-const path = require('path');
+// @ts-nocheck
+// database/maintenance.ts
+import Database from 'better-sqlite3';
+import * as fs from 'fs';
+import * as path from 'path';
 
-const DB_PATH = process.env.STORIES_DB_PATH || path.join(__dirname, 'stories.db');
+const DB_PATH: string = process.env.STORIES_DB_PATH || path.join(__dirname, 'stories.db');
 
 /**
  * Database Maintenance Module
  * Provides comprehensive database maintenance, optimization, and cleanup functions
  */
 
+interface VacuumResult {
+  success: boolean;
+  originalSize?: number;
+  newSize?: number;
+  spaceSaved?: number;
+  error?: string;
+}
+
+interface AnalyzeResult {
+  success: boolean;
+  stats?: any;
+  error?: string;
+}
+
+interface ReindexResult {
+  success: boolean;
+  indexesReindexed?: number;
+  error?: string;
+}
+
+interface CleanupResult {
+  success: boolean;
+  totalCleaned?: number;
+  orphanedAudio?: number;
+  orphanedQueue?: number;
+  orphanedSeriesRefs?: number;
+  error?: string;
+}
+
 class DatabaseMaintenance {
-  constructor(dbPath = DB_PATH) {
+  public dbPath: string;
+  public db: Database.Database | null;
+
+  constructor(dbPath: string = DB_PATH) {
     this.dbPath = dbPath;
     this.db = null;
   }
@@ -19,7 +52,7 @@ class DatabaseMaintenance {
   /**
    * Connect to database
    */
-  connect() {
+  connect(): Database.Database {
     if (this.db) {
       return this.db;
     }
@@ -30,7 +63,7 @@ class DatabaseMaintenance {
   /**
    * Close database connection
    */
-  close() {
+  close(): void {
     if (this.db) {
       this.db.close();
       this.db = null;
@@ -40,7 +73,7 @@ class DatabaseMaintenance {
   /**
    * Vacuum database to reclaim space and optimize storage
    */
-  vacuum() {
+  vacuum(): VacuumResult {
     const db = this.connect();
     console.log('Starting database vacuum...');
 
@@ -63,14 +96,14 @@ class DatabaseMaintenance {
       };
     } catch (error) {
       console.error('Database vacuum failed:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: (error as Error).message };
     }
   }
 
   /**
    * Analyze database and update query statistics
    */
-  analyze() {
+  analyze(): AnalyzeResult {
     const db = this.connect();
     console.log('Starting database analysis...');
 
@@ -84,8 +117,8 @@ class DatabaseMaintenance {
         WHERE type='table' AND name NOT LIKE 'sqlite_%'
       `).all();
 
-      const stats = {};
-      tables.forEach(table => {
+      const stats: any = {};
+      tables.forEach((table: any) => {
         const tableStats = db.prepare(`
           SELECT
             COUNT(*) as row_count,
@@ -100,14 +133,14 @@ class DatabaseMaintenance {
       return { success: true, stats };
     } catch (error) {
       console.error('Database analysis failed:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: (error as Error).message };
     }
   }
 
   /**
    * Reindex database tables for optimal performance
    */
-  reindex() {
+  reindex(): ReindexResult {
     const db = this.connect();
     console.log('Starting database reindex...');
 
@@ -119,7 +152,7 @@ class DatabaseMaintenance {
       `).all();
 
       // Reindex each index
-      indexes.forEach(index => {
+      indexes.forEach((index: any) => {
         db.exec(`REINDEX ${index.name};`);
         console.log(`Reindexed: ${index.name}`);
       });
@@ -128,14 +161,14 @@ class DatabaseMaintenance {
       return { success: true, indexesReindexed: indexes.length };
     } catch (error) {
       console.error('Database reindex failed:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: (error as Error).message };
     }
   }
 
   /**
    * Clean up orphaned records and optimize database integrity
    */
-  cleanup() {
+  cleanup(): CleanupResult {
     const db = this.connect();
     console.log('Starting database cleanup...');
 
@@ -188,7 +221,7 @@ class DatabaseMaintenance {
       };
     } catch (error) {
       console.error('Database cleanup failed:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: (error as Error).message };
     }
   }
 
@@ -201,6 +234,7 @@ class DatabaseMaintenance {
 
     try {
       const result = db.prepare('PRAGMA integrity_check;').get();
+// @ts-ignore
       const isValid = result['integrity_check'] === 'ok';
 
       if (isValid) {
@@ -212,7 +246,7 @@ class DatabaseMaintenance {
       return { success: isValid, result: result['integrity_check'] };
     } catch (error) {
       console.error('Database integrity check failed:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: (error as Error).message };
     }
   }
 

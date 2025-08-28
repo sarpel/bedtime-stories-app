@@ -1,29 +1,30 @@
 // Veritabanı bağlantısını test eden basit script
+// @ts-ignore
 const storyDb = require('./database/db.js');
 
-async function testDatabase() {
+async function testDatabase(): Promise<void> {
   console.log('🔍 Veritabanı bağlantısı test ediliyor...');
-  
+
   try {
     console.log('✅ Veritabanı bağlantısı başarılı');
-    
+
     // Tüm masalları getir
     const stories = storyDb.getAllStories();
     console.log('📊 Toplam masal sayısı:', stories.length);
-    
+
     // Favori masalları getir
-    const favorites = stories.filter(story => story.is_favorite === 1);
+    const favorites = stories.filter((story: any) => story.is_favorite === 1);
     console.log('💖 Favori masal sayısı:', favorites.length);
-    
+
     // Son 5 masalı göster
     const recentStories = stories.slice(-5);
     console.log('📚 Son 5 masal:');
-    recentStories.forEach(story => {
+    recentStories.forEach((story: any) => {
       console.log(`  - ID: ${story.id}, Type: ${story.story_type}, Favorite: ${story.is_favorite}, Date: ${story.created_at}`);
     });
-    
+
     console.log('✅ Test tamamlandı');
-    
+
   } catch (error) {
     console.error('❌ Veritabanı test hatası:', error);
   }

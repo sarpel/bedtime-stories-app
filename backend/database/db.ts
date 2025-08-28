@@ -1,12 +1,70 @@
-// database/db.js
-const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
-const crypto = require('crypto');
+// @ts-nocheck
+// database/db.ts
+import Database from 'better-sqlite3';
+import * as path from 'path';
+import * as fs from 'fs';
+import * as crypto from 'crypto';
+
+// Type definitions
+interface Story {
+  id?: number;
+  story_text: string;
+  story_type: string;
+  custom_topic?: string | null;
+  categories?: string | null;
+  profile_id?: number | null;
+  is_favorite?: number;
+  is_shared?: number;
+  share_id?: string | null;
+  shared_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  file_name?: string;
+  file_path?: string;
+  voice_id?: string;
+}
+
+interface Profile {
+  id?: number;
+  name: string;
+  age?: number;
+  gender?: string;
+  preferences?: any;
+  custom_prompt?: string | null;
+  is_active?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface AudioFile {
+  id?: number;
+  story_id: number;
+  file_name: string;
+  file_path: string;
+  voice_id: string;
+  voice_settings?: string;
+  created_at?: string;
+}
+
+interface StoryWithAudio extends Story {
+  audio_id?: number;
+  voice_settings?: string;
+}
+
+interface SearchResult extends Story {
+  rank?: number;
+}
+
+interface DatabaseConfig {
+  readonly?: boolean;
+  fileMustExist?: boolean;
+  timeout?: number;
+  verbose?: any;
+}
 
 // Veritabanı ve audio dizinlerinin konumu (ortam değişkeni ile override edilebilir)
-const DB_PATH = process.env.STORIES_DB_PATH || path.join(__dirname, 'stories.db');
-const AUDIO_DIR = process.env.AUDIO_DIR_PATH || path.join(__dirname, '../audio');
+const DB_PATH: string = process.env.STORIES_DB_PATH || path.join(__dirname, 'stories.db');
+const AUDIO_DIR: string = process.env.AUDIO_DIR_PATH || path.join(__dirname, '../audio');
 
 // Audio klasörünü oluştur
 if (!fs.existsSync(AUDIO_DIR)) {
@@ -31,7 +89,7 @@ db.pragma('mmap_size = 33554432'); // 32MB memory map (reduced for Pi Zero)
 db.pragma('page_size = 4096'); // Optimal for Pi Zero's ARM architecture
 
 // Veritabanı tablolarını oluştur
-function initDatabase() {
+function initDatabase(): void {
   // Stories tablosu
   db.exec(`
     CREATE TABLE IF NOT EXISTS stories (
@@ -413,33 +471,33 @@ function generateShareId() {
 // Database functions
 const storyDb = {
   // Story operations
-  createStory(storyText, storyType, customTopic = null, categories = []) {
+  createStory(storyText: string, storyType: string, customTopic: string | null = null, categories: string[] | string | null = null): number {
     try {
       const categoriesValue = Array.isArray(categories) ? JSON.stringify(categories) : (categories || null);
       const result = statements.insertStory.run(storyText, storyType, customTopic, categoriesValue);
-      return result.lastInsertRowid;
+      return result.lastInsertRowid as number;
     } catch (error) {
       console.error('Masal oluşturma hatası:', error);
       throw error;
     }
   },
 
-  getStory(id) {
+  getStory(id: number): Story | null {
     try {
-      return statements.getStoryById.get(id);
+      return statements.getStoryById.get(id) as Story | null;
     } catch (error) {
       console.error('Masal getirme hatası:', error);
       throw error;
     }
   },
 
-  getAllStories() {
+  getAllStories(): Story[] {
     try {
       const rows = statements.getAllStories.all();
       // Group audio files with stories
-      const storiesMap = new Map();
+      const storiesMap = new Map<number, Story>();
 
-      rows.forEach(row => {
+      rows.forEach((row: any) => {
         if (!storiesMap.has(row.id)) {
           storiesMap.set(row.id, {
             id: row.id,

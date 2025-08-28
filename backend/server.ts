@@ -1,4 +1,5 @@
-// server.js
+// @ts-nocheck
+// server.ts
 
 // Gerekli paketleri import et (env yükleme fallback mantığı için fs/path önce)
 const fs = require('fs');
