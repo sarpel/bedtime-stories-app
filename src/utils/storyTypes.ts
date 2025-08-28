@@ -132,3 +132,69 @@ export const extractStoryTitle = (storyText: string): string => {
 export const popularStoryTypes: StoryType[] = storyTypes.filter(type =>
   ['princess', 'unicorn', 'fairy', 'magic'].includes(type.id)
 )
+
+// Unified Story interface for the entire application
+export interface Story {
+  id?: string | number;
+  // Story content - can be in different formats
+  story?: string;
+  story_text?: string;
+  // Story type - can be in different formats
+  storyType?: string;
+  story_type?: string;
+  // Custom topic - can be in different formats
+  customTopic?: string | null | undefined;
+  custom_topic?: string | null | undefined;
+  // Creation date - can be in different formats
+  createdAt?: string;
+  created_at?: string;
+  // Audio information
+  audio?: {
+    file_name: string;
+  } | null;
+  audioUrl?: string | null;
+  audioGenerated?: boolean;
+  // Favorite status
+  is_favorite?: boolean | number;
+  isFavorite?: boolean;
+  // Additional metadata
+  updatedAt?: string;
+  categories?: string[];
+}
+
+// Helper functions to normalize Story properties
+export const normalizeStory = (story: any): Story => {
+  return {
+    id: story.id,
+    story: story.story || story.story_text,
+    story_text: story.story_text || story.story,
+    storyType: story.storyType || story.story_type,
+    story_type: story.story_type || story.storyType,
+    customTopic: story.customTopic !== undefined ? story.customTopic : story.custom_topic,
+    custom_topic: story.custom_topic !== undefined ? story.custom_topic : story.customTopic,
+    createdAt: story.createdAt || story.created_at,
+    created_at: story.created_at || story.createdAt,
+    audio: story.audio,
+    audioUrl: story.audioUrl,
+    audioGenerated: story.audioGenerated,
+    is_favorite: story.is_favorite,
+    isFavorite: typeof story.is_favorite === 'boolean' ? story.is_favorite : Boolean(story.is_favorite),
+    updatedAt: story.updatedAt,
+    categories: story.categories
+  };
+};
+
+// Type for story creation/update
+export interface CreateStoryData {
+  story: string;
+  storyType: string;
+  customTopic?: string | null;
+  categories?: string[];
+}
+
+// Type for story filters
+export interface StoryFilters {
+  storyType?: string;
+  isFavorite?: boolean;
+  searchTerm?: string;
+}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import databaseService from '../services/optimizedDatabaseService.js'
 import safeLocalStorage from '../utils/safeLocalStorage.js'
+import { Story } from '../utils/storyTypes'
 
 interface FavoriteItem {
   id: string
@@ -10,22 +11,6 @@ interface FavoriteItem {
   createdAt: string
   audioUrl: string | null
   source: 'database' | 'localStorage'
-}
-
-interface Story {
-  id?: string | number
-  story: string
-  storyType: string
-  customTopic?: string | null
-  audioUrl?: string | null
-  story_text?: string
-  story_type?: string
-  custom_topic?: string | null
-  created_at?: string
-  audio?: {
-    file_name: string
-  }
-  is_favorite?: boolean | number
 }
 
 export default function useFavorites() {
@@ -166,8 +151,8 @@ export default function useFavorites() {
         } else {
           // Veritabanında yok, önce masalı oluştur sonra favoriye ekle
           const newStory = await databaseService.createStory(
-            story.story,
-            story.storyType,
+            story.story || story.story_text || '',
+            story.storyType || story.story_type || '',
             story.customTopic
           )
           await databaseService.updateStoryFavorite(newStory.id, true)
@@ -194,8 +179,8 @@ export default function useFavorites() {
         const timestamp = Date.now()
         const newFavorite: FavoriteItem = {
           id: `fav_${timestamp}_${Math.random()}`,
-          story: story.story,
-          storyType: story.storyType,
+          story: story.story || story.story_text || '',
+          storyType: story.storyType || story.story_type || '',
           customTopic: story.customTopic || null,
           createdAt: new Date().toISOString(),
           audioUrl: story.audioUrl || null,
@@ -274,9 +259,11 @@ export default function useFavorites() {
   }
 
   const isFavorite = (story: Story): boolean => {
+    const storyContent = story.story || story.story_text || ''
+    const storyTypeValue = story.storyType || story.story_type || ''
     const isInFavorites = favorites.some(fav =>
-      fav.story === story.story &&
-      fav.storyType === story.storyType
+      fav.story === storyContent &&
+      fav.storyType === storyTypeValue
     )
     return isInFavorites
   }

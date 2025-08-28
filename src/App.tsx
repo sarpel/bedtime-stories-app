@@ -28,6 +28,7 @@ import stabilityMonitor from './utils/stabilityMonitor.js'
 import './App.css'
 import { Toaster } from '@/components/ui/sonner.jsx'
 import { toast } from 'sonner'
+import { Story } from './utils/storyTypes'
 
 // TypeScript interfaces
 interface RemotePlaybackState {
@@ -480,6 +481,24 @@ function App() {
     }
   }
 
+  // Wrapper function for StoryManagementPanel compatibility
+  const generateAudioForStoryWrapper = async (story: Story) => {
+    const storyId = story.id ? String(story.id) : undefined
+    const storyText = story.story_text || story.story
+    await generateAudioForStory(storyId, storyText)
+  // Wrapper function for StoryQueuePanel compatibility
+  const generateAudioForStoryId = async (storyId: string | number) => {
+    // Find the story by ID to get the story text
+    const foundStory = dbStories.find(s => s.id === storyId)
+    if (foundStory) {
+      const storyText = foundStory.story_text || foundStory.story
+      await generateAudioForStory(String(storyId), storyText)
+    }
+  // Wrapper function for StoryQueuePanel playAudio compatibility
+  const playAudioWrapper = (audioUrl: string, storyId: string | number) => {
+    playAudio(audioUrl, String(storyId))
+  }
+
   const generateAudio = async () => {
     if (!story) return
 
@@ -761,7 +780,7 @@ function App() {
             settings={settings}
             onToggleFavorite={handleToggleFavorite}
             isFavorite={isFavorite}
-            onGenerateAudio={generateAudioForStory}
+            onGenerateAudio={generateAudioForStoryWrapper}
             isGeneratingAudio={isGeneratingAudio}
             // Audio control props
             audioIsPlaying={audioIsPlaying}
@@ -892,7 +911,7 @@ function App() {
             onShowStoryManagement={() => setShowStoryManagement(true)}
             onToggleFavorite={handleToggleFavorite}
             isFavorite={isFavorite}
-            onGenerateAudio={generateAudioForStory}
+            onGenerateAudio={generateAudioForStoryId}
             isGeneratingAudio={isGeneratingAudio}
             // Audio control props
             audioIsPlaying={audioIsPlaying}

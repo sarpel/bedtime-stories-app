@@ -1,19 +1,6 @@
 import { useState, useEffect } from 'react'
 import databaseService from '../services/optimizedDatabaseService'
-
-interface Story {
-  id?: string | number
-  story: string
-  story_text?: string
-  story_type?: string
-  custom_topic?: string | null
-  created_at?: string
-  audio?: {
-    file_name: string
-  }
-  audioUrl?: string | null
-  is_favorite?: boolean | number
-}
+import { Story } from '../utils/storyTypes'
 
 interface UseStoryDatabaseReturn {
   stories: Story[]

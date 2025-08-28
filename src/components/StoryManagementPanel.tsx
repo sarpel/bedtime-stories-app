@@ -10,23 +10,7 @@ import { X, Search, Edit, Trash2, BookOpen, Heart, Calendar, Volume2 } from 'luc
 import { getStoryTypeLabel } from '../utils/storyTypes';
 import { getStoryTitle } from '@/utils/titleGenerator';
 import AudioControls from './AudioControls';
-
-// Story interface for type safety
-interface Story {
-  id: string;
-  story_text?: string;
-  story?: string;
-  story_type?: string;
-  storyType?: string;
-  custom_topic?: string; // Changed from string | null to string to match getStoryTitle
-  customTopic?: string; // Changed from string | null to string to match getStoryTitle
-  created_at?: string;
-  createdAt?: string;
-  audio?: {
-    file_name?: string;
-  } | null;
-  audioUrl?: string;
-}
+import { Story } from '../utils/storyTypes';
 
 // StoryManagementPanel props interface
 interface StoryManagementPanelProps {
@@ -56,6 +40,14 @@ interface StoryManagementPanelProps {
   seekTo: (time: number) => void;
   getDbAudioUrl: (fileName: string) => string;
 }
+
+// Helper function to normalize story for getStoryTitle
+const normalizeStoryForTitle = (story: Story) => ({
+  story_text: story.story_text || story.story,
+  story: story.story || story.story_text,
+  custom_topic: story.custom_topic !== null ? story.custom_topic : undefined,
+  customTopic: story.customTopic !== null ? story.customTopic : undefined
+});
 
 const StoryManagementPanel: React.FC<StoryManagementPanelProps> = ({
   isOpen,
@@ -133,8 +125,8 @@ const StoryManagementPanel: React.FC<StoryManagementPanelProps> = ({
   };
 
   const handleSaveEdit = () => {
-    if (onUpdateStory && editingStory) {
-      onUpdateStory(editingStory.id, editedText);
+    if (onUpdateStory && editingStory && editingStory.id !== undefined) {
+      onUpdateStory(String(editingStory.id), editedText);
       setEditingStory(null);
       setEditedText('');
     }
@@ -186,7 +178,7 @@ const StoryManagementPanel: React.FC<StoryManagementPanelProps> = ({
                     {/* Başlık satırı - kompakt */}
                     <div className="flex items-center justify-between gap-1">
                       <div className="flex items-center gap-1 flex-1 min-w-0">
-                        <span className="font-medium text-xs truncate max-w-[24ch]">{getStoryTitle(story)}</span>
+                        <span className="font-medium text-xs truncate max-w-[24ch]">{getStoryTitle(normalizeStoryForTitle(story))}</span>
                         <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
                           {getStoryTypeLabel(story.story_type || story.storyType || '')}
                         </Badge>
@@ -205,7 +197,7 @@ const StoryManagementPanel: React.FC<StoryManagementPanelProps> = ({
                         {/* Audio Controls - Ses dosyası varsa göster */}
                         {(story.audio?.file_name || story.audioUrl) && (
                           <AudioControls
-                            storyId={story.id}
+                            storyId={story.id ? String(story.id) : ''}
                             audioUrl={story.audio?.file_name ? getDbAudioUrl(story.audio.file_name) : (story.audioUrl || null)}
                             isPlaying={audioIsPlaying}
                             isPaused={audioIsPaused}
@@ -247,7 +239,7 @@ const StoryManagementPanel: React.FC<StoryManagementPanelProps> = ({
                           onClick={() => onToggleFavorite?.({
                             story: story.story_text || story.story || '',
                             story_type: story.story_type || story.storyType,
-                            custom_topic: story.custom_topic || story.customTopic
+                            custom_topic: (story.custom_topic !== null ? story.custom_topic : undefined) || (story.customTopic !== null ? story.customTopic : undefined)
                           })}
                           className={`h-6 w-6 p-0 touch-manipulation ${isFavorite?.(story) ? 'text-red-500' : ''}`}
                           title="Favorilere ekle/çıkar"
@@ -299,7 +291,9 @@ const StoryManagementPanel: React.FC<StoryManagementPanelProps> = ({
                           onClick={(e) => {
                             e.preventDefault()
                             e.stopPropagation()
-                            onDeleteStory?.(story.id)
+                            if (story.id !== undefined) {
+                              onDeleteStory?.(String(story.id))
+                            }
                           }}
                         >
                           <Trash2 className="h-3 w-3" />

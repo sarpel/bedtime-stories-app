@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import safeLocalStorage from '../utils/safeLocalStorage'
+import { Story } from '../utils/storyTypes'
 
 const MAX_HISTORY = 10 // Son 10 masalı sakla
 
@@ -12,22 +13,6 @@ interface HistoryItem {
   audioUrl: string | null
   audioGenerated: boolean
   updatedAt?: string
-}
-
-interface Story {
-  id?: string | number
-  story: string
-  storyType: string
-  customTopic?: string | null
-  audioUrl?: string | null
-  story_text?: string
-  story_type?: string
-  custom_topic?: string | null
-  created_at?: string
-  audio?: {
-    file_name: string
-  }
-  is_favorite?: boolean | number
 }
 
 export function useStoryHistory() {
@@ -59,9 +44,9 @@ export function useStoryHistory() {
   const addToHistory = (story: Story): number => {
     const newStory: HistoryItem = {
       id: Date.now(),
-      story: story.story,
-      storyType: story.storyType,
-      customTopic: story.customTopic || null,
+      story: story.story || story.story_text || '',
+      storyType: story.storyType || story.story_type || '',
+      customTopic: (story.customTopic !== undefined ? story.customTopic : story.custom_topic) || null,
       createdAt: new Date().toISOString(),
       audioUrl: story.audioUrl || null,
       audioGenerated: !!story.audioUrl
