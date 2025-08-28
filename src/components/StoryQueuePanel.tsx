@@ -23,6 +23,62 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { queueService } from '@/services/queueService.js'
 import { getBestTitle } from '@/services/titleService.js'
 
+// Type definitions
+interface Story {
+  id?: string | number
+  story: string
+  storyType: string
+  customTopic?: string
+  audioUrl?: string | null
+  story_text?: string
+  story_type?: string
+  custom_topic?: string
+  created_at?: string
+  audio?: {
+    file_name: string
+  }
+  is_favorite?: boolean | number
+}
+
+interface RemoteStatus {
+  playing: boolean
+  storyId?: string
+}
+
+interface SortableStoryItemProps {
+  story: Story
+  titleMap: { [key: string]: string }
+  onToggleFavorite: (story: Story) => void
+  onRemoveFromQueue: (id: string | number) => void
+  onEditStory: (story: Story) => void
+  onSelectStory: (story: Story) => void
+  isFavorite: (story: Story) => boolean
+  onGenerateAudio: (storyId: string | number) => void
+  isGeneratingAudio: boolean
+  audioIsPlaying: boolean
+  audioIsPaused: boolean
+  audioProgress: number
+  audioDuration: number
+  audioVolume: number
+  audioIsMuted: boolean
+  audioPlaybackRate: number
+  audioCurrentStoryId: string | number | null
+  playAudio: (audioUrl: string, storyId: string | number) => void
+  stopAudio: () => void
+  audioToggleMute: () => void
+  setVolumeLevel: (volume: number) => void
+  setPlaybackSpeed: (speed: number) => void
+  seekTo: (time: number) => void
+  getDbAudioUrl: (fileName: string) => string
+  onRemotePlay: (storyId: string | number) => void
+  remoteStatus: RemoteStatus
+  onPause?: () => void
+  onStop?: () => void
+  onVolumeChange?: (volume: number) => void
+  onPlaybackSpeedChange?: (speed: number) => void
+  onSeek?: (progress: number) => void
+}
+
 // Sortable Story Item Component
 function SortableStoryItem({
   story,
@@ -51,13 +107,13 @@ function SortableStoryItem({
   getDbAudioUrl,
   onRemotePlay,
   remoteStatus
-}) {
+}: SortableStoryItemProps) {
   const {
     attributes,
     listeners,
     setNodeRef,
     isDragging,
-  } = useSortable({ id: story.id })
+  } = useSortable({ id: story.id || 'unknown' })
   // Transform değerini sürükleme animasyonunda style ile kullanmıyoruz; dnd-kit class temelli geçiş yeterli
   const isCurrent = audioCurrentStoryId === story.id
 
@@ -85,7 +141,7 @@ function SortableStoryItem({
       <div className="flex-1 min-w-0 w-full sm:w-auto">
         <div className="flex flex-wrap sm:flex-nowrap items-center gap-0.5 mb-0.5 sm:mb-0.5">
           <span className="font-medium text-[11px] sm:text-[10px] truncate max-w-40">
-            {titleMap?.[story.id] || getStoryTitle(story)}
+            {story.id ? titleMap?.[story.id] || getStoryTitle(story) : getStoryTitle(story)}
           </span>
           <Badge variant="secondary" className="text-[11px] sm:text-[9px] px-1.5 sm:px-1 py-0.5 h-4 sm:h-3 leading-none">
             {getStoryTypeLabel(story.story_type || story.storyType)}
@@ -96,7 +152,7 @@ function SortableStoryItem({
             </Badge>
           )}
           <span className="text-[11px] sm:text-[9px] text-muted-foreground font-mono shrink-0">
-            {new Date(story.created_at || story.createdAt).toLocaleDateString('tr-TR', {
+            {new Date(story.created_at || '').toLocaleDateString('tr-TR', {
               day: '2-digit',
               month: '2-digit'
             })}
@@ -159,8 +215,8 @@ function SortableStoryItem({
         {(story.audio || story.audioUrl) && (
           <div className="flex items-center">
             <AudioControls
-              storyId={story.id}
-              audioUrl={story.audio ? getDbAudioUrl(story.audio.file_name) : story.audioUrl}
+              storyId={String(story.id || '')}
+              audioUrl={story.audio ? getDbAudioUrl(story.audio.file_name) : (story.audioUrl || null)}
               isPlaying={audioIsPlaying}
               isPaused={audioIsPaused}
               progress={audioProgress}
@@ -168,8 +224,9 @@ function SortableStoryItem({
               volume={audioVolume}
               isMuted={audioIsMuted}
               playbackRate={audioPlaybackRate}
-              currentStoryId={audioCurrentStoryId}
+              currentStoryId={audioCurrentStoryId ? String(audioCurrentStoryId) : null}
               onPlay={playAudio}
+              onPause={() => {}} // TODO: Implement pause functionality
               onStop={stopAudio}
               onToggleMute={audioToggleMute}
               onVolumeChange={setVolumeLevel}
@@ -187,7 +244,7 @@ function SortableStoryItem({
             onClick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
-              onRemotePlay?.(story.id);
+              onRemotePlay?.(story.id!);
             }}
             className={`h-5 w-5 p-0 ${remoteStatus.playing && remoteStatus.storyId === story.id ? 'text-primary' : ''}`}
             title="Cihaz hoparlöründe çal"
@@ -201,7 +258,7 @@ function SortableStoryItem({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => onGenerateAudio(story)}
+            onClick={() => onGenerateAudio(story.id!)}
             disabled={isGeneratingAudio}
             className="h-7 px-2 text-xs"
             title="Hikayeyi seslendir"
@@ -248,7 +305,7 @@ function SortableStoryItem({
           onClick={(e) => {
             e.preventDefault()
             e.stopPropagation()
-            onRemoveFromQueue?.(story.id)
+            onRemoveFromQueue?.(story.id!)
           }}
           className="h-5 w-5 p-0 hover:bg-destructive/10 hover:text-destructive"
           title="Kuyruktan çıkar"
@@ -258,6 +315,34 @@ function SortableStoryItem({
       </div>
     </div>
   )
+}
+
+interface StoryQueuePanelProps {
+  stories: Story[]
+  onUpdateStory: (id: string | number, updates: Partial<Story>) => void
+  onSelectStory: (story: Story) => void
+  onShowStoryManagement: () => void
+  onToggleFavorite: (story: Story) => void
+  isFavorite: (story: Story) => boolean
+  onGenerateAudio: (storyId: string | number) => void
+  isGeneratingAudio: boolean
+  audioIsPlaying: boolean
+  audioIsPaused: boolean
+  audioProgress: number
+  audioDuration: number
+  audioVolume: number
+  audioIsMuted: boolean
+  audioPlaybackRate: number
+  audioCurrentStoryId: string | number | null
+  playAudio: (audioUrl: string, storyId: string | number) => void
+  stopAudio: () => void
+  audioToggleMute: () => void
+  setVolumeLevel: (volume: number) => void
+  setPlaybackSpeed: (speed: number) => void
+  seekTo: (time: number) => void
+  getDbAudioUrl: (fileName: string) => string
+  setOnEnded: (callback: () => void) => void
+  onRemoteStatusChange: (status: RemoteStatus) => void
 }
 
 export default function StoryQueuePanel({
@@ -288,9 +373,9 @@ export default function StoryQueuePanel({
   // setOnEnded fonksiyonu App'ten pekala geçirilebilir; burada props yerine window üzerinden erişmeyelim
   setOnEnded,
   onRemoteStatusChange // App seviyesine remote durumunu yükseltmek için opsiyonel callback
-}) {
+}: StoryQueuePanelProps) {
   const [localStories, setLocalStories] = useState(stories)
-  const [queue, setQueue] = useState([]) // gerçek çalma kuyruğu (story objeleri)
+  const [queue, setQueue] = useState<Story[]>([]) // gerçek çalma kuyruğu (story objeleri)
   const [currentIndex, setCurrentIndex] = useState(-1)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [search, setSearch] = useState('')
@@ -299,7 +384,7 @@ export default function StoryQueuePanel({
   const [editTopic, setEditTopic] = useState('')
   const [shuffle, setShuffle] = useState(false)
   const [repeatAll, setRepeatAll] = useState(true)
-  const [titles, setTitles] = useState({})
+  const [titles, setTitles] = useState<{ [key: string]: string }>({})
   const [remoteStatus, setRemoteStatus] = useState({ playing: false })
   const [remoteLoading, setRemoteLoading] = useState(false)
 
@@ -382,7 +467,7 @@ export default function StoryQueuePanel({
       setQueue(newQueue)
       persistQueue(newQueue)
       // DB senkron
-      try { queueService.setQueueIds(newQueue.map(s => s.id)) } catch { /* queue sync optional */ }
+      try { queueService.setQueueIds(newQueue.map(s => String(s.id!)).filter(Boolean)) } catch { /* queue sync optional */ }
       if (import.meta.env?.DEV) console.log('Kuyruk sırası güncellendi:', newQueue.map(s => s.id))
     }
   }
@@ -415,7 +500,7 @@ export default function StoryQueuePanel({
     } catch (e) {
       console.error('Kuyruk yükleme hatası:', e)
     }
-     
+
   }, [localStories && localStories.length])
 
   // stories değişince kuyruktaki objeleri güncelle (ör. audio eklenmiş olabilir)
@@ -452,8 +537,8 @@ export default function StoryQueuePanel({
     let alive = true
     const run = async () => {
       for (const item of queue) {
-        const key = item.id
-        if (titles[key]) continue
+        const key = String(item.id!)
+        if (!key || titles[key]) continue
         try {
           const t = await getBestTitle(item)
           if (!alive) return
@@ -484,7 +569,7 @@ export default function StoryQueuePanel({
       return
     }
     setCurrentIndex(idx)
-    playAudio(audioUrl, item.id)
+    playAudio(audioUrl, item.id!)
   }
 
   const next = () => {
@@ -545,7 +630,7 @@ export default function StoryQueuePanel({
   useEffect(() => {
     if (!setOnEnded) return
     setOnEnded(() => next)
-     
+
   }, [queue, currentIndex, shuffle, repeatAll, setOnEnded])
 
   const addToQueue = (story) => {
@@ -707,7 +792,7 @@ export default function StoryQueuePanel({
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={displayStories.map(story => story.id)}
+                items={displayStories.filter(story => story.id).map(story => story.id!)}
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-1 sm:space-y-1 max-h-[35vh] sm:max-h-80 overflow-y-auto pr-1 sm:pr-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">

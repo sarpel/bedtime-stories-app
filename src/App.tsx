@@ -19,7 +19,7 @@ import { useStoryHistory } from './hooks/useStoryHistory.js'
 import { useStoryDatabase } from './hooks/useStoryDatabase.js'
 import { useAudioPlayer } from './hooks/useAudioPlayer.js'
 import { useIsMobile } from './hooks/use-mobile.js'
-import useProfiles from './hooks/useProfiles.js'
+import useProfiles from './hooks/useProfiles.ts'
 import ApiKeyHelp from './components/ApiKeyHelp.jsx'
 import safeLocalStorage from './utils/safeLocalStorage.js'
 // Pi Zero optimizations
@@ -29,31 +29,42 @@ import './App.css'
 import { Toaster } from '@/components/ui/sonner.jsx'
 import { toast } from 'sonner'
 
+// TypeScript interfaces
+interface RemotePlaybackState {
+  playing: boolean;
+  storyId?: string | number;
+  file?: string;
+}
+
+interface SettingsState {
+  [key: string]: any; // Using any for now due to complex settings structure
+}
+
 function App() {
   const isMobile = useIsMobile()
-  const [story, setStory] = useState('')
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [audioUrl, setAudioUrl] = useState('')
-  const [progress, setProgress] = useState(0)
-  const [showSettings, setShowSettings] = useState(false)
-  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false)
-  const [selectedStoryType, setSelectedStoryType] = useState('')
-  const [customTopic, setCustomTopic] = useState('')
-  const [error, setError] = useState('')
-  const [showFavorites, setShowFavorites] = useState(false)
-  const [showApiKeyHelp, setShowApiKeyHelp] = useState(false)
-  const [showStoryManagement, setShowStoryManagement] = useState(false)
-  const [showAnalytics, setShowAnalytics] = useState(false)
-  const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false)
-  const [showSearch, setShowSearch] = useState(false)
+  const [story, setStory] = useState<string>('')
+  const [isGenerating, setIsGenerating] = useState<boolean>(false)
+  const [audioUrl, setAudioUrl] = useState<string>('')
+  const [progress, setProgress] = useState<number>(0)
+  const [showSettings, setShowSettings] = useState<boolean>(false)
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState<boolean>(false)
+  const [selectedStoryType, setSelectedStoryType] = useState<string>('')
+  const [customTopic, setCustomTopic] = useState<string>('')
+  const [error, setError] = useState<string>('')
+  const [showFavorites, setShowFavorites] = useState<boolean>(false)
+  const [showApiKeyHelp, setShowApiKeyHelp] = useState<boolean>(false)
+  const [showStoryManagement, setShowStoryManagement] = useState<boolean>(false)
+  const [showAnalytics, setShowAnalytics] = useState<boolean>(false)
+  const [showPerformanceMonitor, setShowPerformanceMonitor] = useState<boolean>(false)
+  const [showSearch, setShowSearch] = useState<boolean>(false)
   // Son oluşturulan masalın geçmiş ID'si
-  const [currentStoryId, setCurrentStoryId] = useState(null)
+  const [currentStoryId, setCurrentStoryId] = useState<string | null>(null)
   // Remote playback state (StoryQueuePanel'den bubble up)
-  const [remotePlayback, setRemotePlayback] = useState({ playing: false })
-  const [remoteProgressPct, setRemoteProgressPct] = useState(0) // bilinmiyorsa animasyonlu placeholder
-  const [showMiniPlayer, setShowMiniPlayer] = useState(false)
+  const [remotePlayback, setRemotePlayback] = useState<RemotePlaybackState>({ playing: false })
+  const [remoteProgressPct, setRemoteProgressPct] = useState<number>(0) // bilinmiyorsa animasyonlu placeholder
+  const [showMiniPlayer, setShowMiniPlayer] = useState<boolean>(false)
 
-  const [settings, setSettings] = useState(() => {
+  const [settings, setSettings] = useState<SettingsState>(() => {
     // localStorage'dan ayarları güvenli şekilde yükle
     const savedSettings = safeLocalStorage.get('bedtime-stories-settings')
     const defaults = getDefaultSettings()
@@ -79,7 +90,7 @@ function App() {
   })
 
   // Ayarları localStorage'a kaydet
-  const updateSettings = (newSettings) => {
+  const updateSettings = (newSettings: SettingsState) => {
     try {
       console.log('🔧 App updateSettings:', newSettings)
 
@@ -106,7 +117,7 @@ function App() {
 
   // Tema uygulamasını yönet
   useEffect(() => {
-    const applyTheme = (theme) => {
+    const applyTheme = (theme: string) => {
       const root = document.documentElement
 
       if (theme === 'dark') {
@@ -116,7 +127,7 @@ function App() {
       } else if (theme === 'system') {
         // Sistem temasını kontrol et
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-        const handleSystemThemeChange = (e) => {
+        const handleSystemThemeChange = (e: MediaQueryListEvent) => {
           if (e.matches) {
             root.classList.add('dark')
           } else {
@@ -125,7 +136,11 @@ function App() {
         }
 
         // İlk uygulama
-        handleSystemThemeChange(mediaQuery)
+        if (mediaQuery.matches) {
+          root.classList.add('dark')
+        } else {
+          root.classList.remove('dark')
+        }
 
         // Değişiklikleri dinle
         mediaQuery.addEventListener('change', handleSystemThemeChange)
@@ -137,6 +152,17 @@ function App() {
     const cleanup = applyTheme(settings.theme || 'system')
     return cleanup
   }, [settings.theme])
+
+  // Profiller hook'u
+  const {
+    profiles,
+    activeProfile,
+    isLoading: profilesLoading,
+    createProfile,
+    updateProfile,
+    deleteProfile,
+    setActiveProfileById
+  } = useProfiles()
 
   // Aktif profil değiştiğinde settings'i güncelle
   useEffect(() => {
@@ -170,19 +196,8 @@ function App() {
     getAudioUrl: getDbAudioUrl
   } = useStoryDatabase()
 
-  // Profiller hook'u
-  const {
-    profiles,
-    activeProfile,
-    isLoading: profilesLoading,
-    createProfile,
-    updateProfile,
-    deleteProfile,
-    setActiveProfileById
-  } = useProfiles()
-
   // Enhanced toggle favorite function with proper state management
-  const handleToggleFavorite = async (storyData) => {
+  const handleToggleFavorite = async (storyData: any) => {
     try {
       console.log('🎯 App.jsx - Favori toggle başlatılıyor:', storyData)
       const result = await toggleFavorite(storyData)
@@ -228,20 +243,20 @@ function App() {
   // Advanced Audio Features kaldırıldı - çalışmayan download/bookmark özellikleri
 
   // Hybrid update function - veritabanı varsa onu kullan, yoksa localStorage
-  const hybridUpdateStory = async (id, updates) => {
+  const hybridUpdateStory = async (id: string | number, updates: any) => {
     try {
       // Eğer dbStories'te varsa veritabanından güncelle
       const dbStory = dbStories.find(s => s.id === id)
       if (dbStory) {
-        await updateDbStory(id, updates.story, dbStory.story_type, updates.customTopic)
+        await updateDbStory(String(id), updates.story || '', dbStory.story_type || '', updates.customTopic || null)
       } else {
         // Backward compatibility için localStorage
-        updateStory(id, updates)
+        updateStory(Number(id), updates)
       }
     } catch (error) {
       console.error('Masal güncelleme hatası:', error)
       // Fallback to localStorage
-      updateStory(id, updates)
+      updateStory(Number(id), updates)
     }
   }
 
@@ -260,7 +275,7 @@ function App() {
   }, [])
 
   // Story text değişikliği için fonksiyon
-  const handleStoryChange = (newStory) => {
+  const handleStoryChange = (newStory: string) => {
     setStory(newStory)
 
     // Eğer mevcut bir story ID'si varsa, veritabanını güncelle
@@ -273,7 +288,7 @@ function App() {
   }
 
   // Hybrid delete function
-  const hybridDeleteStory = async (id) => {
+  const hybridDeleteStory = async (id: string | number) => {
     try {
       // Eğer dbStories'te varsa veritabanından sil
       const dbStory = dbStories.find(s => s.id === id)
@@ -281,12 +296,12 @@ function App() {
         await deleteDbStory(id)
       } else {
         // Backward compatibility için localStorage
-        removeFromHistory(id)
+        removeFromHistory(Number(id))
       }
     } catch (error) {
       console.error('Masal silme hatası:', error)
       // Fallback to localStorage
-      removeFromHistory(id)
+      removeFromHistory(Number(id))
     }
   }
 
@@ -344,7 +359,7 @@ function App() {
       // Veritabanına kaydet
       try {
   const dbStory = await createDbStory(story, storyTypeToUse, topicToUse, categories)
-        setCurrentStoryId(dbStory.id)
+        setCurrentStoryId(dbStory.id ? String(dbStory.id) : null)
         console.log('Masal veritabanına kaydedildi:', dbStory.id)
         console.log('[App] db:createStory:success', { id: dbStory.id })
 
@@ -354,7 +369,7 @@ function App() {
         // Yeni story eklenmesi favorileri etkilemez, gereksiz refresh yok
       } catch (dbError) {
         console.error('Veritabanına kaydetme hatası:', dbError)
-        console.log('[App] db:createStory:error', { message: dbError?.message })
+        console.log('[App] db:createStory:error', { message: (dbError as Error)?.message })
 
         // Show error to user
         toast.error('Veritabanına kaydetme başarısız', {
@@ -364,23 +379,23 @@ function App() {
 
     } catch (error) {
       console.error('Story generation failed:', error)
-      console.log('[App] generateStory:error', { message: error?.message })
+      console.log('[App] generateStory:error', { message: (error as Error)?.message })
 
       // Analytics: Track failed story generation
       const duration = Date.now() - startTime
       const storyTypeToUse = customTopic.trim() ? 'custom' : selectedStoryType
       const topicToUse = customTopic.trim() || ''
-      analyticsService.trackStoryGeneration(storyTypeToUse, topicToUse, false, duration, error.message)
-      analyticsService.trackError('story_generation', error.message, { storyType: storyTypeToUse, customTopic: topicToUse })
+      analyticsService.trackStoryGeneration(storyTypeToUse, topicToUse, false, duration, (error as Error).message)
+      analyticsService.trackError('story_generation', (error as Error).message, { storyType: storyTypeToUse, customTopic: topicToUse })
 
       // Show user-friendly error message
       let errorMessage = 'Masal oluşturulurken bir hata oluştu.'
 
-      if (error.message.includes('OpenAI ayarları eksik') || error.message.includes('API anahtarı eksik')) {
+      if ((error as Error).message.includes('OpenAI ayarları eksik') || (error as Error).message.includes('API anahtarı eksik')) {
         errorMessage = 'Sunucu konfigürasyonu eksik. Lütfen sistem yöneticisine başvurun.'
-      } else if (error.message.includes('API hatası') || error.message.includes('backend/.env')) {
+      } else if ((error as Error).message.includes('API hatası') || (error as Error).message.includes('backend/.env')) {
         errorMessage = 'Sunucu ayarları eksik. Lütfen .env dosyasındaki API anahtarlarını kontrol edin.'
-      } else if (error.message.includes('yanıtından masal metni çıkarılamadı')) {
+      } else if ((error as Error).message.includes('yanıtından masal metni çıkarılamadı')) {
         errorMessage = 'API yanıtı işlenirken hata oluştu. Lütfen tekrar deneyin.'
       }
 
@@ -396,7 +411,7 @@ function App() {
   }
 
   // Generate audio for any story by ID (for Story Management Panel)
-  const generateAudioForStory = async (storyInput, storyTextParam) => {
+  const generateAudioForStory = async (storyInput: any, storyTextParam: any) => {
     // Handle both story object and separate parameters for backward compatibility
     const storyId = typeof storyInput === 'object' ? storyInput.id : storyInput
     const storyText = typeof storyInput === 'object' ? (storyInput.story_text || storyInput.story) : storyTextParam
@@ -444,17 +459,17 @@ function App() {
 
       // Analytics: Track failed audio generation
       const duration = Date.now() - startTime
-      analyticsService.trackAudioGeneration(storyId, settings.voiceId || 'default', false, duration, error.message)
-      analyticsService.trackError('audio_generation', error.message, { storyId })
+      analyticsService.trackAudioGeneration(storyId, settings.voiceId || 'default', false, duration, (error as Error).message)
+      analyticsService.trackError('audio_generation', (error as Error).message, { storyId })
 
       // Show user-friendly error message
       let errorMessage = 'Ses oluşturulurken bir hata oluştu.'
 
-      if (error.message.includes('ElevenLabs ayarları eksik') || error.message.includes('API anahtarı eksik') || error.message.includes('backend/.env')) {
+      if ((error as Error).message.includes('ElevenLabs ayarları eksik') || (error as Error).message.includes('API anahtarı eksik') || (error as Error).message.includes('backend/.env')) {
         errorMessage = 'Sunucu konfigürasyonu eksik. Lütfen sistem yöneticisine başvurun.'
-      } else if (error.message.includes('API hatası') || error.message.includes('401')) {
+      } else if ((error as Error).message.includes('API hatası') || (error as Error).message.includes('401')) {
         errorMessage = 'TTS servisi yanıt vermiyor. Lütfen daha sonra tekrar deneyin.'
-      } else if (error.message.includes('ses dosyası çıkarılamadı')) {
+      } else if ((error as Error).message.includes('ses dosyası çıkarılamadı')) {
         errorMessage = 'Ses dosyası işlenirken hata oluştu. Lütfen tekrar deneyin.'
       }
 
@@ -486,11 +501,13 @@ function App() {
 
       // Analytics: Track successful audio generation
       const duration = Date.now() - startTime
-      analyticsService.trackAudioGeneration(currentStoryId, settings.voiceId || 'default', true, duration)
+      if (currentStoryId) {
+        analyticsService.trackAudioGeneration(currentStoryId, settings.voiceId || 'default', true, duration)
+      }
 
       // Backward compatibility için localStorage'a da kaydet
       if (currentStoryId) {
-        updateStoryAudio(currentStoryId, audioUrl)
+        updateStoryAudio(Number(currentStoryId), audioUrl)
       }
 
       // Ses dosyası eklenmesi favorileri etkilemez, gereksiz refresh yok
@@ -503,17 +520,19 @@ function App() {
 
       // Analytics: Track failed audio generation
       const duration = Date.now() - startTime
-      analyticsService.trackAudioGeneration(currentStoryId, settings.voiceId || 'default', false, duration, error.message)
-      analyticsService.trackError('audio_generation', error.message, { storyId: currentStoryId })
+      if (currentStoryId) {
+        analyticsService.trackAudioGeneration(currentStoryId, settings.voiceId || 'default', false, duration, (error as Error).message)
+        analyticsService.trackError('audio_generation', (error as Error).message, { storyId: currentStoryId })
+      }
 
       // Show user-friendly error message
       let errorMessage = 'Ses oluşturulurken bir hata oluştu.'
 
-      if (error.message.includes('ElevenLabs ayarları eksik') || error.message.includes('API anahtarı eksik') || error.message.includes('backend/.env')) {
+      if ((error as Error).message.includes('ElevenLabs ayarları eksik') || (error as Error).message.includes('API anahtarı eksik') || (error as Error).message.includes('backend/.env')) {
         errorMessage = 'Sunucu konfigürasyonu eksik. Lütfen sistem yöneticisine başvurun.'
-      } else if (error.message.includes('API hatası') || error.message.includes('401')) {
+      } else if ((error as Error).message.includes('API hatası') || (error as Error).message.includes('401')) {
         errorMessage = 'TTS servisi yanıt vermiyor. Lütfen daha sonra tekrar deneyin.'
-      } else if (error.message.includes('ses dosyası çıkarılamadı')) {
+      } else if ((error as Error).message.includes('ses dosyası çıkarılamadı')) {
         errorMessage = 'Ses dosyası işlenirken hata oluştu. Lütfen tekrar deneyin.'
       }
 
@@ -554,7 +573,7 @@ function App() {
       const topicToUse = customTopic.trim() || ''
 
       const dbStory = await createDbStory(story, storyTypeToUse, topicToUse)
-      setCurrentStoryId(dbStory.id)
+      setCurrentStoryId(String(dbStory.id))
       console.log('Masal manuel olarak kaydedildi:', dbStory.id)
 
       // Favorileri refresh etme - restart prevention
@@ -582,7 +601,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Toaster richColors position="top-right" closeButton duration={4000} />
+      <Toaster richColors position="top-right" closeButton />
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-2 sm:px-4 py-3 sm:py-4 flex items-center justify-between">
@@ -665,7 +684,7 @@ function App() {
         <StoryCreator
           selectedType={selectedStoryType}
           customTopic={customTopic}
-          storyId={currentStoryId}
+          storyId={currentStoryId ?? undefined}
           onTypeChange={setSelectedStoryType}
           onCustomTopicChange={setCustomTopic}
           onGenerateStory={generateStory}
@@ -679,7 +698,7 @@ function App() {
           isPlaying={audioIsPlaying}
           audioProgress={audioProgress}
           audioDuration={audioDuration}
-          onPlayAudio={() => playAudio(audioUrl, currentStoryId)}
+          onPlayAudio={() => currentStoryId && playAudio(audioUrl, currentStoryId)}
           onPauseAudio={pauseAudio}
           onStopAudio={stopAudio}
           onToggleMute={audioToggleMute}
@@ -752,14 +771,14 @@ function App() {
             audioVolume={audioVolume}
             audioIsMuted={audioIsMuted}
             audioPlaybackRate={audioPlaybackRate}
-            audioCurrentStoryId={audioCurrentStoryId}
+            audioCurrentStoryId={audioCurrentStoryId || ''}
             playAudio={playAudio}
             stopAudio={stopAudio}
             audioToggleMute={audioToggleMute}
             setVolumeLevel={setVolumeLevel}
             setPlaybackSpeed={setPlaybackSpeed}
             seekTo={seekTo}
-            getDbAudioUrl={getDbAudioUrl}
+            getDbAudioUrl={(fileName: string) => getDbAudioUrl(fileName) || ''}
           />
         )}
 
@@ -789,7 +808,7 @@ function App() {
             audioVolume={audioVolume}
             audioIsMuted={audioIsMuted}
             audioPlaybackRate={audioPlaybackRate}
-            audioCurrentStoryId={audioCurrentStoryId}
+            audioCurrentStoryId={audioCurrentStoryId || ''}
             playAudio={playAudio}
             stopAudio={stopAudio}
             audioToggleMute={audioToggleMute}
@@ -827,7 +846,7 @@ function App() {
                 setStory(story.story_text || story.story)
                 setSelectedStoryType(story.story_type || story.storyType)
                 setCustomTopic(story.custom_topic || story.customTopic || '')
-                setCurrentStoryId(story.id)
+                setCurrentStoryId(String(story.id))
                 const audioSrc = story.audio ? getDbAudioUrl(story.audio.file_name) : story.audioUrl;
                 if (audioSrc) {
                   setAudioUrl(audioSrc)
@@ -883,14 +902,14 @@ function App() {
             audioVolume={audioVolume}
             audioIsMuted={audioIsMuted}
             audioPlaybackRate={audioPlaybackRate}
-            audioCurrentStoryId={audioCurrentStoryId}
+            audioCurrentStoryId={audioCurrentStoryId || ''}
             playAudio={playAudio}
             stopAudio={stopAudio}
             audioToggleMute={audioToggleMute}
             setVolumeLevel={setVolumeLevel}
             setPlaybackSpeed={setPlaybackSpeed}
             seekTo={seekTo}
-            getDbAudioUrl={getDbAudioUrl}
+            getDbAudioUrl={(fileName: string) => getDbAudioUrl(fileName) || ''}
             setOnEnded={setOnEnded}
             onRemoteStatusChange={(st) => {
               setRemotePlayback(st)

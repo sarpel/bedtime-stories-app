@@ -11,28 +11,83 @@ import { Badge } from '@/components/ui/badge.jsx'
 import { Brain, Volume2, MessageSquare, Save, RotateCcw, Settings as SettingsIcon, User } from 'lucide-react'
 import { getDefaultSettings } from '@/services/configService.js'
 import VoiceSelector from './VoiceSelector.jsx'
-import ProfileSelector from './ProfileSelector.jsx'
+import ProfileSelector from './ProfileSelector'
 import PropTypes from 'prop-types'
 // Audio quality ve background music imports kaldırıldı - sadece basit ayarlar
 
-export default function Settings({ settings, onSettingsChange, onClose }) {
-  const [localSettings, setLocalSettings] = useState(settings)
-  const panelRef = useRef(null)
+interface SettingsData {
+  llmProvider: string
+  openaiLLM: {
+    endpoint: string
+    modelId: string
+    apiKey: string
+  }
+  geminiLLM: {
+    endpoint: string
+    modelId: string
+    apiKey: string
+  }
+  llmEndpoint: string
+  llmModelId: string
+  llmApiKey: string
+  ttsProvider: string
+  elevenlabs: {
+    endpoint: string
+    modelId: string
+    voiceId: string
+    apiKey: string
+  }
+  geminiTTS: {
+    endpoint: string
+    modelId: string
+    voiceId: string
+    apiKey: string
+  }
+  ttsEndpoint: string
+  ttsModelId: string
+  voiceId: string
+  ttsApiKey: string
+  customPrompt: string
+  customInstructions: string
+  storyLength: string
+  theme: string
+  voiceSettings: {
+    speed: number
+    pitch: number
+    volume: number
+    stability: number
+    similarityBoost: number
+  }
+  llmSettings: {
+    temperature: number
+    maxTokens: number
+  }
+}
+
+interface SettingsProps {
+  settings: SettingsData
+  onSettingsChange: (settings: SettingsData) => void
+  onClose: () => void
+}
+
+export default function Settings({ settings, onSettingsChange, onClose }: SettingsProps) {
+  const [localSettings, setLocalSettings] = useState<SettingsData>(settings)
+  const panelRef = useRef<HTMLDivElement>(null)
 
   // Click outside handler
   useEffect(() => {
-    const handleClickOutside = (event) => {
+    const handleClickOutside = (event: MouseEvent) => {
       // Settings panel içindeki tıklamalarda panel'i kapatma
-      if (panelRef.current && !panelRef.current.contains(event.target)) {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
         // Dropdown/Select content'leri portal olarak body'e render edilir
         // Bu tıklamaları ignore et
-        const isDropdownClick = event.target.closest('[data-radix-select-content]') ||
-          event.target.closest('[data-radix-popper-content-wrapper]') ||
-          event.target.closest('[data-radix-select-viewport]') ||
-          event.target.closest('[role="listbox"]') ||
-          event.target.closest('[role="option"]') ||
-          event.target.closest('.select-content') ||
-          event.target.closest('[data-state="open"]')
+        const isDropdownClick = (event.target as Element)?.closest('[data-radix-select-content]') ||
+          (event.target as Element)?.closest('[data-radix-popper-content-wrapper]') ||
+          (event.target as Element)?.closest('[data-radix-select-viewport]') ||
+          (event.target as Element)?.closest('[role="listbox"]') ||
+          (event.target as Element)?.closest('[role="option"]') ||
+          (event.target as Element)?.closest('.select-content') ||
+          (event.target as Element)?.closest('[data-state="open"]')
 
         if (!isDropdownClick) {
           onClose()
@@ -40,7 +95,7 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
       }
     }
 
-    const handleKeyDown = (event) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onClose()
       }
@@ -56,12 +111,12 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
   }, [onClose])
 
 
-  const updateSetting = (path, value) => {
+  const updateSetting = (path: string, value: any) => {
     try {
       console.log('🔧 Settings updateSetting:', path, value, localSettings)
       const newSettings = { ...localSettings }
       const keys = path.split('.')
-      let current = newSettings
+      let current: any = newSettings
 
       for (let i = 0; i < keys.length - 1; i++) {
         if (!current[keys[i]]) {
@@ -91,7 +146,8 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-2">
-      <Card ref={panelRef} className="w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto scrollbar-thin border shadow-lg">
+      <div ref={panelRef}>
+        <Card className="w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto scrollbar-thin border shadow-lg">
         <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold">Ayarlar</CardTitle>
@@ -724,6 +780,7 @@ export default function Settings({ settings, onSettingsChange, onClose }) {
           </Tabs>
         </CardContent>
       </Card>
+      </div>
     </div>
   )
 }

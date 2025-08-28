@@ -5,14 +5,14 @@ import { Textarea } from '@/components/ui/textarea.jsx'
 import { Label } from '@/components/ui/label.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Progress } from '@/components/ui/progress.jsx'
-import { 
-  BookOpen, 
-  Sparkles, 
-  Volume2, 
-  Heart, 
-  Share2, 
-  Download, 
-  Copy, 
+import {
+  BookOpen,
+  Sparkles,
+  Volume2,
+  Heart,
+  Share2,
+  Download,
+  Copy,
   Clock,
   CheckCircle,
   AlertCircle,
@@ -20,14 +20,43 @@ import {
   X
 } from 'lucide-react'
 import { storyTypes, getStoryTypeName, extractStoryTitle } from '@/utils/storyTypes.js'
-import { shareStory, shareToSocialMedia, downloadStory } from '@/utils/share.js'
+import { shareStory, shareToSocialMedia, downloadStory, SupportedPlatform } from '@/utils/share.js'
 import sharingService from '@/services/sharingService.js'
 
-export default function StoryCreator({ 
-  selectedType, 
-  customTopic, 
-  storyId, // Add storyId prop for sharing
-  onTypeChange, 
+// TypeScript interfaces
+interface StoryCreatorProps {
+  selectedType: string;
+  customTopic: string;
+  storyId?: string;
+  onTypeChange: (typeId: string) => void;
+  onCustomTopicChange: (topic: string) => void;
+  onGenerateStory: () => void;
+  onGenerateAudio: () => void;
+  isGenerating: boolean;
+  isGeneratingAudio: boolean;
+  story: string | null;
+  onStoryChange: (story: string) => void;
+  progress: number;
+  audioUrl: string | null;
+  isPlaying: boolean;
+  audioProgress: number;
+  audioDuration: number;
+  onPlayAudio: () => void;
+  onPauseAudio: () => void;
+  onStopAudio: () => void;
+  onToggleMute: () => void;
+  isMuted: boolean;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+  onClearStory: () => void;
+  onSaveStory: () => void;
+}
+
+export default function StoryCreator({
+  selectedType,
+  customTopic,
+  storyId,
+  onTypeChange,
   onCustomTopicChange,
   onGenerateStory,
   onGenerateAudio,
@@ -48,20 +77,20 @@ export default function StoryCreator({
   isFavorite,
   onToggleFavorite,
   onClearStory,
-  onSaveStory // Yeni prop eklendi
-}) {
+  onSaveStory
+}: StoryCreatorProps) {
   const [copied, setCopied] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
   const [_shareUrl, setShareUrl] = useState('')
   const [isSharing, setIsSharing] = useState(false)
   const [categoryInput, setCategoryInput] = useState('')
-  const [categories, setCategories] = useState([])
-  const shareMenuRef = useRef(null)
+  const [categories, setCategories] = useState<string[]>([])
+  const shareMenuRef = useRef<HTMLDivElement>(null)
 
   // Click outside handler için
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (shareMenuRef.current && !shareMenuRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (shareMenuRef.current && !shareMenuRef.current.contains(event.target as Node)) {
         setShowShareMenu(false)
       }
     }
@@ -74,7 +103,7 @@ export default function StoryCreator({
     }
   }, [showShareMenu])
 
-  const handleTypeChange = (typeId) => {
+  const handleTypeChange = (typeId: string) => {
     onTypeChange(typeId)
     // Tür seçildiğinde custom topic'i temizle
     if (typeId && customTopic.trim()) {
@@ -82,9 +111,9 @@ export default function StoryCreator({
     }
   }
 
-  const handleStoryTextChange = (e) => {
+  const handleStoryTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value
-    
+
     // Eğer masal varsa, masalı güncelle
     if (story) {
       onStoryChange(value)
@@ -111,7 +140,7 @@ export default function StoryCreator({
 
   const handleShare = async () => {
     if (!story) return
-    
+
     if (!storyId) {
       // Fallback to old sharing method if no storyId
       const result = await shareStory(story, selectedType, customTopic)
@@ -179,7 +208,7 @@ export default function StoryCreator({
     setCategoryInput('')
   }
 
-  const handleRemoveCategory = (cat) => {
+  const handleRemoveCategory = (cat: string) => {
     setCategories(categories.filter(c => c !== cat))
   }
 
@@ -188,20 +217,20 @@ export default function StoryCreator({
     downloadStory(story, selectedType)
   }
 
-  const handleSocialShare = (platform) => {
+  const handleSocialShare = (platform: SupportedPlatform) => {
     if (!story) return
     shareToSocialMedia(story, selectedType, platform)
     setShowShareMenu(false)
   }
 
-  const formatDuration = (seconds) => {
+  const formatDuration = (seconds: number) => {
     if (!seconds) return '0:00'
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const getReadingTime = (text) => {
+  const getReadingTime = (text: string) => {
     const wordsPerMinute = 150
     const words = text.trim().split(/\s+/).length
     const minutes = Math.ceil(words / wordsPerMinute)
@@ -209,8 +238,8 @@ export default function StoryCreator({
   }
 
   const displayText = story || customTopic
-  const placeholder = story 
-    ? "Masalın burada görünüyor..." 
+  const placeholder = story
+    ? "Masalın burada görünüyor..."
     : "Hangi konuda bir masal duymak istiyorsun? Örn: Uzay yolculuğu yapan kedinin macerası..."
 
   return (
@@ -225,7 +254,7 @@ export default function StoryCreator({
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
               )}
             </CardTitle>
-            
+
             {story ? (
               <div className="flex flex-wrap gap-1 sm:gap-2">
                 <Badge variant="secondary" className="text-xs">Türkçe</Badge>
@@ -263,7 +292,7 @@ export default function StoryCreator({
               </CardDescription>
             )}
           </div>
-          
+
           {story && (
             <div className="flex gap-1 sm:gap-2 flex-wrap w-full sm:w-auto">
               {/* Geri butonu */}
@@ -276,7 +305,7 @@ export default function StoryCreator({
                 <X className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Geri</span>
               </Button>
-              
+
               {/* Kaydet butonu */}
               <Button
                 variant="default"
@@ -287,10 +316,10 @@ export default function StoryCreator({
                 <CheckCircle className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Kaydet</span>
               </Button>
-              
+
               {/* Seslendir butonu */}
               {!isGeneratingAudio && !audioUrl && (
-                <Button 
+                <Button
                   onClick={onGenerateAudio}
                   variant="secondary"
                   size="sm"
@@ -302,7 +331,7 @@ export default function StoryCreator({
               )}
             </div>
           )}
-          
+
           {story && (
             <div className="flex flex-col gap-2 w-full sm:w-auto">
               {/* Audio controls */}
@@ -315,7 +344,7 @@ export default function StoryCreator({
                     </Button>
                   ) : (
                     <div className="flex gap-1 w-full sm:w-auto">
-                      <Button 
+                      <Button
                         variant={isPlaying ? "secondary" : "default"}
                         size="sm"
                         onClick={isPlaying ? onPauseAudio : onPlayAudio}
@@ -323,7 +352,7 @@ export default function StoryCreator({
                       >
                         <Volume2 className="h-4 w-4" />
                       </Button>
-                      <Button 
+                      <Button
                         variant="outline"
                         size="sm"
                         onClick={onStopAudio}
@@ -335,7 +364,7 @@ export default function StoryCreator({
                   )}
                 </div>
               )}
-              
+
               {/* Favori ve diğer butonlar */}
               <div className="flex gap-1 sm:gap-2 w-full sm:w-auto">
                 <Button
@@ -347,23 +376,23 @@ export default function StoryCreator({
                   <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
                 </Button>
                 <div className="relative flex-1 sm:flex-none">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setShowShareMenu(!showShareMenu)}
                     className="w-full sm:w-auto"
                   >
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
-                  
+
                   {showShareMenu && (
-                    <div 
+                    <div
                       ref={shareMenuRef}
                       className="absolute right-0 top-full mt-1 bg-background border rounded-lg shadow-lg p-2 z-10 min-w-[200px]"
                     >
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         className="w-full justify-start"
                         onClick={handleShare}
                       disabled={isSharing}
@@ -385,18 +414,18 @@ export default function StoryCreator({
                         </>
                       )}
                     </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="w-full justify-start"
                       onClick={handleDownload}
                     >
                       <Download className="h-4 w-4 mr-2" />
                       İndir
                     </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="w-full justify-start"
                       onClick={handleCopy}
                     >
@@ -407,17 +436,17 @@ export default function StoryCreator({
                     <div className="text-xs text-muted-foreground px-2 py-1">
                       Sosyal Medya
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="w-full justify-start text-xs"
                       onClick={() => handleSocialShare('twitter')}
                     >
                       Twitter
                     </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="w-full justify-start text-xs"
                       onClick={() => handleSocialShare('whatsapp')}
                     >
@@ -508,8 +537,8 @@ export default function StoryCreator({
                   value={displayText}
                   onChange={handleStoryTextChange}
                   className={`resize-none ${
-                    story 
-                      ? 'min-h-[250px] sm:min-h-[300px] text-sm sm:text-base leading-relaxed border-0 bg-transparent p-0 focus-visible:ring-0' 
+                    story
+                      ? 'min-h-[250px] sm:min-h-[300px] text-sm sm:text-base leading-relaxed border-0 bg-transparent p-0 focus-visible:ring-0'
                       : 'min-h-[100px] sm:min-h-[120px] text-sm'
                   }`}
                   readOnly={isGenerating}
@@ -527,11 +556,11 @@ export default function StoryCreator({
                 )}
               </div>
             </div>
-            
+
             {!story && (
               <div className="flex flex-col gap-2 w-full sm:min-w-[120px] sm:w-auto">
-                <Button 
-                  onClick={() => onGenerateStory(categories)}
+                <Button
+                  onClick={onGenerateStory}
                   disabled={isGenerating || (!selectedType && !customTopic.trim())}
                   className="flex items-center gap-2 w-full"
                   size="default"
@@ -551,7 +580,7 @@ export default function StoryCreator({
               </div>
             )}
           </div>
-          
+
           {/* Progress gösterimi */}
           {(isGenerating || isGeneratingAudio) && progress > 0 && (
             <div className="space-y-2">
@@ -597,7 +626,7 @@ export default function StoryCreator({
             <p className="text-xs text-muted-foreground">
               {customTopic.trim() && !selectedType
                 ? `"${customTopic.substring(0, 80)}${customTopic.length > 80 ? '...' : ''}" konulu özel masal oluşturulacak`
-                : selectedType 
+                : selectedType
                 ? storyTypes.find(t => t.id === selectedType)?.description
                 : ''
               }
@@ -608,7 +637,7 @@ export default function StoryCreator({
         {/* Aksiyon Butonları - Sadece masal varsa göster */}
         {story && (
           <div className="flex flex-wrap gap-2 sm:gap-3 pt-3 sm:pt-4 border-t">
-            <Button 
+            <Button
               onClick={onGenerateAudio}
               disabled={isGeneratingAudio}
               variant="outline"
@@ -627,10 +656,10 @@ export default function StoryCreator({
                 </>
               )}
             </Button>
-            
+
             {audioUrl && (
               <div className="flex items-center gap-2">
-                <Button 
+                <Button
                   onClick={isPlaying ? onPauseAudio : onPlayAudio}
                   size="sm"
                   variant="outline"

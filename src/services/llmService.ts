@@ -5,7 +5,18 @@ import { logger } from '@/utils/logger.js'
 
 // LLM Service for story generation
 export class LLMService {
-  constructor(settings) {
+  provider!: string;
+  endpoint!: string;
+  modelId!: string;
+  apiKey!: string;
+  customPrompt!: string;
+  customInstructions!: string;
+  storyLength!: 'short' | 'medium' | 'long';
+  temperature!: number;
+  maxTokens!: number;
+  activeProfile!: any;
+
+  constructor(settings: any) {
     this.provider = settings.llmProvider || 'openai'
 
     if (this.provider === 'openai') {
@@ -48,7 +59,7 @@ export class LLMService {
       })
     } catch (initErr) {
       // Init logging failed; safe to ignore in production
-      logger.debug('LLM Service init log error', 'LLMService', { error: initErr?.message })
+      logger.debug('LLM Service init log error', 'LLMService', { error: (initErr as Error)?.message })
     }
   }
 
@@ -63,7 +74,7 @@ export class LLMService {
   }
 
   // Build the complete prompt
-  buildPrompt(storyType = null, customTopic = '') {
+  buildPrompt(storyType: string | null = null, customTopic = '') {
     const lengthInstruction = this.getStoryLengthInstruction()
 
     // Aktif profil bilgisini ekle
@@ -104,7 +115,7 @@ export class LLMService {
   }
 
   // Generate story using custom LLM endpoint
-  async generateStory(onProgress, storyType = null, customTopic = '') {
+  async generateStory(onProgress: (progress: number) => void, storyType: string | null = null, customTopic = '') {
     try {
       // Model kontrolü
       if (!this.modelId) {
@@ -116,7 +127,7 @@ export class LLMService {
         llmSettings: { temperature: this.temperature, maxTokens: this.maxTokens },
         customPrompt: this.customPrompt
       }
-      const cachedStory = storyCache.getStory(storyType, customTopic, cacheKeyMeta)
+      const cachedStory = storyCache.getStory(storyType || '', customTopic, cacheKeyMeta)
 
       if (cachedStory) {
         console.log('[LLMService:cacheHit]', {
@@ -130,7 +141,7 @@ export class LLMService {
 
       onProgress?.(10)
 
-      const prompt = this.buildPrompt(storyType, customTopic)
+      const prompt = this.buildPrompt(storyType || null, customTopic)
       onProgress?.(30)
 
       // İstek backend proxy'imize yönlendirilir (aynı origin, dev'de Vite proxy)
@@ -193,7 +204,7 @@ export class LLMService {
       onProgress?.(100)
 
       // Önbellekle
-      storyCache.setStory(storyType, customTopic, cacheKeyMeta, story)
+      storyCache.setStory(storyType || '', customTopic, cacheKeyMeta, story)
       console.log('[LLMService:cacheSet]', {
         storyType,
         customTopic,
@@ -203,13 +214,13 @@ export class LLMService {
       return story
 
     } catch (error) {
-      console.error('[LLMService:error]', { message: error.message })
+      console.error('[LLMService:error]', { message: (error as Error).message })
       throw error
     }
   }
 
   // Prepare request body for different LLM providers
-  prepareRequestBody(prompt) {
+  prepareRequestBody(prompt: string) {
     // OpenAI Responses API format (güncellendi)
     if (this.endpoint.includes('responses') || this.endpoint.includes('/api/llm')) {
       return {
@@ -271,12 +282,12 @@ export class LLMService {
   }
 
   // Extract story from different response formats
-  extractStoryFromResponse(data) {
+  extractStoryFromResponse(data: any) {
     // OpenAI Responses API format (yeni) - output bir array olabilir
     if (data?.output) {
       if (Array.isArray(data.output) && data.output.length > 0) {
         // output array'inde text content'i ara
-        const textContent = data.output.find(item =>
+        const textContent = data.output.find((item: any) =>
           item?.type === 'text' || typeof item === 'string' || item?.content
         );
         if (textContent) {
@@ -299,7 +310,7 @@ export class LLMService {
       const parts = first.content && Array.isArray(first.content.parts) ? first.content.parts : []
       if (parts.length) {
         const joined = parts
-          .map(p => (typeof p === 'string' ? p : (p?.text || '')))
+          .map((p: any) => (typeof p === 'string' ? p : (p?.text || '')))
           .join('')
           .trim()
         if (joined) return joined

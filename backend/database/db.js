@@ -46,7 +46,7 @@ function initDatabase() {
       share_id TEXT UNIQUE,
       shared_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       FOREIGN KEY (profile_id) REFERENCES profiles(id)
     )
   `);
@@ -113,6 +113,19 @@ function initDatabase() {
   } catch (error) {
     if (!error.message.includes('duplicate column name')) {
       console.log('shared_at sütunu zaten mevcut');
+    }
+  }
+
+  // updated_at sütununu ekle (migration)
+  try {
+    db.exec(`ALTER TABLE stories ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP`);
+    console.log('updated_at sütunu eklendi');
+  } catch (error) {
+    if (error.message.includes('duplicate column name')) {
+      console.log('updated_at sütunu zaten mevcut');
+    } else {
+      console.error('updated_at sütunu eklenemedi:', error.message);
+      throw error;
     }
   }
 
