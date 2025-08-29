@@ -14,7 +14,6 @@ export class LLMService {
   storyLength!: 'short' | 'medium' | 'long';
   temperature!: number;
   maxTokens!: number;
-  activeProfile!: any;
 
   constructor(settings: any) {
     this.provider = settings.llmProvider || 'openai'
@@ -39,8 +38,6 @@ export class LLMService {
     // Yanıtların kısalmaması için maxTokens sabit 5000
     this.maxTokens = 5000
 
-    // Aktif profil bilgisi
-    this.activeProfile = settings.activeProfile || null
 
     // Debug: init logs (kimlik bilgisi ve tam prompt loglama yok)
     try {
@@ -55,7 +52,6 @@ export class LLMService {
         customPromptLen: this.customPrompt?.length || 0,
         hasCustomInstructions: !!this.customInstructions,
         customInstructionsLen: this.customInstructions?.length || 0,
-        hasActiveProfile: !!this.activeProfile
       })
     } catch (initErr) {
       // Init logging failed; safe to ignore in production
@@ -77,18 +73,6 @@ export class LLMService {
   buildPrompt(storyType: string | null = null, customTopic = '') {
     const lengthInstruction = this.getStoryLengthInstruction()
 
-    // Aktif profil bilgisini ekle
-    let profileInfo = ''
-    if (this.activeProfile) {
-      const { name, age, gender } = this.activeProfile
-      const genderText = gender === 'girl' ? 'kız' : gender === 'boy' ? 'erkek' : 'çocuk'
-      profileInfo = `\nBu masal ${name} adlı ${age} yaşındaki ${genderText} çocuğu için yazılıyor.`
-
-      // Özel prompt varsa ekle
-      if (this.activeProfile.custom_prompt) {
-        profileInfo += `\nÖzel istekler: ${this.activeProfile.custom_prompt}`
-      }
-    }
 
     // Masal türü bilgisini ekle
     let storyTypeText = ''
@@ -104,11 +88,10 @@ export class LLMService {
       ? `\n\nEk talimatlar:\n${this.customInstructions.trim()}`
       : ''
 
-    const prompt = `${this.customPrompt}${profileInfo}${storyTypeText}\n\n${lengthInstruction}\n\nMasal Türkçe olmalı ve şu özellikleri içermeli:\n- 5 yaşındaki bir kız çocuğu için uygun\n- Eğitici ve pozitif değerler içeren\n- Uyku vakti için rahatlatıcı\n- Hayal gücünü geliştiren${extraInstructions}\n\nMasalı şimdi yaz:`
+    const prompt = `${this.customPrompt}${storyTypeText}\n\n${lengthInstruction}\n\nMasal Türkçe olmalı ve şu özellikleri içermeli:\n- 5 yaşındaki bir çocuk için uygun\n- Eğitici ve pozitif değerler içeren\n- Uyku vakti için rahatlatıcı\n- Hayal gücünü geliştiren${extraInstructions}\n\nMasalı şimdi yaz:`
     console.log('[LLMService:buildPrompt]', {
       storyType,
       customTopic,
-      hasActiveProfile: !!this.activeProfile,
       promptLen: prompt.length
     })
     return prompt

@@ -18,7 +18,6 @@ import { useStoryHistory } from './hooks/useStoryHistory.js'
 import { useStoryDatabase } from './hooks/useStoryDatabase.js'
 import { useAudioPlayer } from './hooks/useAudioPlayer.js'
 import { useIsMobile } from './hooks/use-mobile.js'
-import useProfiles from './hooks/useProfiles'
 import ApiKeyHelp from './components/ApiKeyHelp.jsx'
 import safeLocalStorage from './utils/safeLocalStorage.js'
 // Pi Zero optimizations
@@ -80,9 +79,7 @@ interface SettingsData {
 }
 
 // AppState extends SettingsData with additional app-specific properties
-interface AppState extends SettingsData {
-  activeProfile?: string;
-}
+interface AppState extends SettingsData {}
 
 // TypeScript interfaces
 interface RemotePlaybackState {
@@ -204,26 +201,6 @@ function App() {
     return cleanup
   }, [settings.theme])
 
-  // Profiller hook'u
-  const {
-    profiles,
-    activeProfile,
-    isLoading: profilesLoading,
-    createProfile,
-    updateProfile,
-    deleteProfile,
-    setActiveProfileById
-  } = useProfiles()
-
-  // Aktif profil değiştiğinde settings'i güncelle
-  useEffect(() => {
-    if (activeProfile) {
-      updateSettings({
-        ...settings,
-        activeProfile: activeProfile.id
-      })
-    }
-  }, [activeProfile, settings])
 
   // Favori masallar hook'u
   const {
@@ -375,12 +352,8 @@ function App() {
     const startTime = Date.now()
 
     try {
-      // Aktif profili settings'e dahil et
-      const settingsWithProfile = {
-        ...settings,
-        activeProfile: activeProfile
-      }
-      const llmService = new LLMService(settingsWithProfile)
+      // Initialize LLM Service with current settings
+      const llmService = new LLMService(settings)
       if (import.meta.env?.DEV) console.log('[App] LLMService:created')
 
       // Eğer customTopic varsa onu kullan, yoksa selectedStoryType kullan
