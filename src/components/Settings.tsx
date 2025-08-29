@@ -143,9 +143,9 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
 
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-2">
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-1">
       <div ref={panelRef}>
-        <Card className="w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto scrollbar-thin border shadow-lg">
+        <Card className="w-[600px] h-[500px] overflow-y-auto scrollbar-thin border shadow-lg">
         <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold">Ayarlar</CardTitle>

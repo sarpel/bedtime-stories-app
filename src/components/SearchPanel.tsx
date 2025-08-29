@@ -181,7 +181,7 @@ const SearchPanel = ({
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-1">
       <div ref={panelRef}>
-        <Card className="w-full max-w-[95vw] sm:max-w-md md:max-w-lg max-h-[95vh] overflow-y-auto scrollbar-thin">
+        <Card className="w-[600px] h-[500px] overflow-y-auto scrollbar-thin">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">

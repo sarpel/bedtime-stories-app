@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent } from '@/components/ui/card.jsx'
-import { Moon, Settings, Heart, AlertCircle, BookOpen, BarChart3, Zap, Play, Square, ListMusic, X, Search } from 'lucide-react'
+import { Moon, Settings, Heart, AlertCircle, BookOpen, BarChart3, Play, Square, ListMusic, X, Search } from 'lucide-react'
 import SettingsPanel from './components/Settings.jsx'
 import StoryCreator from './components/StoryCreator.jsx'
 import FavoritesPanel from './components/FavoritesPanel.jsx'
@@ -103,7 +103,6 @@ function App() {
   const [showApiKeyHelp, setShowApiKeyHelp] = useState<boolean>(false)
   const [showStoryManagement, setShowStoryManagement] = useState<boolean>(false)
   const [showAnalytics, setShowAnalytics] = useState<boolean>(false)
-  const [showPerformanceMonitor, setShowPerformanceMonitor] = useState<boolean>(false)
   const [showSearch, setShowSearch] = useState<boolean>(false)
   // Son oluşturulan masalın geçmiş ID'si
   const [currentStoryId, setCurrentStoryId] = useState<string | null>(null)
@@ -699,16 +698,6 @@ function App() {
             >
               <BarChart3 className="h-3 w-3" />
               <span className="hidden lg:inline">Analitik</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowPerformanceMonitor(true)}
-              className="gap-1 px-2 h-8 text-xs"
-              title="Performans Monitörü"
-            >
-              <Zap className="h-3 w-3" />
-              <span className="hidden lg:inline">Performans</span>
             </Button>
             <Button
               variant="outline"
