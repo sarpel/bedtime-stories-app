@@ -1,4 +1,4 @@
-// @ts-nocheck
+// TypeScript migration completed
 // database/db.ts
 import Database from 'better-sqlite3';
 import * as path from 'path';
@@ -24,12 +24,16 @@ interface Story {
   voice_id?: string;
 }
 
+interface UserPreferences {
+  [key: string]: unknown;
+}
+
 interface Profile {
   id?: number;
   name: string;
   age?: number;
   gender?: string;
-  preferences?: any;
+  preferences?: UserPreferences;
   custom_prompt?: string | null;
   is_active?: number;
   created_at?: string;
@@ -473,7 +477,11 @@ const storyDb = {
   // Story operations
   createStory(storyText: string, storyType: string, customTopic: string | null = null, categories: string[] | string | null = null): number {
     try {
-      const categoriesValue = Array.isArray(categories) ? JSON.stringify(categories) : (categories || null);
+      const categoriesValue: string | null = Array.isArray(categories)
+        ? JSON.stringify(categories)
+        : typeof categories === 'string'
+          ? categories
+          : null;
       const result = statements.insertStory.run(storyText, storyType, customTopic, categoriesValue);
       return result.lastInsertRowid as number;
     } catch (error) {
@@ -527,16 +535,16 @@ const storyDb = {
     }
   },
 
-  getStoriesByType(storyType) {
+  getStoriesByType(storyType: string): StoryWithAudio[] {
     try {
-      return statements.getStoriesByType.all(storyType);
+      return statements.getStoriesByType.all(storyType) as StoryWithAudio[];
     } catch (error) {
       console.error('Tip bazlı masal getirme hatası:', error);
       throw error;
     }
   },
 
-  updateStory(id, storyText, storyType, customTopic = null) {
+  updateStory(id: number, storyText: string, storyType: string, customTopic: string | null = null): boolean {
     try {
       const result = statements.updateStory.run(storyText, storyType, customTopic, id);
       return result.changes > 0;
@@ -546,7 +554,7 @@ const storyDb = {
     }
   },
 
-  deleteStory(id) {
+  deleteStory(id: number): boolean {
     try {
       // Önce ses dosyasını fiziksel olarak sil
       const audio = statements.getAudioByStoryId.get(id);
@@ -563,11 +571,11 @@ const storyDb = {
     }
   },
 
-  updateStoryFavorite(id, isFavorite) {
+  updateStoryFavorite(id: number, isFavorite: boolean): Story | null {
     try {
       const result = statements.updateStoryFavorite.run(isFavorite ? 1 : 0, id);
       if (result.changes > 0) {
-        return statements.getStoryById.get(id);
+        return statements.getStoryById.get(id) as Story;
       }
       return null;
     } catch (error) {
@@ -577,7 +585,7 @@ const storyDb = {
   },
 
   // Audio operations
-  saveAudio(storyId, fileName, filePath, voiceId, voiceSettings = null) {
+  saveAudio(storyId: number, fileName: string, filePath: string, voiceId: string, voiceSettings: any = null): number {
     try {
       const result = statements.insertAudio.run(
         storyId,
@@ -586,16 +594,16 @@ const storyDb = {
         voiceId,
         voiceSettings ? JSON.stringify(voiceSettings) : null
       );
-      return result.lastInsertRowid;
+      return result.lastInsertRowid as number;
     } catch (error) {
       console.error('Ses dosyası kaydetme hatası:', error);
       throw error;
     }
   },
 
-  getAudioByStoryId(storyId) {
+  getAudioByStoryId(storyId: number): AudioFile | undefined {
     try {
-      return statements.getAudioByStoryId.get(storyId);
+      return statements.getAudioByStoryId.get(storyId) as AudioFile | undefined;
     } catch (error) {
       console.error('Ses dosyası getirme hatası:', error);
       throw error;
@@ -603,7 +611,7 @@ const storyDb = {
   },
 
   // Combined operations
-  getStoryWithAudio(id) {
+  getStoryWithAudio(id: number): StoryWithAudio | null {
     try {
       const row = statements.getStoryWithAudio.get(id);
       if (!row) {
@@ -615,7 +623,7 @@ const storyDb = {
         story_text: row.story_text,
         story_type: row.story_type,
         custom_topic: row.custom_topic,
-  categories: row.categories ? JSON.parse(row.categories) : [],
+        categories: row.categories ? JSON.parse(row.categories) : [],
         created_at: row.created_at,
         updated_at: row.updated_at,
         audio: row.audio_id ? {
@@ -633,7 +641,7 @@ const storyDb = {
   },
 
   // Sharing operations
-  shareStory(id) {
+  shareStory(id: number): { success: boolean; shareId?: string } {
     try {
       const shareId = generateShareId();
       const result = statements.updateStorySharing.run(1, shareId, id);
@@ -648,7 +656,7 @@ const storyDb = {
   },
 
   // Queue operations
-  getQueue() {
+  getQueue(): number[] {
     try {
       const rows = statements.getQueueAll.all();
       return rows.map(r => r.story_id);
@@ -658,7 +666,7 @@ const storyDb = {
     }
   },
 
-  setQueue(ids) {
+  setQueue(ids: number[]): boolean {
     try {
       const tx = db.transaction((list) => {
         statements.clearQueue.run();
@@ -674,7 +682,7 @@ const storyDb = {
     }
   },
 
-  addToQueue(id) {
+  addToQueue(id: number): boolean {
     try {
       const current = this.getQueue();
       if (current.includes(id)) {
@@ -716,7 +724,7 @@ const storyDb = {
     }
   },
 
-  getStoryByShareId(shareId) {
+  getStoryByShareId(shareId: string): StoryWithAudio | null {
     try {
       const row = statements.getStoryByShareId.get(shareId);
       if (!row) {
@@ -728,7 +736,7 @@ const storyDb = {
         story_text: row.story_text,
         story_type: row.story_type,
         custom_topic: row.custom_topic,
-  categories: row.categories ? JSON.parse(row.categories) : [],
+        categories: row.categories ? JSON.parse(row.categories) : [],
         is_favorite: row.is_favorite,
         is_shared: row.is_shared,
         share_id: row.share_id,
@@ -820,7 +828,7 @@ const storyDb = {
   },
 
   // Ana arama metodu - FTS ve fallback LIKE araması
-  searchStories(query, options = {}) {
+  searchStories(query: string, options: { limit?: number; useFTS?: boolean } = {}): SearchResult[] {
     try {
       if (!query || typeof query !== 'string' || query.trim().length === 0) {
         return [];
@@ -1009,4 +1017,5 @@ const storyDb = {
 // Veritabanını başlat
 initDatabase();
 
-module.exports = storyDb;
+export default storyDb;
+export { Story, AudioFile, StoryWithAudio, SearchResult, DatabaseConfig, UserPreferences };

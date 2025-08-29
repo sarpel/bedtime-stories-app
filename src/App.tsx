@@ -223,7 +223,7 @@ function App() {
         activeProfile: activeProfile.id
       })
     }
-  }, [activeProfile])
+  }, [activeProfile, settings])
 
   // Favori masallar hook'u
   const {
@@ -356,7 +356,7 @@ function App() {
     }
   }
 
-  const generateStory = async (categories = []) => {
+  const generateStory = async (categories: string[] = []) => {
     // Hem selectedStoryType hem de customTopic boşsa masal oluşturma
     if (!selectedStoryType && !customTopic.trim()) {
       setError('Lütfen bir masal türü seçin veya özel bir konu yazın.')

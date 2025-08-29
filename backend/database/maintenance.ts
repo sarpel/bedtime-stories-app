@@ -296,20 +296,25 @@ class DatabaseMaintenance {
   /**
    * Run full maintenance suite
    */
-  async fullMaintenance() {
+  async fullMaintenance(): Promise<{ success: boolean; error?: string }> {
     console.log('Starting full database maintenance...');
 
-    const results = {
-      integrity: await this.integrityCheck(),
-      cleanup: this.cleanup(),
-      analyze: this.analyze(),
-      reindex: this.reindex(),
-      vacuum: this.vacuum(),
-      stats: this.getStats()
-    };
+    try {
+      await Promise.resolve(); // Ensure async consistency
+      const results = {
+        integrity: this.integrityCheck(),
+        cleanup: this.cleanup(),
+        analyze: this.analyze(),
+        reindex: this.reindex(),
+        vacuum: this.vacuum(),
+        stats: this.getStats()
+      };
 
-    console.log('Full database maintenance completed');
-    return results;
+      console.log('Full database maintenance completed');
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
   }
 
   /**

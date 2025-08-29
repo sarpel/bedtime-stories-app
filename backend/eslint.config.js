@@ -38,7 +38,12 @@ export default [
       'no-var': 'error',
       'eqeqeq': 'error',
       'curly': 'error',
-      '@typescript-eslint/ban-ts-comment': 'off',
+      '@typescript-eslint/ban-ts-comment': ['warn', {
+        'ts-expect-error': 'allow-with-description',
+        'ts-ignore': true,
+        'ts-nocheck': true,
+        'ts-check': false
+      }],
       'no-eval': 'error',
       'no-implied-eval': 'error',
       'no-new-func': 'error',

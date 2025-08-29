@@ -1,10 +1,22 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import type { UIEvent } from 'react'
 
 /**
  * Virtual Scrolling and Lazy Loading Hook
  * Büyük listeleri verimli şekilde göstermek için optimize edilmiş hook
  */
-export function useVirtualizedList<T>(items: T[] = [], itemHeight: number = 60, containerHeight: number = 400) {
+interface VirtualizedListMetrics<T> {
+  startIndex: number;
+  endIndex: number;
+  visibleItems: T[];
+  totalHeight?: number;
+  offsetY?: number;
+  containerRef: any;
+  setContainerRef: (ref: any) => void;
+  handleScroll: (e: UIEvent<HTMLDivElement>) => void;
+}
+
+export function useVirtualizedList<T>(items: T[] = [], itemHeight: number = 60, containerHeight: number = 400): VirtualizedListMetrics<T> {
   const [scrollTop, setScrollTop] = useState(0)
   const [containerRef, setContainerRef] = useState(null)
 
@@ -24,7 +36,7 @@ export function useVirtualizedList<T>(items: T[] = [], itemHeight: number = 60, 
     }
   }, [items, itemHeight, containerHeight, scrollTop])
 
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+  const handleScroll = useCallback((e: UIEvent<HTMLDivElement>) => {
     setScrollTop((e.target as HTMLDivElement).scrollTop)
   }, [])
 
@@ -89,11 +101,11 @@ export function useDebouncedSearch(searchTerm: string, delay: number = 300) {
   const [debouncedTerm, setDebouncedTerm] = useState(searchTerm)
 
   useEffect(() => {
-    const handler = setTimeout(() => {
+    const handler = window.setTimeout(() => {
       setDebouncedTerm(searchTerm)
     }, delay)
 
-    return () => clearTimeout(handler)
+    return () => window.clearTimeout(handler)
   }, [searchTerm, delay])
 
   return debouncedTerm
@@ -112,6 +124,7 @@ export function useMemoryMonitor(threshold: number = 50) { // MB
 
     if (typeof performance !== 'undefined' && (performance as any).memory) {
       intervalId = window.setInterval(() => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') { return }
         const usage = (performance as any).memory.usedJSHeapSize / (1024 * 1024) // MB
         setMemoryUsage(Math.round(usage * 100) / 100)
         setIsHighMemory(usage > threshold)
@@ -158,6 +171,7 @@ export function useCacheManager() {
   }, [])
 
   const getCacheSize = useCallback(() => {
+    if (typeof window === 'undefined' || !('localStorage' in window)) return 0
     let totalSize = 0
     const keys = Object.keys(localStorage)
 
@@ -176,6 +190,7 @@ export function useCacheManager() {
     clearOldCache()
 
     // Her 10 dakikada bir temizle
+    if (typeof window === 'undefined') { return }
     const intervalId = window.setInterval(clearOldCache, 10 * 60 * 1000)
 
     return () => window.clearInterval(intervalId)

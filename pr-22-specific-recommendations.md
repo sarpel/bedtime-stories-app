@@ -112,40 +112,32 @@ Bu dokümanda PR #22'de (TypeScript Conversion) yapılan CodeRabbit inceleme yor
 + searchStories(query: string, options: { limit?: number; useFTS?: boolean } = {}): SearchResult[] {
 ```
 
-**14. Satır 789-804: Profile create fonksiyonu**
-```diff
-- createProfile(name, age, gender, preferences = {}, customPrompt = '') {
-+ createProfile(name: string, age: number, gender: string, preferences: UserPreferences = {}, customPrompt: string = ''): number {
-```
-
-**15. Satır 1012-1012: ES module export**
+**14. Satır 1012-1012: ES module export**
 ```diff
 - module.exports = storyDb;
 + export default storyDb;
-+ export { Story, Profile, AudioFile, StoryWithAudio, SearchResult, DatabaseConfig };
++ export { Story, AudioFile, StoryWithAudio, SearchResult, DatabaseConfig };
 ```
 
-**16. Satır 32-32: UserPreferences interface**
+**15. Satır 32-32: UserPreferences interface**
 ```diff
 + interface UserPreferences {
 +   [key: string]: unknown;
 + }
-+
-  interface Profile {
+
+  interface Story {
     id?: number;
-    name: string;
-    age?: number;
-    gender?: string;
--   preferences?: any;
-+   preferences?: UserPreferences;
-    custom_prompt?: string | null;
-    is_active?: number;
+    story_text: string;
+    story_type: string;
+    custom_topic?: string | null;
+    categories?: string | null;
+    is_favorite?: number;
     created_at?: string;
     updated_at?: string;
   }
 ```
 
-**17. Satır 474-483: Categories type safety**
+**16. Satır 474-483: Categories type safety**
 ```diff
 createStory(storyText: string, storyType: string, customTopic: string | null = null, categories: string[] | string | null = null): number {
   try {
@@ -153,8 +145,8 @@ createStory(storyText: string, storyType: string, customTopic: string | null = n
 +   const categoriesValue: string | null = Array.isArray(categories)
 +     ? JSON.stringify(categories)
 +     : typeof categories === 'string'
-+       ? categories
-+       : null;
+       ? categories
+       : null;
     const result = statements.insertStory.run(storyText, storyType, customTopic, categoriesValue);
     return result.lastInsertRowid as number;
   } catch (error) {
@@ -166,19 +158,19 @@ createStory(storyText: string, storyType: string, customTopic: string | null = n
 
 ### backend/database/maintenance.ts
 
-**18. Satır 1-1: @ts-nocheck kaldır**
+**17. Satır 1-1: @ts-nocheck kaldır**
 ```diff
 - // @ts-nocheck
 + // TypeScript migration completed
 ```
 
-**19. Satır 120-130: SQL sorgu düzeltme**
+**18. Satır 120-130: SQL sorgu düzeltme**
 ```diff
 - // SUM(pgsize) kullanımı hatalı - pgsize sadece dbstat virtual table'da var
 + // Fixed: pgsize only exists in dbstat virtual table, not user tables
 ```
 
-**20. Satır 171-226: Transaction wrapper**
+**19. Satır 171-226: Transaction wrapper**
 ```diff
 + db.exec('BEGIN TRANSACTION');
   try {
@@ -190,20 +182,20 @@ createStory(storyText: string, storyType: string, customTopic: string | null = n
   }
 ```
 
-**21. Satır 231-250: @ts-expect-error kaldır**
+**20. Satır 231-250: @ts-expect-error kaldır**
 ```diff
 - // @ts-expect-error
 + // TypeScript typing for PRAGMA result
 ```
 
-**22. Satır 281-287: Multi-statement PRAGMA düzeltme**
+**21. Satır 281-287: Multi-statement PRAGMA düzeltme**
 ```diff
 - db.prepare(`PRAGMA table_info(${tableName}); PRAGMA index_list(${tableName})`);
 + const tableInfo = db.prepare(`PRAGMA table_info(${tableName})`).all();
 + const indexInfo = db.prepare(`PRAGMA index_list(${tableName})`).all();
 ```
 
-**23. Satır 299-313: Async/sync consistency**
+**22. Satır 299-313: Async/sync consistency**
 ```diff
 - async fullMaintenance() {
 + async fullMaintenance(): Promise<{ success: boolean; error?: string }> {
@@ -217,7 +209,7 @@ createStory(storyText: string, storyType: string, customTopic: string | null = n
   },
 ```
 
-**24. Satır 318-339: Return type annotation**
+**23. Satır 318-339: Return type annotation**
 ```diff
 - optimize() {
 + optimize(): { success: boolean; error?: string } {
@@ -225,7 +217,7 @@ createStory(storyText: string, storyType: string, customTopic: string | null = n
 
 ### backend/eslint.config.js
 
-**25. Satır 32-35: no-explicit-any scope**
+**24. Satır 32-35: no-explicit-any scope**
 ```diff
 - '@typescript-eslint/no-explicit-any': 'error',
 + // Scoped exceptions for any usage
@@ -234,7 +226,7 @@ createStory(storyText: string, storyType: string, customTopic: string | null = n
 + }],
 ```
 
-**26. Satır 41-41: ban-ts-comment kuralları**
+**25. Satır 41-41: ban-ts-comment kuralları**
 ```diff
 - '@typescript-eslint/ban-ts-comment': 'off',
 + '@typescript-eslint/ban-ts-comment': ['warn', {
@@ -247,7 +239,7 @@ createStory(storyText: string, storyType: string, customTopic: string | null = n
 
 ### backend/middleware/validation.ts
 
-**27. Satır 30-35: Centralized error handling**
+**26. Satır 30-35: Centralized error handling**
 ```diff
 - res.status(400).json({
 -   error: 'Geçersiz veri formatı',
@@ -259,7 +251,7 @@ createStory(storyText: string, storyType: string, customTopic: string | null = n
 + }));
 ```
 
-**28. Satır 6-23: DTO interfaces**
+**27. Satır 6-23: DTO interfaces**
 ```diff
 + interface StoryPayload { storyText: string; storyType: string; customTopic?: string; isFavorite?: boolean; }
 + interface LlmRequestPayload { prompt: string; storyType: string; customTopic?: string; }
@@ -290,7 +282,7 @@ const schemas = {
 
 ### eslint.config.js
 
-**29. Satır 15-20: Type-aware linting**
+**28. Satır 15-20: Type-aware linting**
 ```diff
 parser: tsparser,
 parserOptions: {
@@ -304,7 +296,7 @@ parserOptions: {
 },
 ```
 
-**30. Satır 33-33: no-explicit-any globally disable**
+**29. Satır 33-33: no-explicit-any globally disable**
 ```diff
 - '@typescript-eslint/no-explicit-any': 'error',
 + // Scoped exceptions for any usage in legacy code
@@ -312,7 +304,7 @@ parserOptions: {
 
 ### package.json
 
-**31. Satır 12-13: Lint config path**
+**30. Satır 12-13: Lint config path**
 ```diff
 - "lint": "eslint . --ext .js,.jsx,.ts,.tsx --max-warnings=10",
 - "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
@@ -320,7 +312,7 @@ parserOptions: {
 + "lint:fix": "eslint . --config ./eslint.config.js --ext .js,.jsx,.ts,.tsx --fix",
 ```
 
-**32. Satır 50-50: Unused @types/prop-types**
+**31. Satır 50-50: Unused @types/prop-types**
 ```diff
 - "@types/prop-types": "^15.7.15",
 + // Removed: prop-types not used after React migration
@@ -328,20 +320,20 @@ parserOptions: {
 
 ### src/hooks/usePerformance.ts
 
-**33. Satır 1-1: React import optimize**
+**32. Satır 1-1: React import optimize**
 ```diff
 - import React, { useState, useEffect, useCallback, useMemo } from 'react'
 + import { useState, useEffect, useCallback, useMemo } from 'react'
 + import type React, { UIEvent } from 'react'
 ```
 
-**34. Satır 31-36: Return type annotation**
+**33. Satır 31-36: Return type annotation**
 ```diff
 - export function useVirtualizedList(items, containerHeight, itemHeight) {
-+ export function useVirtualizedList<T>(items: T[], containerHeight: number, itemHeight: number): VirtualizedListMetrics<T> {
++ export function useVirtualizedList<T>(items: T[] = [], itemHeight: number = 60, containerHeight: number = 400): VirtualizedListMetrics<T> {
 ```
 
-**35. Satır 88-97: window.setTimeout kullan**
+**34. Satır 88-97: window.setTimeout kullan**
 ```diff
 export function useDebouncedSearch(searchTerm: string, delay: number = 300) {
   const [debouncedTerm, setDebouncedTerm] = useState(searchTerm)
@@ -357,7 +349,7 @@ export function useDebouncedSearch(searchTerm: string, delay: number = 300) {
   }, [searchTerm, delay])
 ```
 
-**36. Satır 106-124: Hidden tab optimization**
+**35. Satır 106-124: Hidden tab optimization**
 ```diff
 intervalId = window.setInterval(() => {
 - const usage = (performance as any).memory.usedJSHeapSize / (1024 * 1024) // MB
@@ -368,7 +360,7 @@ intervalId = window.setInterval(() => {
 }, 5000) // Her 5 saniyede kontrol et
 ```
 
-**37. Satır 160-173: SSR-safe cache size**
+**36. Satır 160-173: SSR-safe cache size**
 ```diff
 const getCacheSize = useCallback(() => {
 + if (typeof window === 'undefined' || !('localStorage' in window)) return 0
@@ -386,7 +378,7 @@ const getCacheSize = useCallback(() => {
 }, [])
 ```
 
-**38. Satır 174-183: SSR-safe cleanup scheduling**
+**37. Satır 174-183: SSR-safe cleanup scheduling**
 ```diff
 useEffect(() => {
   // Sayfa yüklendiğinde eski cache'leri temizle
@@ -404,7 +396,7 @@ useEffect(() => {
 
 ### src/components/StoryCreator.tsx
 
-**39. Satır 22-24: Import optimization**
+**38. Satır 22-24: Import optimization**
 ```diff
 - import { storyTypes, getStoryTypeName, extractStoryTitle } from '@/utils/storyTypes.js'
 - import { shareStory, shareToSocialMedia, downloadStory, SupportedPlatform } from '@/utils/share.js'
@@ -415,7 +407,7 @@ useEffect(() => {
 + import sharingService from '@/services/sharingService'
 ```
 
-**40. Satır 27-53: Categories prop API**
+**39. Satır 27-53: Categories prop API**
 ```diff
 interface StoryCreatorProps {
   selectedType: string;
@@ -430,52 +422,35 @@ interface StoryCreatorProps {
 }
 ```
 
-**41. Satır 562-567: Categories call site**
+**40. Satır 562-567: Categories call site**
 ```diff
 - <Button
 -   onClick={onGenerateStory}
 + <Button
-+   onClick={() => onGenerateStory(categories)}
+-   onClick={() => onGenerateStory(categories)}
     disabled={isGenerating || (!selectedType && !customTopic.trim())}
     className="flex items-center gap-2 w-full"
     size="default"
   >
 ```
 
-**42. Satır 196-206: Functional state updates**
-```diff
-const merged = [...categories]
-parts.forEach(p => {
-  // Avoid case-insensitive duplicates against existing categories
-  if (
-    merged.length < 10 &&
-    !merged.some(m => m.toLowerCase() === p.toLowerCase())
-  ) {
-    merged.push(p)
-  }
-})
-
-- setCategories(merged)
-+ setCategories(merged)
-```
-
-**43. Satır 211-213: Functional remove category**
+**41. Satır 211-213: Functional remove category**
 ```diff
 - const handleRemoveCategory = (cat: string) => {
 -   setCategories(categories.filter(c => c !== cat))
 - }
 + const handleRemoveCategory = (cat: string) => {
 +   setCategories(prev => prev.filter(c => c !== cat))
-+ }
+- }
 ```
 
-**44. Satır 84-85: Unused shareUrl state**
+**42. Satır 84-85: Unused shareUrl state**
 ```diff
 - const [_shareUrl, setShareUrl] = useState('')
 + // Removed unused state
 ```
 
-**45. Satır 226-231: Hoist pure helpers**
+**43. Satır 226-231: Hoist pure helpers**
 ```diff
 - const formatDuration = (seconds: number) => {
 -   if (!seconds) return '0:00'
@@ -494,7 +469,7 @@ parts.forEach(p => {
 + // Moved outside component
 ```
 
-**46. Satır 141-177: Close share menu after success**
+**44. Satır 141-177: Close share menu after success**
 ```diff
 if (result.success) {
 + setShowShareMenu(false)
@@ -514,7 +489,7 @@ if (result.success) {
 }
 ```
 
-**47. Satır 320-331: Deduplicate Seslendir buttons**
+**45. Satır 320-331: Deduplicate Seslendir buttons**
 ```diff
 // Remove duplicate "Seslendir" button and unify controls
 ```
@@ -530,7 +505,6 @@ if (result.success) {
 - [ ] Database fonksiyonları için return type tanımlama
 - [ ] Public API'ler için interface kullanımı
 - [ ] Generic tiplerin uygun kullanımı
-- [ ] `UserPreferences` interface'i oluşturma ve `any` yerine kullanma
 
 ### 2. ES Module Migration ve Import Optimizasyonu
 **Öncelik:** Yüksek
@@ -677,6 +651,6 @@ setCategories(prev => {
 
 ---
 
-**Son Güncelleme:** 28 Ağustos 2025
+**Son Güncelleme:** 29 Ağustos 2025
 **Kaynak:** PR #22 CodeRabbit Review
 **Hazırlayan:** AI Assistant

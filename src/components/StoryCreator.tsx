@@ -19,9 +19,10 @@ import {
   MoreHorizontal,
   X
 } from 'lucide-react'
-import { storyTypes, getStoryTypeName, extractStoryTitle } from '@/utils/storyTypes.js'
-import { shareStory, shareToSocialMedia, downloadStory, SupportedPlatform } from '@/utils/share.js'
-import sharingService from '@/services/sharingService.js'
+import { storyTypes, getStoryTypeName, extractStoryTitle } from '@/utils/storyTypes'
+import { shareStory, shareToSocialMedia, downloadStory } from '@/utils/share'
+import type { SupportedPlatform } from '@/utils/share'
+import sharingService from '@/services/sharingService'
 
 // TypeScript interfaces
 interface StoryCreatorProps {
@@ -30,7 +31,7 @@ interface StoryCreatorProps {
   storyId?: string;
   onTypeChange: (typeId: string) => void;
   onCustomTopicChange: (topic: string) => void;
-  onGenerateStory: () => void;
+  onGenerateStory: (categories: string[]) => void;
   onGenerateAudio: () => void;
   isGenerating: boolean;
   isGeneratingAudio: boolean;
@@ -81,7 +82,7 @@ export default function StoryCreator({
 }: StoryCreatorProps) {
   const [copied, setCopied] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
-  const [_shareUrl, setShareUrl] = useState('')
+  const [shareUrl, setShareUrl] = useState('')
   const [isSharing, setIsSharing] = useState(false)
   const [categoryInput, setCategoryInput] = useState('')
   const [categories, setCategories] = useState<string[]>([])
@@ -156,6 +157,7 @@ export default function StoryCreator({
       const result = await sharingService.shareStory(storyId)
       if (result.success) {
         setShareUrl(result.shareUrl)
+        setShowShareMenu(false)
         // Copy share URL to clipboard
         await navigator.clipboard.writeText(result.shareUrl)
         setCopied(true)
@@ -165,6 +167,7 @@ export default function StoryCreator({
         // Fallback to old method
         const fallbackResult = await shareStory(story, selectedType, customTopic)
         if (fallbackResult.success && fallbackResult.method === 'clipboard') {
+          setShowShareMenu(false)
           setCopied(true)
           setTimeout(() => setCopied(false), 2000)
         }
@@ -209,7 +212,7 @@ export default function StoryCreator({
   }
 
   const handleRemoveCategory = (cat: string) => {
-    setCategories(categories.filter(c => c !== cat))
+    setCategories(prev => prev.filter(c => c !== cat))
   }
 
   const handleDownload = () => {
@@ -560,7 +563,7 @@ export default function StoryCreator({
             {!story && (
               <div className="flex flex-col gap-2 w-full sm:min-w-[120px] sm:w-auto">
                 <Button
-                  onClick={onGenerateStory}
+                  onClick={() => onGenerateStory(categories)}
                   disabled={isGenerating || (!selectedType && !customTopic.trim())}
                   className="flex items-center gap-2 w-full"
                   size="default"
