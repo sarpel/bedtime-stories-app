@@ -7,7 +7,7 @@ interface UseStoryDatabaseReturn {
   loading: boolean
   error: string | null
   loadStories: () => Promise<void>
-  createStory: (storyText: string, storyType: string, customTopic?: string | null, categories?: string[]) => Promise<Story>
+  createStory: (storyText: string, storyType: string, customTopic?: string | null) => Promise<Story>
   updateStory: (id: string | number, storyText: string, storyType: string, customTopic?: string | null) => Promise<Story>
   deleteStory: (id: string | number) => Promise<void>
   getStory: (id: string | number) => Promise<Story | null>
@@ -38,11 +38,11 @@ export function useStoryDatabase(): UseStoryDatabaseReturn {
   }
 
   // Yeni masal oluştur
-  const createStory = async (storyText: string, storyType: string, customTopic: string | null = null, categories: string[] = []): Promise<Story> => {
+  const createStory = async (storyText: string, storyType: string, customTopic: string | null = null): Promise<Story> => {
     setLoading(true)
     setError(null)
     try {
-      const newStory = await databaseService.createStory(storyText, storyType, customTopic, categories)
+      const newStory = await databaseService.createStory(storyText, storyType, customTopic)
       await loadStories() // Listeyi yenile
       return newStory
     } catch (err: unknown) {
@@ -78,6 +78,7 @@ export function useStoryDatabase(): UseStoryDatabaseReturn {
     setLoading(true)
     setError(null)
     try {
+      console.log(`[useStoryDatabase] deleteStory called with id: ${id}`);
       await databaseService.deleteStory(String(id))
       await loadStories() // Listeyi yenile
     } catch (err: unknown) {

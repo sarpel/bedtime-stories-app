@@ -159,7 +159,6 @@ export interface Story {
   isFavorite?: boolean;
   // Additional metadata
   updatedAt?: string;
-  categories?: string[];
 }
 
 // Helper functions to normalize Story properties
@@ -180,7 +179,6 @@ export const normalizeStory = (story: any): Story => {
     is_favorite: story.is_favorite,
     isFavorite: typeof story.is_favorite === 'boolean' ? story.is_favorite : Boolean(story.is_favorite),
     updatedAt: story.updatedAt,
-    categories: story.categories
   };
 };
 
@@ -189,7 +187,6 @@ export interface CreateStoryData {
   story: string;
   storyType: string;
   customTopic?: string | null;
-  categories?: string[];
 }
 
 // Type for story filters

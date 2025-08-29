@@ -290,6 +290,7 @@ const StoryManagementPanel: React.FC<StoryManagementPanelProps> = ({
                           className="text-destructive hover:text-destructive h-6 w-6 p-0 hover:bg-destructive/10"
                           title="Sil"
                           onClick={(e) => {
+                            console.log('Delete button clicked for story id:', story.id);
                             e.preventDefault()
                             e.stopPropagation()
                             if (story.id !== undefined) {

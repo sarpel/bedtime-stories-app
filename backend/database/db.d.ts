@@ -12,7 +12,7 @@ declare module './db' {
 
   interface DatabaseModule {
     getAllStories(): Story[];
-    createStory(storyText: string, storyType: string, customTopic?: string | null, categories?: string[]): number;
+    createStory(storyText: string, storyType: string, customTopic?: string | null): number;
     getStory(id: number): Story | null;
     close(): void;
     [key: string]: any;

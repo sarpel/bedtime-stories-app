@@ -11,7 +11,6 @@ interface Story {
   story_text: string;
   story_type: string;
   custom_topic?: string | null;
-  categories?: string | null;
   is_favorite?: number;
   is_shared?: number;
   share_id?: string | null;
@@ -448,14 +447,11 @@ function generateShareId() {
 // Database functions
 const storyDb = {
   // Story operations
-  createStory(storyText: string, storyType: string, customTopic: string | null = null, categories: string[] | string | null = null): number {
+  createStory(storyText: string, storyType: string, customTopic: string | null = null): number {
     try {
-      const categoriesValue: string | null = Array.isArray(categories)
-        ? JSON.stringify(categories)
-        : typeof categories === 'string'
-          ? categories
-          : null;
-      const result = statements.insertStory.run(storyText, storyType, customTopic, categoriesValue);
+      console.log(`[DB:createStory] Creating story with type: ${storyType}, customTopic: ${customTopic}`);
+      const result = statements.insertStory.run(storyText, storyType, customTopic, null);
+      console.log(`[DB:createStory] Story created with id: ${result.lastInsertRowid}`);
       return result.lastInsertRowid as number;
     } catch (error) {
       console.error('Masal oluşturma hatası:', error);
@@ -519,7 +515,9 @@ const storyDb = {
 
   updateStory(id: number, storyText: string, storyType: string, customTopic: string | null = null): boolean {
     try {
+      console.log(`[DB:updateStory] Updating story with id: ${id}`);
       const result = statements.updateStory.run(storyText, storyType, customTopic, id);
+      console.log(`[DB:updateStory] Story update result: ${result.changes} changes.`);
       return result.changes > 0;
     } catch (error) {
       console.error('Masal güncelleme hatası:', error);
@@ -529,14 +527,26 @@ const storyDb = {
 
   deleteStory(id: number): boolean {
     try {
-      // Önce ses dosyasını fiziksel olarak sil
+      console.log(`[DB:deleteStory] Attempting to delete story with id: ${id}`);
+      
       const audio = statements.getAudioByStoryId.get(id) as AudioFile | undefined;
-      if (audio && fs.existsSync(audio.file_path)) {
-        fs.unlinkSync(audio.file_path);
+      if (audio) {
+        console.log(`[DB:deleteStory] Found associated audio file: ${audio.file_path}`);
+        if (fs.existsSync(audio.file_path)) {
+          console.log(`[DB:deleteStory] Audio file exists. Deleting: ${audio.file_path}`);
+          fs.unlinkSync(audio.file_path);
+          console.log(`[DB:deleteStory] Successfully deleted audio file.`);
+        } else {
+          console.log(`[DB:deleteStory] Audio file path does not exist: ${audio.file_path}`);
+        }
+      } else {
+        console.log(`[DB:deleteStory] No associated audio file found for story id: ${id}`);
       }
 
-      // Veritabanından sil (CASCADE sayesinde audio_files da silinir)
+      console.log(`[DB:deleteStory] Deleting story record from database.`);
       const result = statements.deleteStory.run(id);
+      console.log(`[DB:deleteStory] Database deletion result: ${result.changes} changes.`);
+      
       return result.changes > 0;
     } catch (error) {
       console.error('Masal silme hatası:', error);
@@ -560,6 +570,7 @@ const storyDb = {
   // Audio operations
   saveAudio(storyId: number, fileName: string, filePath: string, voiceId: string, voiceSettings: any = null): number {
     try {
+      console.log(`[DB:saveAudio] Saving audio for story id: ${storyId}`);
       const result = statements.insertAudio.run(
         storyId,
         fileName,
@@ -567,6 +578,7 @@ const storyDb = {
         voiceId,
         voiceSettings ? JSON.stringify(voiceSettings) : null
       );
+      console.log(`[DB:saveAudio] Audio saved with id: ${result.lastInsertRowid}`);
       return result.lastInsertRowid as number;
     } catch (error) {
       console.error('Ses dosyası kaydetme hatası:', error);
@@ -596,7 +608,6 @@ const storyDb = {
         story_text: row.story_text,
         story_type: row.story_type,
         custom_topic: row.custom_topic,
-        categories: row.categories ? JSON.parse(row.categories) : [],
         created_at: row.created_at,
         updated_at: row.updated_at,
         audio: row.audio_id ? {
@@ -631,7 +642,9 @@ const storyDb = {
   // Queue operations
   getQueue(): number[] {
     try {
+      console.log(`[DB:getQueue] Getting queue`);
       const rows = statements.getQueueAll.all() as any[];
+      console.log(`[DB:getQueue] Queue retrieved with ${rows.length} items`);
       return rows.map((r: any) => r.story_id);
     } catch (error) {
       console.error('Kuyruk getirme hatası:', error);
@@ -641,6 +654,7 @@ const storyDb = {
 
   setQueue(ids: number[]): boolean {
     try {
+      console.log(`[DB:setQueue] Setting queue with ${ids.length} items`);
       const tx = db.transaction((list) => {
         statements.clearQueue.run();
         list.forEach((id, idx) => {
@@ -648,6 +662,7 @@ const storyDb = {
         });
       });
       tx(ids);
+      console.log(`[DB:setQueue] Queue set successfully`);
       return true;
     } catch (error) {
       console.error('Kuyruk güncelleme hatası:', error);
@@ -657,13 +672,16 @@ const storyDb = {
 
   addToQueue(id: number): boolean {
     try {
+      console.log(`[DB:addToQueue] Adding story id ${id} to queue`);
       const current = this.getQueue();
       if (current.includes(id)) {
+        console.log(`[DB:addToQueue] Story id ${id} already in queue`);
         return false;
       }
       const result = statements.getMaxQueuePos.get() as { maxpos: number } | undefined;
       const maxpos = result?.maxpos || 0;
       statements.insertQueueItem.run(maxpos + 1, id);
+      console.log(`[DB:addToQueue] Story id ${id} added to queue`);
       return true;
     } catch (error) {
       console.error('Kuyruğa ekleme hatası:', error);
@@ -673,6 +691,7 @@ const storyDb = {
 
   removeFromQueue(id: number) {
     try {
+      console.log(`[DB:removeFromQueue] Removing story id ${id} from queue`);
       statements.deleteQueueItem.run(id);
       // Pozisyonları yeniden sıklaştır
       const rows = statements.getQueueAll.all() as any[];
@@ -681,6 +700,7 @@ const storyDb = {
         rows.forEach((r: any, idx) => statements.insertQueueItem.run(idx + 1, r.story_id));
       });
       tx();
+      console.log(`[DB:removeFromQueue] Story id ${id} removed from queue`);
       return true;
     } catch (error) {
       console.error('Kuyruktan çıkarma hatası:', error);
@@ -710,7 +730,6 @@ const storyDb = {
         story_text: row.story_text,
         story_type: row.story_type,
         custom_topic: row.custom_topic,
-        categories: row.categories ? JSON.parse(row.categories) : [],
         is_favorite: row.is_favorite,
         is_shared: row.is_shared,
         share_id: row.share_id,
@@ -856,8 +875,7 @@ const storyDb = {
           story_text: row.story_text,
           story_type: row.story_type,
           custom_topic: row.custom_topic,
-          categories: row.categories ? JSON.parse(row.categories) : [],
-          is_favorite: row.is_favorite,
+            is_favorite: row.is_favorite,
           is_shared: row.is_shared,
           share_id: row.share_id,
           shared_at: row.shared_at,

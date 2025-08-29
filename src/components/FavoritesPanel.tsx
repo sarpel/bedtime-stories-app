@@ -196,9 +196,7 @@ export default function FavoritesPanel({
                             onClick={(e) => {
                               e.preventDefault()
                               e.stopPropagation()
-                              if (window.confirm('Bu masalı favorilerden çıkarmak istediğinizden emin misiniz?')) {
-                                onRemove(favorite.id)
-                              }
+                              onRemove(favorite.id)
                             }}
                           >
                             <Trash2 className="h-3 w-3" />

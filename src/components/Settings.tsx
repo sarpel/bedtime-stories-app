@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input.jsx'
 import { Label } from '@/components/ui/label.jsx'
 import { Textarea } from '@/components/ui/textarea.jsx'
 import { Button } from '@/components/ui/button.jsx'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group.jsx'
 import { Slider } from '@/components/ui/slider.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
@@ -75,21 +75,9 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
   // Click outside handler
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // Settings panel içindeki tıklamalarda panel'i kapatma
+      // Settings panel dışındaki tıklamalarda panel'i kapat
       if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
-        // Dropdown/Select content'leri portal olarak body'e render edilir
-        // Bu tıklamaları ignore et
-        const isDropdownClick = (event.target as Element)?.closest('[data-radix-select-content]') ||
-          (event.target as Element)?.closest('[data-radix-popper-content-wrapper]') ||
-          (event.target as Element)?.closest('[data-radix-select-viewport]') ||
-          (event.target as Element)?.closest('[role="listbox"]') ||
-          (event.target as Element)?.closest('[role="option"]') ||
-          (event.target as Element)?.closest('.select-content') ||
-          (event.target as Element)?.closest('[data-state="open"]')
-
-        if (!isDropdownClick) {
-          onClose()
-        }
+        onClose()
       }
     }
 
@@ -191,26 +179,22 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
                     <span className="text-xs font-medium">LLM Sağlayıcı</span>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <div className="space-y-1">
-                      <Label htmlFor="llm-provider" className="text-xs">Sağlayıcı Seçin</Label>
-                      <Select
-                        value={localSettings.llmProvider || 'openai'}
-                        onValueChange={(value) => updateSetting('llmProvider', value)}
-                      >
-                        <SelectTrigger className="h-7 text-xs w-full">
-                          <SelectValue placeholder="Seçin" />
-                        </SelectTrigger>
-                        <SelectContent
-                          className="z-[200] min-w-[var(--radix-select-trigger-width)] w-[var(--radix-select-trigger-width)]"
-                          position="popper"
-                          onCloseAutoFocus={(e) => e.preventDefault()}
-                        >
-                          <SelectItem value="openai" className="text-xs">OpenAI Compatible</SelectItem>
-                          <SelectItem value="gemini" className="text-xs">Gemini LLM</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Sağlayıcı Seçin</Label>
+                    <RadioGroup
+                      value={localSettings.llmProvider || 'openai'}
+                      onValueChange={(value) => updateSetting('llmProvider', value)}
+                      className="space-y-2"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="openai" id="llm-openai" />
+                        <Label htmlFor="llm-openai" className="text-xs cursor-pointer">OpenAI Compatible</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="gemini" id="llm-gemini" />
+                        <Label htmlFor="llm-gemini" className="text-xs cursor-pointer">Gemini LLM</Label>
+                      </div>
+                    </RadioGroup>
                   </div>
                 </Card>
 
@@ -363,26 +347,22 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
                     <span className="text-xs font-medium">TTS Sağlayıcı</span>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <div className="space-y-1">
-                      <Label htmlFor="tts-provider" className="text-xs">Sağlayıcı Seçin</Label>
-                      <Select
-                        value={localSettings.ttsProvider || 'elevenlabs'}
-                        onValueChange={(value) => updateSetting('ttsProvider', value)}
-                      >
-                        <SelectTrigger className="h-7 text-xs w-full">
-                          <SelectValue placeholder="Seçin" />
-                        </SelectTrigger>
-                        <SelectContent
-                          className="z-[200] min-w-[var(--radix-select-trigger-width)] w-[var(--radix-select-trigger-width)]"
-                          position="popper"
-                          onCloseAutoFocus={(e) => e.preventDefault()}
-                        >
-                          <SelectItem value="elevenlabs" className="text-xs">ElevenLabs</SelectItem>
-                          <SelectItem value="gemini" className="text-xs">Gemini TTS</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Sağlayıcı Seçin</Label>
+                    <RadioGroup
+                      value={localSettings.ttsProvider || 'elevenlabs'}
+                      onValueChange={(value) => updateSetting('ttsProvider', value)}
+                      className="space-y-2"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="elevenlabs" id="tts-elevenlabs" />
+                        <Label htmlFor="tts-elevenlabs" className="text-xs cursor-pointer">ElevenLabs</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="gemini" id="tts-gemini" />
+                        <Label htmlFor="tts-gemini" className="text-xs cursor-pointer">Gemini TTS</Label>
+                      </div>
+                    </RadioGroup>
                   </div>
                 </Card>
 
@@ -655,49 +635,51 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
                   </div>
 
                   <div className="space-y-1.5">
-                    <div className="space-y-1">
-                      <Label htmlFor="story-length" className="text-xs">Masal Uzunluğu</Label>
-                      <Select
+                    <div className="space-y-2">
+                      <Label className="text-xs">Masal Uzunluğu</Label>
+                      <RadioGroup
                         value={localSettings.storyLength || 'medium'}
                         onValueChange={(value) => {
-                          console.log('📝 Select onValueChange:', value)
+                          console.log('📝 RadioGroup onValueChange:', value)
                           updateSetting('storyLength', value)
                         }}
+                        className="space-y-2"
                       >
-                        <SelectTrigger className="h-7 text-xs w-full">
-                          <SelectValue placeholder="Seçin" />
-                        </SelectTrigger>
-                        <SelectContent
-                          className="z-[200] min-w-[var(--radix-select-trigger-width)] w-[var(--radix-select-trigger-width)]"
-                          position="popper"
-                          onCloseAutoFocus={(e) => e.preventDefault()}
-                        >
-                          <SelectItem value="short" className="text-xs">Kısa (1-2dk)</SelectItem>
-                          <SelectItem value="medium" className="text-xs">Orta (3-5dk)</SelectItem>
-                          <SelectItem value="long" className="text-xs">Uzun (5-8dk)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="short" id="length-short" />
+                          <Label htmlFor="length-short" className="text-xs cursor-pointer">Kısa (1-2dk)</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="medium" id="length-medium" />
+                          <Label htmlFor="length-medium" className="text-xs cursor-pointer">Orta (3-5dk)</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="long" id="length-long" />
+                          <Label htmlFor="length-long" className="text-xs cursor-pointer">Uzun (5-8dk)</Label>
+                        </div>
+                      </RadioGroup>
                     </div>
 
-                    <div className="space-y-1">
-                      <Label htmlFor="theme" className="text-xs">Tema</Label>
-                      <Select
+                    <div className="space-y-2">
+                      <Label className="text-xs">Tema</Label>
+                      <RadioGroup
                         value={localSettings.theme || 'system'}
                         onValueChange={(value) => updateSetting('theme', value)}
+                        className="space-y-2"
                       >
-                        <SelectTrigger className="h-7 text-xs w-full">
-                          <SelectValue placeholder="Seçin" />
-                        </SelectTrigger>
-                        <SelectContent
-                          className="z-[200] min-w-[var(--radix-select-trigger-width)] w-[var(--radix-select-trigger-width)]"
-                          position="popper"
-                          onCloseAutoFocus={(e) => e.preventDefault()}
-                        >
-                          <SelectItem value="light" className="text-xs">Açık</SelectItem>
-                          <SelectItem value="dark" className="text-xs">Koyu</SelectItem>
-                          <SelectItem value="system" className="text-xs">Sistem</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="light" id="theme-light" />
+                          <Label htmlFor="theme-light" className="text-xs cursor-pointer">Açık</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="dark" id="theme-dark" />
+                          <Label htmlFor="theme-dark" className="text-xs cursor-pointer">Koyu</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="system" id="theme-system" />
+                          <Label htmlFor="theme-system" className="text-xs cursor-pointer">Sistem</Label>
+                        </div>
+                      </RadioGroup>
                     </div>
 
                     <div className="space-y-1">

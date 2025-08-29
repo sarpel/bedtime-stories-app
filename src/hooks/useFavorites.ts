@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import databaseService from '../services/optimizedDatabaseService.js'
 import safeLocalStorage from '../utils/safeLocalStorage.js'
-import { Story } from '../utils/storyTypes'
+import { Story, normalizeStory } from '../utils/storyTypes'
 
 interface FavoriteItem {
   id: string
@@ -225,12 +225,13 @@ export default function useFavorites() {
 
   const toggleFavorite = async (story: Story): Promise<{ action: 'added' | 'removed'; favoriteId: string }> => {
     try {
-      console.log('🔵 Toggle favori başlatılıyor:', story)
+      const normalizedStory = normalizeStory(story);
+      console.log('🔵 Toggle favori başlatılıyor:', normalizedStory)
       console.log('🔵 Mevcut favoriler:', favorites.length)
 
       const existingFavorite = favorites.find(fav =>
-        fav.story === story.story &&
-        fav.storyType === story.storyType
+        fav.story === normalizedStory.story &&
+        fav.storyType === normalizedStory.storyType
       )
 
       console.log('🔵 Mevcut favori bulundu mu?', !!existingFavorite)
@@ -243,7 +244,7 @@ export default function useFavorites() {
         result = { action: 'removed' as const, favoriteId: existingFavorite.id }
       } else {
         console.log('🟢 Favori ekleniyor...')
-        const favoriteId = await addFavorite(story)
+        const favoriteId = await addFavorite(normalizedStory)
         console.log('🟢 Favori eklendi, ID:', favoriteId)
         result = { action: 'added' as const, favoriteId }
       }

@@ -317,10 +317,12 @@ function App() {
   // Hybrid delete function
   const hybridDeleteStory = async (id: string | number) => {
     try {
+      console.log(`[App] hybridDeleteStory called with id: ${id}`);
       // Eğer dbStories'te varsa veritabanından sil
-      const dbStory = dbStories.find(s => s.id === id)
+      const dbStory = dbStories.find(s => s.id === Number(id)); // Convert id to number for comparison
+      console.log(`[App] hybridDeleteStory - dbStory found: ${!!dbStory}, id: ${id}`);
       if (dbStory) {
-        await deleteDbStory(id)
+        await deleteDbStory(id) // This calls deleteStory from useStoryDatabase
       } else {
         // Backward compatibility için localStorage
         removeFromHistory(Number(id))
@@ -332,7 +334,15 @@ function App() {
     }
   }
 
-  const generateStory = async (categories: string[] = []) => {
+  // Load stories when StoryManagementPanel is opened
+  useEffect(() => {
+    if (showStoryManagement) {
+      console.log('[App] StoryManagementPanel opened, loading stories...');
+      loadStories();
+    }
+  }, [showStoryManagement, loadStories]);
+
+  const generateStory = async () => {
     // Hem selectedStoryType hem de customTopic boşsa masal oluşturma
     if (!selectedStoryType && !customTopic.trim()) {
       setError('Lütfen bir masal türü seçin veya özel bir konu yazın.')
@@ -381,7 +391,7 @@ function App() {
 
       // Veritabanına kaydet
       try {
-  const dbStory = await createDbStory(story, storyTypeToUse, topicToUse, categories)
+  const dbStory = await createDbStory(story, storyTypeToUse, topicToUse)
         setCurrentStoryId(dbStory.id ? String(dbStory.id) : null)
         console.log('Masal veritabanına kaydedildi:', dbStory.id)
         console.log('[App] db:createStory:success', { id: dbStory.id })

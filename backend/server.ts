@@ -427,6 +427,7 @@ app.post('/api/llm', async (req, res) => {
     });
   } catch { /* llm request start log skipped */ }
   // Frontend'den gelen ayarları ve prompt'u al
+    console.log("MY LATEST CHANGE IS HERE");
   const { provider = 'openai', modelId, prompt, max_completion_tokens, max_output_tokens, temperature, endpoint: clientEndpoint } = req.body;
 
   // Input validation
@@ -460,28 +461,37 @@ app.post('/api/llm', async (req, res) => {
     }
     if (!process.env.OPENAI_MODEL) { return res.status(500).json({ error: 'OPENAI_MODEL tanımlı değil.' }); }
     if (!process.env.OPENAI_ENDPOINT) { return res.status(500).json({ error: 'OPENAI_ENDPOINT tanımlı değil.' }); }
+    
+    if (clientEndpoint && typeof clientEndpoint === 'string' && clientEndpoint.startsWith('http')) {
+      endpoint = clientEndpoint;
+    } else {
+      endpoint = process.env.OPENAI_ENDPOINT;
+    }
+
+    // Gelen endpoint'in chat/completions içerip içermediğini kontrol et ve hata fırlat
+    if (endpoint.includes('chat/completions')) {
+        return res.status(400).json({
+            error: 'The chat/completions endpoint is no longer supported. Please use the /responses endpoint.'
+        });
+    }
+
     const effectiveModel = modelId || process.env.OPENAI_MODEL;
-    endpoint = clientEndpoint || process.env.OPENAI_ENDPOINT;
     headers.Authorization = `Bearer ${OPENAI_API_KEY}`;
-    // OpenAI Responses API formatı
+    
+    // Sadece Responses API formatı desteklenir
     const defaultSystemPrompt = '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.';
     const systemPrompt = (process.env.SYSTEM_PROMPT_TURKISH || defaultSystemPrompt).trim();
-    const fullPrompt = `${systemPrompt}\n\n${prompt}`;
+    const fullPrompt = `${systemPrompt}
+
+${prompt}`;
 
     body = {
       model: effectiveModel,
-      input: fullPrompt,
-      temperature: Number.isFinite(temperature) ? temperature : 1.0
+      input: fullPrompt
     };
-    if (maxTokens) {
-      body.max_output_tokens = maxTokens;
-    }
     logger.info({
-      msg: '[API /api/llm] provider:openai payload',
+      msg: '[API /api/llm] provider:openai (responses) payload',
       endpoint,
-      hasAuth: !!headers.Authorization,
-      temperature: body.temperature,
-      max_output_tokens: body.max_output_tokens,
       model: body.model,
       inputLen: body.input?.length
     });
@@ -628,7 +638,8 @@ app.post('/api/llm', async (req, res) => {
       msg: 'LLM API Hatası',
       provider,
       status: error.response?.status,
-      message: error.message
+      message: error.message,
+      responseData: error.response?.data
     });
     let errorMessage = 'LLM API\'sine istek gönderilirken hata oluştu.';
     if (error.response?.status === 401) {
@@ -801,9 +812,8 @@ app.post('/api/stories', (req, res) => {
       bodyKeys: Object.keys(req.body || {}),
       contentLen: typeof req.body?.storyText === 'string' ? req.body.storyText.length : undefined,
       storyType: req.body?.storyType,
-      catsCount: Array.isArray(req.body?.categories) ? req.body.categories.length : undefined
     })
-    const { storyText, storyType, customTopic, categories } = req.body;
+    const { storyText, storyType, customTopic } = req.body;
 
     // Input validation
     if (!storyText || !storyType) {
@@ -827,24 +837,11 @@ app.post('/api/stories', (req, res) => {
       return res.status(400).json({ error: 'Özel konu 200 karakterden uzun olamaz.' });
     }
 
-    // Kategoriler işleme (en fazla 10 kısa etiket, 2-24 char)
-    let catArray = [];
-    if (Array.isArray(categories)) {
-      catArray = categories
-        .filter(c => typeof c === 'string')
-        .map(c => c.trim())
-        .filter(c => c.length >= 2 && c.length <= 24)
-        .slice(0, 10);
-    }
-
-    logger.info({ msg: 'DB:createStory:begin', storyType, catsCount: catArray.length })
-    const storyId = storyDb.createStory(storyText.trim(), storyType, customTopic?.trim(), catArray);
+    logger.info({ msg: 'DB:createStory:begin', storyType })
+    const storyId = storyDb.createStory(storyText.trim(), storyType, customTopic?.trim());
     logger.info({ msg: 'DB:createStory:done', storyId })
     const story = storyDb.getStory(storyId);
     logger.info({ msg: 'DB:getStory:done', storyId, found: !!story })
-    if (story) {
-      story.categories = catArray;
-    }
 
     res.status(201).json(story);
   } catch (error) {
@@ -886,7 +883,6 @@ app.put('/api/stories/:id', (req, res) => {
       return res.status(400).json({ error: 'Özel konu 200 karakterden uzun olamaz.' });
     }
 
-  // Not: Şimdilik updateStory categories'i güncellemiyor; ileri aşamada migration yapılabilir.
   const updated = storyDb.updateStory(id, storyText.trim(), storyType, customTopic?.trim());
 
     if (!updated) {

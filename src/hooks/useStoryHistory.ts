@@ -74,7 +74,13 @@ export function useStoryHistory() {
   }
 
   const removeFromHistory = (id: number): void => {
-    setHistory(prev => prev.filter(item => item.id !== id))
+    console.log(`[useStoryHistory] removeFromHistory called with id: ${id}`);
+    setHistory(prev => {
+      console.log(`[useStoryHistory] History before filter: ${prev.length} items`);
+      const updatedHistory = prev.filter(item => item.id !== id);
+      console.log(`[useStoryHistory] History after filter: ${updatedHistory.length} items`);
+      return updatedHistory;
+    });
   }
 
   const clearHistory = () => {

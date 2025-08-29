@@ -85,3 +85,4 @@ src/**/*.jsx
 # Package manager lock files (keep package-lock.json, ignore others)
 yarn.lock
 pnpm-lock.yaml
+image errors/

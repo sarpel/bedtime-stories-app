@@ -181,7 +181,7 @@ class OptimizedDatabaseService {
   }
 
   // Create story with cache invalidation
-  async createStory(storyText: string, storyType: string, customTopic: string | null = null, categories: any[] = []) {
+  async createStory(storyText: string, storyType: string, customTopic: string | null = null) {
     console.log('OptimizedDatabaseService.createStory called with:');
     console.log('storyText:', typeof storyText, storyText ? storyText.substring(0, 100) + '...' : 'null/undefined');
     console.log('storyType:', typeof storyType, storyType);
@@ -190,8 +190,7 @@ class OptimizedDatabaseService {
     const requestBody = {
       storyText: storyText,
       storyType: storyType,
-      customTopic: customTopic,
-      categories: Array.isArray(categories) ? categories.slice(0, 10) : []
+      customTopic: customTopic
     };
 
     console.log('Request body to send:', JSON.stringify(requestBody, null, 2));
@@ -248,21 +247,28 @@ class OptimizedDatabaseService {
   // Delete story with cache invalidation
   async deleteStory(id: string) {
     console.log('[DB] deleteStory:request', { id })
-    const response = await fetch(`${API_BASE_URL}/stories/${id}`, {
-      method: 'DELETE'
-    })
+    try {
+      const response = await fetch(`${API_BASE_URL}/stories/${id}`, {
+        method: 'DELETE'
+      })
 
-    if (!response.ok) {
-      throw new Error(`Story deletion failed: ${response.status}`)
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[DB] deleteStory:fetch_error_response', { status: response.status, errorText });
+        throw new Error(`Story deletion failed: ${response.status} - ${errorText}`);
+      }
+
+      // Invalidate specific caches
+      this.queryCache.delete(`story:${id}`)
+      this.invalidateStoryCaches()
+
+      const result = await response.json()
+      console.log('[DB] deleteStory:success', { id })
+      return result
+    } catch (error) {
+      console.error('[DB] deleteStory:fetch_exception', { message: (error as Error).message, error });
+      throw error;
     }
-
-    // Invalidate specific caches
-    this.queryCache.delete(`story:${id}`)
-    this.invalidateStoryCaches()
-
-    const result = await response.json()
-    console.log('[DB] deleteStory:success', { id })
-    return result
   }
 
   // Batch delete stories

@@ -214,25 +214,7 @@ export class LLMService {
       }
     }
 
-    // Legacy OpenAI Chat format (backward compatibility)
-    if (this.endpoint.includes('chat/completions') || this.endpoint.includes('v1/chat')) {
-      return {
-        model: this.modelId,
-        messages: [
-          {
-            role: 'system',
-            content: '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_completion_tokens: this.getMaxTokens(),
-        temperature: this.temperature,
-        top_p: 0.9
-      }
-    }
+    
 
     // Claude/Anthropic format
     if (this.endpoint.includes('anthropic') || this.endpoint.includes('claude')) {
