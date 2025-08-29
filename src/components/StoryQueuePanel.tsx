@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
@@ -389,35 +389,52 @@ export default function StoryQueuePanel({
   const [remoteStatus, setRemoteStatus] = useState<RemoteStatus>({ playing: false })
   const [remoteLoading, setRemoteLoading] = useState(false)
 
+  // Use a ref to store the latest onRemoteStatusChange callback
+  const onRemoteStatusChangeRef = useRef(onRemoteStatusChange)
+  onRemoteStatusChangeRef.current = onRemoteStatusChange
+
   const refreshRemote = useCallback(async () => {
     try {
       const r = await fetch('/api/play/status')
       if (r.ok) {
         const data = await r.json()
         setRemoteStatus(data)
-        if (onRemoteStatusChange) {
+        if (onRemoteStatusChangeRef.current) {
           try {
-            onRemoteStatusChange(data)
+            onRemoteStatusChangeRef.current(data)
           } catch (e) {
             console.warn('Remote status callback error:', e)
           }
         }
       }
     } catch { /* ignore */ }
-  }, []) // onRemoteStatusChange kaldırıldı
+  }, []) // Remove dependency to prevent unnecessary recreations
 
   useEffect(() => {
     let id: number | null = null;
+    
     const start = () => {
       refreshRemote();
-      id = setInterval(refreshRemote, 5000);
+      id = window.setInterval(refreshRemote, 5000);
     };
-    const stop = () => { if (id) clearInterval(id); id = null; };
+    
+    const stop = () => { 
+      if (id) {
+        clearInterval(id);
+        id = null;
+      }
+    };
+    
     const onVis = () => (document.hidden ? stop() : start());
+    
     onVis();
     document.addEventListener('visibilitychange', onVis);
-    return () => { stop(); document.removeEventListener('visibilitychange', onVis); };
-  }, [refreshRemote])
+    
+    return () => { 
+      stop(); 
+      document.removeEventListener('visibilitychange', onVis); 
+    };
+  }, [refreshRemote]) // Now refreshRemote is stable
 
   // onRemoteStatusChange değiştiğinde sadece bu effect çalışsın
   useEffect(() => {
@@ -502,7 +519,7 @@ export default function StoryQueuePanel({
       console.error('Kuyruk yükleme hatası:', e)
     }
 
-  }, [localStories && localStories.length])
+  }, [localStories])
 
   // stories değişince kuyruktaki objeleri güncelle (ör. audio eklenmiş olabilir)
   useEffect(() => {
@@ -560,20 +577,19 @@ export default function StoryQueuePanel({
     } catch (err) { console.warn('Queue persist failed', err) }
   }
 
-  const playAtIndex = (idx: number) => {
+  const playAtIndex = useCallback((idx: number) => {
     if (!queue || idx < 0 || idx >= queue.length) return
     const item = queue[idx]
     const audioUrl = item.audio ? getDbAudioUrl(item.audio.file_name) : item.audioUrl
     if (!audioUrl) {
-      // Ses yoksa bir sonrakine geç
-      next()
+      console.warn('No audio URL found for story at index', idx)
       return
     }
     setCurrentIndex(idx)
     playAudio(audioUrl, item.id!)
-  }
+  }, [queue, getDbAudioUrl, playAudio])
 
-  const next = () => {
+  const next = useCallback(() => {
     if (!queue || queue.length === 0) return
     // Karıştırma açık ise rastgele seçim
     if (shuffle) {
@@ -623,7 +639,7 @@ export default function StoryQueuePanel({
       stopAudio()
       setCurrentIndex(-1)
     }
-  }
+  }, [queue, currentIndex, shuffle, repeatAll, getDbAudioUrl, playAtIndex, stopAudio])
 
   // prev fonksiyonu header kontrollerinde uzaktan oynatma ile değiştirildi
 
@@ -632,7 +648,7 @@ export default function StoryQueuePanel({
     if (!setOnEnded) return
     setOnEnded(() => next)
 
-  }, [queue, currentIndex, shuffle, repeatAll, setOnEnded])
+  }, [queue, currentIndex, shuffle, repeatAll, setOnEnded, next])
 
   const addToQueue = (story: Story) => {
     if (!story) return

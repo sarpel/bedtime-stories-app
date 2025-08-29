@@ -269,14 +269,30 @@ export class LLMService {
     // OpenAI Responses API format (yeni) - output bir array olabilir
     if (data?.output) {
       if (Array.isArray(data.output) && data.output.length > 0) {
-        // output array'inde text content'i ara
+        // output array'inde message içindeki content'i ara
+        const messageItem = data.output.find((item: any) => item?.type === 'message');
+        if (messageItem && Array.isArray(messageItem.content)) {
+          // content array'inde output_text tipinde text ara
+          const textContent = messageItem.content.find((content: any) => 
+            content?.type === 'output_text' && content?.text
+          );
+          if (textContent && textContent.text) {
+            return textContent.text.toString().trim();
+          }
+          // Fallback: content array'inde ilk text değerini al
+          const fallbackContent = messageItem.content.find((content: any) => content?.text);
+          if (fallbackContent && fallbackContent.text) {
+            return fallbackContent.text.toString().trim();
+          }
+        }
+        // Eski format uyumluluğu için fallback
         const textContent = data.output.find((item: any) =>
           item?.type === 'text' || typeof item === 'string' || item?.content
         );
         if (textContent) {
           return (textContent.content || textContent.text || textContent || '').toString().trim();
         }
-        // Fallback: ilk elemanı string olarak al
+        // Son fallback: ilk elemanı string olarak al
         return (data.output[0]?.content || data.output[0]?.text || data.output[0] || '').toString().trim();
       } else if (typeof data.output === 'string') {
         return data.output.trim();

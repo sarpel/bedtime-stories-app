@@ -32,6 +32,29 @@ const pinoHttp = require('pino-http');
 // Production vs Development konfigürasyonu
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Yardimci: gelistirmede ayrintili hata dondur
+function errorPayload(userMessage: string, err?: any) {
+  if (isProduction) {
+    return { error: userMessage };
+  }
+  return {
+    error: userMessage,
+    details: {
+      message: err?.message,
+      stack: err?.stack,
+      name: err?.name
+    }
+  };
+}
+
+function preview(str: any, len = 80) {
+  try {
+    if (typeof str !== 'string') return undefined;
+    const t = str.trim();
+    return t.length <= len ? t : t.slice(0, len) + '…';
+  } catch { return undefined; }
+}
+
 // Logger konfigürasyonu
 const logger = pino({
   level: process.env.LOG_LEVEL || (isProduction ? 'warn' : 'info'),
@@ -68,7 +91,7 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
 app.use(pinoHttp({ logger }));
 
 // Veritabanı modülü
-const storyDb = require('./database/db');
+const storyDb = require('./database/db').default;
 // Sunucu tarafı ses çalma (Pi üzerinde hoparlörden) için child_process
 const { spawn } = require('child_process');
 
@@ -773,7 +796,13 @@ app.get('/api/stories/:id', (req, res) => {
 // Yeni masal oluştur
 app.post('/api/stories', (req, res) => {
   try {
-    logger.info({ msg: 'POST /api/stories - request', bodyKeys: Object.keys(req.body || {}) })
+    logger.info({
+      msg: 'POST /api/stories - request',
+      bodyKeys: Object.keys(req.body || {}),
+      contentLen: typeof req.body?.storyText === 'string' ? req.body.storyText.length : undefined,
+      storyType: req.body?.storyType,
+      catsCount: Array.isArray(req.body?.categories) ? req.body.categories.length : undefined
+    })
     const { storyText, storyType, customTopic, categories } = req.body;
 
     // Input validation
@@ -808,8 +837,11 @@ app.post('/api/stories', (req, res) => {
         .slice(0, 10);
     }
 
+    logger.info({ msg: 'DB:createStory:begin', storyType, catsCount: catArray.length })
     const storyId = storyDb.createStory(storyText.trim(), storyType, customTopic?.trim(), catArray);
+    logger.info({ msg: 'DB:createStory:done', storyId })
     const story = storyDb.getStory(storyId);
+    logger.info({ msg: 'DB:getStory:done', storyId, found: !!story })
     if (story) {
       story.categories = catArray;
     }

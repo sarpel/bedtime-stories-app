@@ -228,7 +228,7 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
                         <Label htmlFor="openai-llm-endpoint" className="text-xs">API Endpoint</Label>
                         <Input
                           id="openai-llm-endpoint"
-                          placeholder="https://api.openai.com/v1/chat/completions"
+                          placeholder="https://api.openai.com/v1/responses"
                           value={localSettings.openaiLLM?.endpoint || localSettings.llmEndpoint || ''}
                           onChange={(e) => {
                             updateSetting('openaiLLM.endpoint', e.target.value)

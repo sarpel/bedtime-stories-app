@@ -21,6 +21,7 @@ interface Story {
   file_name?: string;
   file_path?: string;
   voice_id?: string;
+  audio?: any;
 }
 
 interface UserPreferences {
@@ -96,7 +97,7 @@ function initDatabase(): void {
       share_id TEXT UNIQUE,
       shared_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
@@ -211,7 +212,7 @@ function initDatabase(): void {
 
   // FTS tablosunu mevcut verilerle doldur (sadece tablo boşsa)
   try {
-    const ftsCount = db.prepare('SELECT COUNT(*) as c FROM stories_fts').get();
+    const ftsCount = db.prepare('SELECT COUNT(*) as c FROM stories_fts').get() as { c: number };
     if (ftsCount.c === 0) {
       db.exec(`
         INSERT OR REPLACE INTO stories_fts(rowid, story_text, story_type, custom_topic)
@@ -275,7 +276,7 @@ function initDatabase(): void {
   // Boş veritabanına örnek 3 hikaye ekle (opt-in)
   try {
     const shouldSeed = process.env.SEED_SAMPLE_STORIES === 'true';
-    const row = db.prepare('SELECT COUNT(*) as c FROM stories').get();
+    const row = db.prepare('SELECT COUNT(*) as c FROM stories').get() as { c: number };
     if (shouldSeed && row.c === 0) {
       const now = new Date().toISOString();
       const insert = db.prepare('INSERT INTO stories (story_text, story_type, custom_topic, is_favorite, created_at) VALUES (?,?,?,?,?)');
@@ -529,7 +530,7 @@ const storyDb = {
   deleteStory(id: number): boolean {
     try {
       // Önce ses dosyasını fiziksel olarak sil
-      const audio = statements.getAudioByStoryId.get(id);
+      const audio = statements.getAudioByStoryId.get(id) as AudioFile | undefined;
       if (audio && fs.existsSync(audio.file_path)) {
         fs.unlinkSync(audio.file_path);
       }
@@ -585,7 +586,7 @@ const storyDb = {
   // Combined operations
   getStoryWithAudio(id: number): StoryWithAudio | null {
     try {
-      const row = statements.getStoryWithAudio.get(id);
+      const row = statements.getStoryWithAudio.get(id) as any;
       if (!row) {
         return null;
       }
@@ -630,8 +631,8 @@ const storyDb = {
   // Queue operations
   getQueue(): number[] {
     try {
-      const rows = statements.getQueueAll.all();
-      return rows.map(r => r.story_id);
+      const rows = statements.getQueueAll.all() as any[];
+      return rows.map((r: any) => r.story_id);
     } catch (error) {
       console.error('Kuyruk getirme hatası:', error);
       throw error;
@@ -660,7 +661,8 @@ const storyDb = {
       if (current.includes(id)) {
         return false;
       }
-      const { maxpos } = statements.getMaxQueuePos.get();
+      const result = statements.getMaxQueuePos.get() as { maxpos: number } | undefined;
+      const maxpos = result?.maxpos || 0;
       statements.insertQueueItem.run(maxpos + 1, id);
       return true;
     } catch (error) {
@@ -669,14 +671,14 @@ const storyDb = {
     }
   },
 
-  removeFromQueue(id) {
+  removeFromQueue(id: number) {
     try {
       statements.deleteQueueItem.run(id);
       // Pozisyonları yeniden sıklaştır
-      const rows = statements.getQueueAll.all();
+      const rows = statements.getQueueAll.all() as any[];
       const tx = db.transaction(() => {
         statements.clearQueue.run();
-        rows.forEach((r, idx) => statements.insertQueueItem.run(idx + 1, r.story_id));
+        rows.forEach((r: any, idx) => statements.insertQueueItem.run(idx + 1, r.story_id));
       });
       tx();
       return true;
@@ -686,7 +688,7 @@ const storyDb = {
     }
   },
 
-  unshareStory(id) {
+  unshareStory(id: number) {
     try {
       const result = statements.updateStorySharing.run(0, null, id);
       return result.changes > 0;
@@ -698,7 +700,7 @@ const storyDb = {
 
   getStoryByShareId(shareId: string): StoryWithAudio | null {
     try {
-      const row = statements.getStoryByShareId.get(shareId);
+      const row = statements.getStoryByShareId.get(shareId) as any;
       if (!row) {
         return null;
       }
@@ -729,11 +731,11 @@ const storyDb = {
 
   getAllSharedStories() {
     try {
-      const rows = statements.getAllSharedStories.all();
+      const rows = statements.getAllSharedStories.all() as any[];
       // Group audio files with stories
       const storiesMap = new Map();
 
-      rows.forEach(row => {
+      rows.forEach((row: any) => {
         if (!storiesMap.has(row.id)) {
           storiesMap.set(row.id, {
             id: row.id,
