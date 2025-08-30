@@ -395,7 +395,7 @@ if sudo systemctl is-active --quiet "$SERVICE_NAME"; then
     log_success "Service $SERVICE_NAME is running"
 else
     log_error "Service $SERVICE_NAME failed to start"
-    sudo systemctl status "$SERVICE_NAME"
+    sudo systemctl status "$SERVICE_NAME" || true
     exit 1
 fi
 
