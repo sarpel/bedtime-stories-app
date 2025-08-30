@@ -11,7 +11,6 @@ pnpm-debug.log*
 dist/
 build/
 .augment/
-docs/
 # GitHub prompts (development specific)
 .github/prompts
 
@@ -61,14 +60,6 @@ logs/
 test-*.db
 
 # Development documentation (keep only README.md)
-*_ASSESSMENT.md
-*_REPORT.md
-*_GUIDE.md
-*_PLAN.md
-DEPLOYMENT_*.md
-PRODUCTION_*.md
-PI_ZERO_*.md
-SETUP_*.md
 docs/Feature_Proposals.md
 # Temporary files
 *.tmp
@@ -76,14 +67,20 @@ docs/Feature_Proposals.md
 .cache/
 deploy/bedtime-stories-app.code-workspace
 # JavaScript and JSX files that were converted to TypeScript/TSX (prevent Google Drive placeholders)
+# JavaScript and JSX files that were converted to TypeScript/TSX (prevent Google Drive placeholders)
 backend/*.js
 backend/**/*.js
 src/**/*.js
 src/**/*.jsx
 !**/eslint.config.js
-
-# Package manager lock files (keep package-lock.json, ignore others)
-yarn.lock
+!**/tailwind.config.js
+!**/postcss.config.js
+!**/prettier.config.js
+!**/jest.config.js
+!**/babel.config.js
+!**/commitlint.config.js
+!**/lint-staged.config.jsyarn.lock
 pnpm-lock.yaml
-image errors/
 .claude/
+docs/Combined_API_Reference.md
+.gdriveignore

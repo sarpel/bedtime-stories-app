@@ -138,7 +138,7 @@ Database Query → Audio File → Remote/Local Playback
 - **Pino**: High-performance logging
 
 ### AI & Audio
-- **OpenAI GPT-4**: Story generation
+- **OpenAI GPT-5**: Story generation
 - **ElevenLabs**: Text-to-speech synthesis
 - **Gemini**: Backup AI provider
 - **mpg123**: Audio playback on Pi
@@ -154,7 +154,7 @@ Database Query → Audio File → Remote/Local Playback
 ## 🎯 Key Features
 
 ### 🤖 AI Story Generation
-- **LLM Provider**: OpenAI GPT-4o-mini
+- **LLM Provider**: OpenAI GPT-5-mini
 - **Customization**: Age-appropriate content (3-12 years)
 - **Personalization**: Character names, themes, moral lessons
 - **Types**: Adventure, fairy tale, educational, bedtime
@@ -275,7 +275,7 @@ SQLITE_CACHE_SIZE=1024
 - **Audio**: 3.5mm jack or speakers
 
 ### Performance Metrics
-- **Memory Usage**: 150-200MB typical
+- **Memory Usage**: 150-250MB typical
 - **CPU Usage**: 5-15% idle, 40-60% generation
 - **Response Times**: Stories <30s, Audio <15s
 - **Storage**: ~1MB per story with audio
@@ -336,7 +336,7 @@ Content-Type: application/json
 {
   "provider": "openai|gemini",
   "prompt": "Story generation prompt",
-  "max_completion_tokens": 1000,
+  "max_completion_tokens": 5000,
   "temperature": 1.0
 }
 
