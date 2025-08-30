@@ -68,6 +68,7 @@ sudo apt-get install -y \
     git \
     build-essential \
     python3-dev \
+    bc \
     libasound2-dev \
     alsa-utils \
     mpg123 \
@@ -76,7 +77,6 @@ sudo apt-get install -y \
     nginx \
     systemd \
     rsync
-
 # ==========================================
 # STEP 3: Audio Configuration for iQaudio Codec Zero
 # ==========================================
