@@ -29,7 +29,7 @@ ReadWritePaths=/opt/storyapp/backend/database /opt/storyapp/backend/audio
 CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 
 # Resource limits for Pi Zero 2W
-MemoryMax=200M
+MemoryMax=300M
 CPUQuota=80%
 
 # Logging

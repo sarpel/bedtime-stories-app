@@ -44,7 +44,7 @@ sudo bash setup.sh
    ```bash
    sudo nano /opt/storyapp/backend/.env
    ```
-   
+
    Add your API keys:
    ```env
    OPENAI_API_KEY=your_openai_key_here
@@ -213,7 +213,7 @@ curl http://localhost:3001/health
 ### Performance Metrics
 
 ```bash
-# Memory usage should be: 150-200MB
+# Memory usage should be: 150-250MB
 # CPU usage: 5-15% idle, 40-60% during generation
 # Response times: Stories <30s, Audio <15s
 # Uptime target: 99.9%

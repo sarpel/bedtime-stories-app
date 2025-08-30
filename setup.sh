@@ -1,29 +1,13 @@
-#!/usr/bin/env bash
-# =============================================================================
-# BEDTIME STORIES APP - ONE-CLICK PRODUCTION INSTALLER
-# Optimized for Raspberry Pi Zero 2W (512MB RAM)
-#
-# This script provides a complete one-click installation experience:
-# - Automatic dependency detection and installation
-# - Pi Zero 2W specific optimizations
-# - Production-ready configuration
-# - Comprehensive error handling and logging
-# - Post-installation verification
-# =============================================================================
+#!/bin/bash
 
-set -euo pipefail
+# ==========================================
+# Bedtime Stories App - One-Click Installer
+# ==========================================
+# Raspberry Pi Zero 2W + iQaudio Codec Zero
+# Raspberry Pi OS Lite 64-bit
+# ==========================================
 
-# Script Configuration
-SCRIPT_VERSION="2.0.0"
-APP_REPO="${APP_REPO:-https://github.com/sarpel/bedtime-stories-app.git}"
-APP_DIR="${APP_DIR:-/opt/storyapp}"
-APP_PORT="${APP_PORT:-3001}"
-LOG_DIR="/var/log/storyapp"
-BACKUP_DIR="/opt/storyapp-backups"
-
-# Create directories
-mkdir -p "$LOG_DIR" "$BACKUP_DIR" || true
-LOG_FILE="$LOG_DIR/setup-$(date +%Y%m%d-%H%M%S).log"
+set -e  # Exit on any error
 
 # Colors for output
 RED='\033[0;31m'
@@ -33,314 +17,486 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Logging functions
-log() {
-    echo -e "${BLUE}[$(date '+%H:%M:%S')]${NC} $*" | tee -a "$LOG_FILE"
-}
-success() {
-    echo -e "${GREEN}[$(date '+%H:%M:%S')] ✅ $*${NC}" | tee -a "$LOG_FILE"
-}
-warn() {
-    echo -e "${YELLOW}[$(date '+%H:%M:%S')] ⚠️  $*${NC}" | tee -a "$LOG_FILE"
-}
-err() {
-    echo -e "${RED}[$(date '+%H:%M:%S')] ❌ ERROR: $*${NC}" | tee -a "$LOG_FILE" >&2
-    exit 1
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
 }
 
-# System checks
-require_root() {
-    [ "$EUID" -eq 0 ] || err "This script must be run as root. Use: sudo $0"
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
-check_system() {
-    log "Checking system compatibility..."
-
-    # Check if running on Raspberry Pi
-    if ! grep -q "Raspberry Pi" /proc/cpuinfo 2>/dev/null; then
-        warn "Not running on Raspberry Pi - some optimizations may not apply"
-    fi
-
-    # Check available memory
-    local mem_mb=$(free -m | awk 'NR==2{printf "%.0f", $2}')
-    if [ "$mem_mb" -lt 400 ]; then
-        warn "Low memory detected (${mem_mb}MB). Pi Zero 2W has 512MB - consider checking system load"
-    fi
-
-    # Check available disk space
-    local disk_gb=$(df / | awk 'NR==2{printf "%.1f", $4/1024/1024}')
-    if (( $(echo "$disk_gb < 2.0" | bc -l) )); then
-        err "Insufficient disk space (${disk_gb}GB available). Need at least 2GB free space"
-    fi
-
-    success "System compatibility check passed"
+log_warn() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
-install_packages() {
-    log "Installing system packages..."
-
-    # Update package list
-    apt-get update -y >>"$LOG_FILE" 2>&1 || err "Failed to update package list"
-
-    # Install required packages for Pi Zero 2W
-    local packages=(
-        "curl"              # For downloading files
-        "git"               # For repository cloning
-        "sqlite3"           # Database CLI tools
-        "alsa-utils"        # Audio system utilities
-        "build-essential"   # Compilation tools for native modules
-        "python3"           # Required for node-gyp
-        "make"              # Build system
-        "g++"               # C++ compiler
-        "mpg123"            # Audio player for remote playback
-        "bc"                # Calculator for system checks
-    )
-
-    log "Installing packages: ${packages[*]}"
-    apt-get install -y "${packages[@]}" >>"$LOG_FILE" 2>&1 || err "Package installation failed"
-
-    success "System packages installed successfully"
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
 }
 
-ensure_node(){
-    log "Node.js sürümü kontrol ediliyor";
-    local cur_major=0
-    if command -v node >/dev/null 2>&1; then
-        cur_major=$(node -p "process.versions.node.split('.')[0]") || cur_major=0
-    fi
-    if [ "$cur_major" -lt 20 ]; then
-        log "Node.js <20 (mevcut: ${cur_major:-yok}) → Node 20 kurulacak";
-        curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >>"$LOG_FILE" 2>&1 || err "NodeSource repo eklenemedi";
-        apt-get install -y nodejs >>"$LOG_FILE" 2>&1 || err "Node 20 kurulamadı";
-    else
-        log "Node.js $cur_major >=20 (güncel)";
-    fi
-    if command -v npm >/dev/null 2>&1; then
-        local npm_major; npm_major=$(npm -v 2>/dev/null | cut -d. -f1 || echo 0)
-        if [ "$npm_major" -lt 10 ]; then
-            log "npm <10 (güncelleniyor)";
-            npm install -g npm@^10 >>"$LOG_FILE" 2>&1 || log "UYARI: npm güncelleme başarısız";
-        fi
-    fi
+# Check if running as root
+if [[ $EUID -eq 0 ]]; then
+   log_error "This script should not be run as root directly. It will use sudo when needed."
+   exit 1
+fi
+
+# Configuration variables
+CURRENT_USER=$(whoami)
+APP_NAME="bedtime-stories-app"
+INSTALL_DIR="/opt/storyapp"
+SERVICE_NAME="storyapp-$CURRENT_USER"
+USER_HOME="/home/$CURRENT_USER"
+BACKUP_DIR="/opt/storyapp-backup-$(date +%Y%m%d-%H%M%S)"
+
+log_info "Starting Bedtime Stories App installation..."
+log_info "Target directory: $INSTALL_DIR"
+log_info "Service name: $SERVICE_NAME"
+
+# ==========================================
+# STEP 1: System Update
+# ==========================================
+log_info "Updating system packages..."
+sudo apt-get update
+sudo apt-get upgrade -y
+
+# ==========================================
+# STEP 2: Install Required System Packages
+# ==========================================
+log_info "Installing system dependencies..."
+sudo apt-get install -y \
+    curl \
+    wget \
+    git \
+    build-essential \
+    python3-dev \
+    bc \
+    libasound2-dev \
+    alsa-utils \
+    mpg123 \
+    ffmpeg \
+    sqlite3 \
+    nginx \
+    systemd \
+    rsync
+# ==========================================
+# STEP 3: Audio Configuration for iQaudio Codec Zero
+# ==========================================
+log_info "Configuring audio for iQaudio Codec Zero..."
+
+# Backup original config
+sudo cp /boot/config.txt /boot/config.txt.backup
+
+# Add iQaudio Codec Zero configuration to /boot/config.txt
+if ! grep -q "dtoverlay=iqaudio-codec" /boot/config.txt; then
+    log_info "Adding iQaudio Codec Zero overlay to boot config..."
+    echo "" | sudo tee -a /boot/config.txt
+    echo "# iQaudio Codec Zero configuration" | sudo tee -a /boot/config.txt
+    echo "dtoverlay=iqaudio-codec" | sudo tee -a /boot/config.txt
+else
+    log_info "iQaudio Codec Zero already configured in boot config"
+fi
+
+# Disable onboard audio if enabled
+sudo sed -i 's/^dtparam=audio=on/#dtparam=audio=on/' /boot/config.txt 2>/dev/null || true
+
+# Create ALSA configuration for iQaudio Codec Zero
+log_info "Creating ALSA configuration..."
+sudo tee /etc/asound.conf > /dev/null <<EOF
+pcm.!default {
+    type hw
+    card 0
+    device 0
 }
 
-clone_or_update(){
-    if [ ! -d "$APP_DIR/.git" ]; then
-        log "Repo klonlanıyor: $APP_REPO";
-        git clone "$APP_REPO" "$APP_DIR" >>"$LOG_FILE" 2>&1 || err "Repo klon hatası";
-    else
-        log "Repo güncelleniyor"; (cd "$APP_DIR" && git pull origin main >>"$LOG_FILE" 2>&1) || err "Git pull hatası";
-    fi
+ctl.!default {
+    type hw
+    card 0
 }
+EOF
 
-build_frontend(){
-    log "Frontend build (workspaces)";
-    # Çekirdek bağımlılıkları production modunda kur (root + backend workspace). better-sqlite3 native rebuild gerekirse rebuild:sqlite kullanılabilir.
-    (cd "$APP_DIR" && NODE_ENV=production npm ci --omit=dev >>"$LOG_FILE" 2>&1 || npm install --omit=dev >>"$LOG_FILE" 2>&1; NODE_ENV=production npm run build >>"$LOG_FILE" 2>&1) || {
-        log "Frontend build hatası - log kontrol et: $LOG_FILE"
-        # Build hatalı olursa devam et ama uyar
-        return 0
-    }
+# Set audio permissions for current user
+sudo usermod -a -G audio $CURRENT_USER
 
-    # Build başarılı mı kontrol et
-    if [ -d "$APP_DIR/dist" ] && [ -f "$APP_DIR/dist/index.html" ]; then
-        log "Frontend build başarılı - dist klasörü oluşturuldu"
+# ==========================================
+# STEP 4: Install Node.js (Latest LTS)
+# ==========================================
+log_info "Installing Node.js..."
+curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+sudo apt-get install -y nodejs
 
-        # Static dosyaları root'a kopyala (Express static serving için)
-        log "Static dosyalar root klasöre kopyalanıyor..."
+# Verify Node.js installation
+NODE_VERSION=$(node --version)
+NPM_VERSION=$(npm --version)
+log_success "Node.js $NODE_VERSION and npm $NPM_VERSION installed"
 
-        # index.html'yi kopyala
-        cp "$APP_DIR/dist/index.html" "$APP_DIR/" || log "UYARI: index.html kopyalanamadı"
+# ==========================================
+# STEP 5: Create Application Directory
+# ==========================================
+log_info "Setting up application directory..."
 
-        # Assets klasörünü güvenli şekilde kopyala
-        if [ -d "$APP_DIR/dist/assets" ]; then
-            # Eski assets klasörünü sil (eğer varsa)
-            [ -d "$APP_DIR/assets" ] && rm -rf "$APP_DIR/assets"
+# Backup existing installation if it exists
+if [ -d "$INSTALL_DIR" ]; then
+    log_warn "Existing installation found. Creating backup at $BACKUP_DIR"
+    sudo mkdir -p "$BACKUP_DIR"
+    sudo cp -r "$INSTALL_DIR"/* "$BACKUP_DIR/" 2>/dev/null || true
+    sudo systemctl stop $SERVICE_NAME 2>/dev/null || true
+fi
 
-            # Yeni assets'i kopyala
-            cp -r "$APP_DIR/dist/assets" "$APP_DIR/" || {
-                log "HATA: Assets klasörü kopyalanamadı"
-                return 1
-            }
+# Create and setup directory
+sudo mkdir -p "$INSTALL_DIR"
+sudo chown $CURRENT_USER:$CURRENT_USER "$INSTALL_DIR"
+sudo chmod 755 "$INSTALL_DIR"
 
-            # İzinleri düzelt
-            chown -R root:root "$APP_DIR/assets" 2>/dev/null || true
-            find "$APP_DIR/assets" -type f -exec chmod 644 {} \; 2>/dev/null || true
-            find "$APP_DIR/assets" -type d -exec chmod 755 {} \; 2>/dev/null || true
+# ==========================================
+# STEP 6: Copy Application Files
+# ==========================================
+log_info "Copying application files..."
 
-            # Kopyalanan dosyaları doğrula
-            local asset_files=$(find "$APP_DIR/assets" -type f | wc -l)
-            log "✅ Static dosyalar kopyalandı (index.html, assets/ - $asset_files dosya)"
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-            # Assets içeriğini listele (debugging için)
-            log "Assets klasörü içeriği:"
-            ls -la "$APP_DIR/assets" 2>/dev/null | head -10
-        else
-            log "UYARI: dist/assets klasörü bulunamadı - assets olmadan devam ediliyor"
-        fi
+# Copy all files except node_modules and temporary files
+rsync -av --progress \
+    --exclude 'node_modules' \
+    --exclude '.git' \
+    --exclude 'dist' \
+    --exclude '*.log' \
+    --exclude '.env*' \
+    --exclude 'setup.sh' \
+    ./ "$INSTALL_DIR/"
 
-        # Build klasörünü temizle (opsiyonel, disk tasarrufu)
-        # rm -rf "$APP_DIR/dist"
-    else
-        log "UYARI: Frontend build tamamlandı ama dist klasörü eksik"
-    fi
-}
+# Set ownership
+sudo chown -R $CURRENT_USER:$CURRENT_USER "$INSTALL_DIR"
 
-install_backend(){
-    log "Backend bağımlılıkları (workspace içinde zaten kuruldu, yine de doğrulama)"; (cd "$APP_DIR/backend" && npm ls --omit=dev >/dev/null 2>>"$LOG_FILE" || npm install --omit=dev >>"$LOG_FILE" 2>&1) || err "Backend npm hatası";
-    # Native modül test
-    (cd "$APP_DIR/backend" && node -e "require('better-sqlite3'); console.log('better-sqlite3 yüklü')" >>"$LOG_FILE" 2>&1) || {
-        log "better-sqlite3 yeniden derleniyor"; (cd "$APP_DIR" && npm run rebuild:sqlite >>"$LOG_FILE" 2>&1) || log "UYARI: better-sqlite3 rebuild başarısız";
-    }
+# ==========================================
+# STEP 7: Install Dependencies
+# ==========================================
+log_info "Installing frontend dependencies..."
+cd "$INSTALL_DIR"
+npm install
 
-    # .env dosyası oluştur (eğer yoksa)
-    if [ ! -f "$APP_DIR/backend/.env" ]; then
-        log "Backend .env dosyası oluşturuluyor"
-        cat > "$APP_DIR/backend/.env" <<EOF
+log_info "Installing backend dependencies..."
+cd "$INSTALL_DIR/backend"
+npm install
+
+# Build better-sqlite3 for ARM64
+log_info "Rebuilding better-sqlite3 for ARM64..."
+npm rebuild better-sqlite3 --build-from-source
+
+# ==========================================
+# STEP 8: Build Frontend
+# ==========================================
+log_info "Building frontend..."
+cd "$INSTALL_DIR"
+npm run build
+
+# ==========================================
+# STEP 9: Setup Environment Configuration
+# ==========================================
+log_info "Setting up environment configuration..."
+
+# Create backend environment file template if it doesn't exist
+if [ ! -f "$INSTALL_DIR/backend/.env" ]; then
+    log_info "Creating environment configuration template..."
+    cat > "$INSTALL_DIR/backend/.env" << EOF
+# Node Environment
+NODE_ENV=production
+
+# Server Configuration
+PORT=3001
+
+# Audio Configuration
+AUDIO_PLAYER_COMMAND=mpg123
+DRY_RUN_AUDIO_PLAYBACK=false
+
+# Logging
+LOG_LEVEL=info
+
+# API Keys (Configure these with your actual keys)
 # OpenAI Configuration
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-5-mini
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-4o-mini
 OPENAI_ENDPOINT=https://api.openai.com/v1/responses
 
 # ElevenLabs Configuration
-ELEVENLABS_API_KEY=
-ELEVENLABS_VOICE_ID=xsGHrtxT5AdDzYXTQT0d
-ELEVENLABS_MODEL=eleven_turbo_v2_5
+ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
+ELEVENLABS_VOICE_ID=your_voice_id_here
 ELEVENLABS_ENDPOINT=https://api.elevenlabs.io/v1/text-to-speech
 
 # Gemini Configuration (Optional)
-GEMINI_LLM_API_KEY=
-GEMINI_TTS_API_KEY=
-GEMINI_LLM_MODEL=gemini-2.5-flash-lite
-GEMINI_TTS_MODEL=gemini-2.5-flash-preview-tts
-GEMINI_TTS_VOICE_ID=Despina
-GEMINI_LLM_ENDPOINT=https://generativelanguage.googleapis.com/v1beta/models
-GEMINI_TTS_ENDPOINT=https://generativelanguage.googleapis.com/v1beta/models
+# GEMINI_LLM_API_KEY=your_gemini_api_key_here
+# GEMINI_TTS_API_KEY=your_gemini_tts_api_key_here
+# GEMINI_LLM_MODEL=gemini-pro
+# GEMINI_LLM_ENDPOINT=https://generativelanguage.googleapis.com/v1beta/models
+# GEMINI_TTS_MODEL=gemini-pro
+# GEMINI_TTS_ENDPOINT=https://generativelanguage.googleapis.com/v1beta/models
 
-# Database
-DATABASE_PATH=./database/stories.db
-
-# Server Configuration
-NODE_ENV=production
-PORT=${APP_PORT}
-LOG_LEVEL=warn
+# System Prompt (Optional customization)
+SYSTEM_PROMPT_TURKISH=5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.
 EOF
-        log ".env dosyası oluşturuldu - API anahtarlarını düzenleyin!"
+    sudo chown $CURRENT_USER:$CURRENT_USER "$INSTALL_DIR/backend/.env"
+    sudo chmod 600 "$INSTALL_DIR/backend/.env"
+fi
+
+# Create audio directory
+mkdir -p "$INSTALL_DIR/backend/audio"
+sudo chown -R $CURRENT_USER:$CURRENT_USER "$INSTALL_DIR/backend/audio"
+
+# Create database directory  
+mkdir -p "$INSTALL_DIR/backend/database"
+sudo chown -R $CURRENT_USER:$CURRENT_USER "$INSTALL_DIR/backend/database"
+
+# ==========================================
+# STEP 10: Setup Systemd Service
+# ==========================================
+log_info "Setting up systemd service..."
+
+# Copy service file
+sudo cp "$INSTALL_DIR/deploy/storyapp.service" "/etc/systemd/system/$SERVICE_NAME.service"
+
+# Update service file paths and user if needed
+sudo sed -i "s|/opt/storyapp|$INSTALL_DIR|g" "/etc/systemd/system/$SERVICE_NAME.service"
+sudo sed -i "s|ExecStart=/usr/bin/node backend/server.js|ExecStart=/usr/bin/node $INSTALL_DIR/backend/dist/server.js|g" "/etc/systemd/system/$SERVICE_NAME.service"
+sudo sed -i "s|User=pi|User=$CURRENT_USER|g" "/etc/systemd/system/$SERVICE_NAME.service"
+sudo sed -i "s|Group=pi|Group=$CURRENT_USER|g" "/etc/systemd/system/$SERVICE_NAME.service"
+
+# Build backend TypeScript
+log_info "Building backend TypeScript..."
+cd "$INSTALL_DIR/backend"
+npm run build
+
+# Reload systemd and enable service
+sudo systemctl daemon-reload
+sudo systemctl enable "$SERVICE_NAME"
+
+# ==========================================
+# STEP 11: Setup Nginx Reverse Proxy
+# ==========================================
+log_info "Setting up Nginx reverse proxy..."
+
+# Create Nginx site configuration
+sudo tee "/etc/nginx/sites-available/$APP_NAME" > /dev/null <<EOF
+server {
+    listen 80;
+    server_name localhost;
+    
+    # Security headers
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-XSS-Protection "1; mode=block";
+    
+    # Main application
+    location / {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+        
+        # Timeout settings
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+    
+    # Static files (if needed)
+    location /assets/ {
+        alias $INSTALL_DIR/dist/assets/;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    
+    # Audio files
+    location /audio/ {
+        alias $INSTALL_DIR/backend/audio/;
+        expires 1h;
+        add_header Cache-Control "public";
+    }
+    
+    # Health check
+    location /health {
+        proxy_pass http://127.0.0.1:3001/health;
+        access_log off;
+    }
+}
+EOF
+
+# Enable the site
+sudo ln -sf "/etc/nginx/sites-available/$APP_NAME" "/etc/nginx/sites-enabled/"
+
+# Remove default site if it exists
+sudo rm -f /etc/nginx/sites-enabled/default
+
+# Test Nginx configuration
+sudo nginx -t
+
+# Enable and start Nginx
+sudo systemctl enable nginx
+sudo systemctl restart nginx
+
+# ==========================================
+# STEP 12: Setup Firewall (if ufw is available)
+# ==========================================
+if command -v ufw > /dev/null; then
+    log_info "Configuring firewall..."
+    sudo ufw allow ssh
+    sudo ufw allow 80/tcp
+    sudo ufw allow 443/tcp
+    sudo ufw --force enable
+else
+    log_warn "UFW firewall not available, skipping firewall configuration"
+fi
+
+# ==========================================
+# STEP 13: Setup Health Check Script
+# ==========================================
+log_info "Setting up health check script..."
+
+# Make health check script executable
+chmod +x "$INSTALL_DIR/deploy/health-check.sh"
+
+# Create health check cron job (every 5 minutes)
+(crontab -l 2>/dev/null || true; echo "*/5 * * * * $INSTALL_DIR/deploy/health-check.sh >> /var/log/storyapp-health.log 2>&1") | crontab -
+
+# ==========================================
+# STEP 14: Setup Log Rotation
+# ==========================================
+log_info "Setting up log rotation..."
+
+sudo tee "/etc/logrotate.d/$SERVICE_NAME" > /dev/null <<EOF
+/var/log/storyapp-health.log {
+    daily
+    missingok
+    rotate 7
+    compress
+    delaycompress
+    copytruncate
+    create 644 $CURRENT_USER $CURRENT_USER
+}
+EOF
+
+# ==========================================
+# STEP 15: Start Services
+# ==========================================
+log_info "Starting services..."
+
+# Start the application service
+sudo systemctl start "$SERVICE_NAME"
+
+# Wait a moment for service to start
+sleep 5
+
+# Check service status
+if sudo systemctl is-active --quiet "$SERVICE_NAME"; then
+    log_success "Service $SERVICE_NAME is running"
+else
+    log_error "Service $SERVICE_NAME failed to start"
+    sudo systemctl status "$SERVICE_NAME" || true
+    exit 1
+fi
+
+# ==========================================
+# STEP 16: Final Audio Test
+# ==========================================
+log_info "Testing audio configuration..."
+
+# Test if audio device is detected
+if aplay -l | grep -q "card 0"; then
+    log_success "Audio device detected"
+    
+    # Test audio playback (if speaker-test is available)
+    if command -v speaker-test > /dev/null; then
+        log_info "Running audio test (2 seconds)..."
+        timeout 2s speaker-test -t sine -f 1000 -c 2 > /dev/null 2>&1 || true
+        log_success "Audio test completed"
     fi
-}
+else
+    log_warn "Audio device not detected. You may need to reboot."
+fi
 
-write_service(){
-    log "Systemd servis yazılıyor";
-    cat > /etc/systemd/system/storyapp.service <<EOF
-[Unit]
-Description=Bedtime Stories App
-After=network.target
+# ==========================================
+# FINAL SETUP VERIFICATION
+# ==========================================
+log_info "Verifying installation..."
 
-[Service]
-Type=simple
-User=root
-WorkingDirectory=$APP_DIR/backend
-Environment=NODE_ENV=production
-Environment=PORT=$APP_PORT
-ExecStart=/usr/bin/node server.js
-Restart=always
-RestartSec=5
+# Check if service is running
+SERVICE_STATUS=$(sudo systemctl is-active "$SERVICE_NAME" 2>/dev/null || echo "inactive")
+NGINX_STATUS=$(sudo systemctl is-active nginx 2>/dev/null || echo "inactive")
 
-[Install]
-WantedBy=multi-user.target
-EOF
-    systemctl daemon-reload
-    systemctl enable storyapp.service >>"$LOG_FILE" 2>&1 || true
-    systemctl restart storyapp.service || systemctl start storyapp.service
-}
+# Check if API is responding
+API_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/health 2>/dev/null || echo "000")
 
-verify(){
-    sleep 2
-    if systemctl is-active --quiet storyapp.service; then
-        log "Service aktif"
-    else
-        log "Service pasif (journalctl -u storyapp)"; fi
-    curl -s "http://localhost:$APP_PORT/health" >/dev/null 2>&1 && log "Health OK" || log "Health endpoint yanıt vermiyor"
-}
+# Display results
+echo ""
+echo "==============================================="
+log_success "Installation completed!"
+echo "==============================================="
+echo ""
+echo "📊 Service Status:"
+echo "  • Application Service: $SERVICE_STATUS"
+echo "  • Nginx Proxy: $NGINX_STATUS"
+echo "  • API Health Check: $API_RESPONSE"
+echo ""
+echo "🌐 Access URLs:"
+echo "  • Local: http://localhost"
+echo "  • Network: http://$(hostname -I | awk '{print $1}')"
+echo ""
+echo "📁 Important Paths:"
+echo "  • Application: $INSTALL_DIR"
+echo "  • Environment: $INSTALL_DIR/backend/.env"
+echo "  • Audio Files: $INSTALL_DIR/backend/audio/"
+echo "  • Database: $INSTALL_DIR/backend/database/"
+echo "  • Logs: sudo journalctl -u $SERVICE_NAME"
+echo ""
+echo "🔧 Management Commands:"
+echo "  • Start:   sudo systemctl start $SERVICE_NAME"
+echo "  • Stop:    sudo systemctl stop $SERVICE_NAME"  
+echo "  • Restart: sudo systemctl restart $SERVICE_NAME"
+echo "  • Status:  sudo systemctl status $SERVICE_NAME"
+echo "  • Logs:    sudo journalctl -u $SERVICE_NAME -f"
+echo ""
 
-show_completion_summary() {
-    local IP=$(hostname -I | awk '{print $1}')
-
+if [ "$SERVICE_STATUS" = "active" ] && [ "$NGINX_STATUS" = "active" ] && [ "$API_RESPONSE" = "200" ]; then
+    log_success "✅ All services are running correctly!"
     echo ""
-    echo "========================================="
-    echo "🎉 INSTALLATION COMPLETED SUCCESSFULLY! 🎉"
-    echo "========================================="
+    echo "🔑 Next Steps:"
+    echo "1. Configure API keys in: $INSTALL_DIR/backend/.env"
+    echo "2. Restart service: sudo systemctl restart $SERVICE_NAME"
+    echo "3. Test audio: Open web interface and create a story"
     echo ""
-    echo "📱 Application Access:"
-    echo "   Local:    http://localhost:$APP_PORT"
-    echo "   Network:  http://$IP:$APP_PORT"
+    if ! aplay -l | grep -q "card 0"; then
+        log_warn "⚠️  Audio device not detected. Reboot may be required:"
+        echo "   sudo reboot"
+    fi
+else
+    log_error "❌ Some services are not running properly"
     echo ""
-    echo "⚠️  IMPORTANT: Configure API Keys"
-    echo "   File: $APP_DIR/backend/.env"
+    echo "🔍 Troubleshooting:"
+    echo "• Check service logs: sudo journalctl -u $SERVICE_NAME"
+    echo "• Check Nginx logs: sudo journalctl -u nginx"
+    echo "• Verify environment: cat $INSTALL_DIR/backend/.env"
     echo ""
-    echo "🔑 Required API Keys:"
-    echo "   OPENAI_API_KEY=your_openai_key_here"
-    echo "   ELEVENLABS_API_KEY=your_elevenlabs_key_here"
-    echo ""
-    echo "🔄 After adding API keys:"
-    echo "   sudo systemctl restart storyapp"
-    echo ""
-    echo "✅ Verify Installation:"
-    echo "   cd $APP_DIR && bash check-setup.sh"
-    echo ""
-    echo "📊 Monitor Service:"
-    echo "   sudo systemctl status storyapp"
-    echo "   sudo journalctl -u storyapp -f"
-    echo ""
-    echo "🔧 Troubleshooting:"
-    echo "   - Check logs: $LOG_FILE"
-    echo "   - Audio issues: sudo reboot (recommended)"
-    echo "   - Memory issues: free -h"
-    echo ""
-    echo "📚 Documentation:"
-    echo "   README: $APP_DIR/README.md"
-    echo "   Health: curl http://localhost:$APP_PORT/health"
-    echo ""
-    echo "========================================="
-    echo "🚀 Ready for Production Use!"
-    echo "========================================="
-}
+    echo "💡 Common issues:"
+    echo "• Missing API keys in .env file"
+    echo "• Audio device needs reboot to be detected"
+    echo "• Port 80 might be in use by another service"
+fi
 
-main() {
-    echo "🚀 Bedtime Stories App - One-Click Installer v$SCRIPT_VERSION"
-    echo "Optimized for Raspberry Pi Zero 2W"
-    echo ""
+log_info "Installation script completed!"
 
-    log "Starting installation process..."
+# ==========================================
+# STEP 17: Cleanup and Final Notes
+# ==========================================
+log_info "Cleaning up temporary files..."
+sudo apt-get autoremove -y
+sudo apt-get autoclean
 
-    # Pre-installation checks
-    require_root
-    check_system
-
-    # Core installation steps
-    install_packages
-    ensure_node
-
-    # Application setup
-    mkdir -p "$APP_DIR" "$LOG_DIR" "$BACKUP_DIR"
-    clone_or_update
-    build_frontend
-    install_backend
-
-    # Service configuration
-    write_service
-
-    # Post-installation verification
-    verify
-
-    # Show completion summary
-    show_completion_summary
-
-    success "Installation completed successfully!"
-    log "Installation log saved to: $LOG_FILE"
-}
-
-# Handle script interruption
-trap 'err "Installation interrupted by user"' INT TERM
-
-# Run main installation
-main "$@"
+echo ""
+echo "🎵 Bedtime Stories App is ready!"
+echo "   Access the web interface to start creating stories"
+echo "   for your little ones. Sweet dreams! 🌙"
+echo ""

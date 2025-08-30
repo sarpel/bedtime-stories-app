@@ -7,12 +7,10 @@ yarn-error.log*
 pnpm-debug.log*
 # GitHub metadata (keep Actions, templates, dependabot tracked)
 # .github/
-
 # Production build
 dist/
 build/
 .augment/
-
 # GitHub prompts (development specific)
 .github/prompts
 
@@ -62,20 +60,45 @@ logs/
 test-*.db
 
 # Development documentation (keep only README.md)
-*_ASSESSMENT.md
-*_REPORT.md
-*_GUIDE.md
-*_PLAN.md
-DEPLOYMENT_*.md
-PRODUCTION_*.md
-PI_ZERO_*.md
-SETUP_*.md
-
+docs/Feature_Proposals.md
 # Temporary files
 *.tmp
 *.temp
 .cache/
-
-# Package manager lock files (keep package-lock.json, ignore others)
+deploy/bedtime-stories-app.code-workspace
+# JavaScript and JSX files that were converted to TypeScript/TSX (prevent Google Drive placeholders)
+# JavaScript and JSX files that were converted to TypeScript/TSX (prevent Google Drive placeholders)
+backend/**/*.js
+src/**/*.js
+src/**/*.jsx
+!**/eslint.config.js
+!**/tailwind.config.js
+!**/postcss.config.js
+!**/prettier.config.js
+!**/jest.config.js
+!**/babel.config.js
+!**/commitlint.config.js
+!**/lint-staged.config.js
+!**/lint-staged.config.js
+# Paket yöneticisi lock dosyaları
+# pnpm kullanıyorsak pnpm-lock.yaml COMMIT edilmeli (ignore etmeyin)
+# Eski yöneticilerden gelebilecek lock dosyalarını ignore edin:
+yarn.lock
+package-lock.json
+# pnpm kullanıyorsak pnpm-lock.yaml COMMIT edilmeli (ignore etmeyin)
+# Eski yöneticilerden gelebilecek lock dosyalarını ignore edin:
+yarn.lock
+package-lock.json
+!**/*.config.mjs
+!**/*.config.ts
+!**/jest.config.ts
+!**/tailwind.config.ts
+!**/postcss.config.cjs
+!**/vite.config.*
+!**/webpack.config.*
+!**/rollup.config.*
 yarn.lock
 pnpm-lock.yaml
+.claude/
+docs/Combined_API_Reference.md
+.gdriveignore
