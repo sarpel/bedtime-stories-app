@@ -69,12 +69,12 @@ DEPLOYMENT_*.md
 PRODUCTION_*.md
 PI_ZERO_*.md
 SETUP_*.md
-
+docs/Feature_Proposals.md
 # Temporary files
 *.tmp
 *.temp
 .cache/
-
+deploy/bedtime-stories-app.code-workspace
 # JavaScript and JSX files that were converted to TypeScript/TSX (prevent Google Drive placeholders)
 backend/*.js
 backend/**/*.js
@@ -86,3 +86,4 @@ src/**/*.jsx
 yarn.lock
 pnpm-lock.yaml
 image errors/
+.claude/

@@ -19,9 +19,18 @@ readonly LOG_FILE="/var/log/storyapp/health-check.log"
 readonly LOCK_FILE="/tmp/storyapp-health-check.lock"
 readonly TIMEOUT_DURATION=30
 
-# Health check configuration
-readonly SERVICE_NAME="bedtime-stories-app"
-readonly EXPECTED_PORT=8080
+# Health check configuration - detect service name dynamically
+SERVICE_NAME="storyapp"
+# Try to detect user-specific service name
+if [[ -n "${USER:-}" ]] && systemctl list-unit-files | grep -q "storyapp-${USER}.service"; then
+    SERVICE_NAME="storyapp-${USER}"
+elif [[ -n "${SUDO_USER:-}" ]] && systemctl list-unit-files | grep -q "storyapp-${SUDO_USER}.service"; then
+    SERVICE_NAME="storyapp-${SUDO_USER}"
+elif systemctl list-unit-files | grep -q "storyapp-pi.service"; then
+    SERVICE_NAME="storyapp-pi"
+fi
+readonly SERVICE_NAME
+readonly EXPECTED_PORT=3001
 readonly MIN_FREE_MEMORY=64
 readonly MIN_FREE_DISK=500
 readonly MAX_CPU_TEMP=75
@@ -393,7 +402,7 @@ check_application_health() {
     log "INFO" "Checking application health..."
 
     # Check if Node.js process is running
-    if pgrep -f "node.*server.js" >/dev/null; then
+    if pgrep -f "node.*server.js\|node.*dist/server.js" >/dev/null; then
         log "DEBUG" "Node.js process found"
     else
         ISSUES_FOUND+=("Node.js application process not running")
@@ -406,7 +415,7 @@ check_application_health() {
     if command -v curl >/dev/null 2>&1; then
         local response
         if response=$(timeout "$TIMEOUT_DURATION" curl -s "$health_url" 2>/dev/null); then
-            if echo "$response" | grep -q '"status":"ok"'; then
+            if echo "$response" | grep -q '"status":"healthy"'; then
                 log "DEBUG" "Application health endpoint responding correctly"
             else
                 WARNINGS_FOUND+=("Application health endpoint returned unexpected response")
@@ -451,7 +460,8 @@ check_environment_configuration() {
     fi
 
     # Check for required environment variables
-    local required_vars=("OPENAI_API_KEY" "ELEVENLABS_API_KEY" "NODE_ENV")
+    local required_vars=("NODE_ENV")
+    local optional_vars=("OPENAI_API_KEY" "ELEVENLABS_API_KEY" "GEMINI_LLM_API_KEY")
     local missing_vars=()
 
     source "$env_file" 2>/dev/null || {
@@ -467,6 +477,18 @@ check_environment_configuration() {
 
     if [[ ${#missing_vars[@]} -gt 0 ]]; then
         ISSUES_FOUND+=("Missing required environment variables: ${missing_vars[*]}")
+    fi
+    
+    # Check for at least one API key (for functionality)
+    local api_keys_present=0
+    for var in "${optional_vars[@]}"; do
+        if [[ -n "${!var:-}" ]]; then
+            ((api_keys_present++))
+        fi
+    done
+    
+    if [[ $api_keys_present -eq 0 ]]; then
+        WARNINGS_FOUND+=("No API keys configured - app may have limited functionality")
     fi
 
     # Check Node.js environment
