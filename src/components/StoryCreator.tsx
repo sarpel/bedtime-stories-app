@@ -344,65 +344,65 @@ export default function StoryCreator({
                         size="sm"
                         className="w-full justify-start"
                         onClick={handleShare}
-                      disabled={isSharing}
-                    >
-                      {isSharing ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent mr-2" />
-                          Paylaşılıyor...
-                        </>
-                      ) : copied ? (
-                        <>
-                          <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                          Link Kopyalandı!
-                        </>
-                      ) : (
-                        <>
-                          <Share2 className="h-4 w-4 mr-2" />
-                          {storyId ? 'Benzersiz Link Oluştur' : 'Paylaş'}
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start"
-                      onClick={handleDownload}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      İndir
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start"
-                      onClick={handleCopy}
-                    >
-                      {copied ? <CheckCircle className="h-4 w-4 text-green-500 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-                      {copied ? 'Kopyalandı' : 'Kopyala'}
-                    </Button>
-                    <div className="border-t my-1" />
-                    <div className="text-xs text-muted-foreground px-2 py-1">
-                      Sosyal Medya
+                        disabled={isSharing}
+                      >
+                        {isSharing ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent mr-2" />
+                            Paylaşılıyor...
+                          </>
+                        ) : copied ? (
+                          <>
+                            <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                            Link Kopyalandı!
+                          </>
+                        ) : (
+                          <>
+                            <Share2 className="h-4 w-4 mr-2" />
+                            {storyId ? 'Benzersiz Link Oluştur' : 'Paylaş'}
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start"
+                        onClick={handleDownload}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        İndir
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start"
+                        onClick={handleCopy}
+                      >
+                        {copied ? <CheckCircle className="h-4 w-4 text-green-500 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+                        {copied ? 'Kopyalandı' : 'Kopyala'}
+                      </Button>
+                      <div className="border-t my-1" />
+                      <div className="text-xs text-muted-foreground px-2 py-1">
+                        Sosyal Medya
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start text-xs"
+                        onClick={() => handleSocialShare('twitter')}
+                      >
+                        Twitter
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start text-xs"
+                        onClick={() => handleSocialShare('whatsapp')}
+                      >
+                        WhatsApp
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start text-xs"
-                      onClick={() => handleSocialShare('twitter')}
-                    >
-                      Twitter
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start text-xs"
-                      onClick={() => handleSocialShare('whatsapp')}
-                    >
-                      WhatsApp
-                    </Button>
-                  </div>
-                )}
+                  )}
                 </div>
               </div>
             </div>
@@ -461,11 +461,10 @@ export default function StoryCreator({
                   placeholder={placeholder}
                   value={displayText}
                   onChange={handleStoryTextChange}
-                  className={`resize-none ${
-                    story
+                  className={`resize-none ${story
                       ? 'min-h-[250px] sm:min-h-[300px] text-sm sm:text-base leading-relaxed border-0 bg-transparent p-0 focus-visible:ring-0'
                       : 'min-h-[100px] sm:min-h-[120px] text-sm'
-                  }`}
+                    }`}
                   readOnly={isGenerating}
                 />
                 {story && (
@@ -552,8 +551,8 @@ export default function StoryCreator({
               {customTopic.trim() && !selectedType
                 ? `"${customTopic.substring(0, 80)}${customTopic.length > 80 ? '...' : ''}" konulu özel masal oluşturulacak`
                 : selectedType
-                ? storyTypes.find(t => t.id === selectedType)?.description
-                : ''
+                  ? storyTypes.find(t => t.id === selectedType)?.description
+                  : ''
               }
             </p>
           </div>
@@ -618,7 +617,7 @@ export default function StoryCreator({
         {!isGenerating && !story && !customTopic.trim() && !selectedType && (
           <div className="flex items-center gap-2 text-muted-foreground">
             <AlertCircle className="h-4 w-4" />
-            <span>Lütfen bir masal türü seçin veya özel bir konu yazın</span>
+            <span>Lütfen bir masal türü seç veya özel bir konu yaz</span>
           </div>
         )}
       </CardContent>

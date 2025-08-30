@@ -79,7 +79,7 @@ interface SettingsData {
 }
 
 // AppState extends SettingsData with additional app-specific properties
-interface AppState extends SettingsData {}
+interface AppState extends SettingsData { }
 
 // TypeScript interfaces
 interface RemotePlaybackState {
@@ -391,7 +391,7 @@ function App() {
 
       // Veritabanına kaydet
       try {
-  const dbStory = await createDbStory(story, storyTypeToUse, topicToUse)
+        const dbStory = await createDbStory(story, storyTypeToUse, topicToUse)
         setCurrentStoryId(dbStory.id ? String(dbStory.id) : null)
         console.log('Masal veritabanına kaydedildi:', dbStory.id)
         console.log('[App] db:createStory:success', { id: dbStory.id })
@@ -881,7 +881,7 @@ function App() {
                 setSelectedStoryType(story.story_type || story.storyType || '')
                 setCustomTopic(story.custom_topic || story.customTopic || '')
                 setCurrentStoryId(String(story.id || ''))
-              const audioSrc = story.audio?.file_name ? getDbAudioUrl(story.audio.file_name) : null;
+                const audioSrc = story.audio?.file_name ? getDbAudioUrl(story.audio.file_name) : null;
                 if (audioSrc) {
                   setAudioUrl(audioSrc)
                 }
@@ -973,7 +973,7 @@ function App() {
       {/* Footer */}
       <footer className="border-t border-border bg-card/30 backdrop-blur-sm mt-8 sm:mt-16">
         <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6 text-center text-xs sm:text-sm text-muted-foreground">
-          <p>Tatlı rüyalar dileriz 💙</p>
+          <p>Tatlı rüyalar Arven 💖</p>
           {isMobile && (
             <p className="mt-2 text-xs opacity-75">Mobil uyumlu tasarım</p>
           )}

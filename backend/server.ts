@@ -427,7 +427,6 @@ app.post('/api/llm', async (req, res) => {
     });
   } catch { /* llm request start log skipped */ }
   // Frontend'den gelen ayarları ve prompt'u al
-    console.log("MY LATEST CHANGE IS HERE");
   const { provider = 'openai', modelId, prompt, max_completion_tokens, max_output_tokens, temperature, endpoint: clientEndpoint } = req.body;
 
   // Input validation

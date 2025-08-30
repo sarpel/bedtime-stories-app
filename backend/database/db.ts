@@ -156,7 +156,7 @@ function initDatabase(): void {
     console.log('updated_at sütunu eklendi');
   } catch (error) {
     if (error.message.includes('duplicate column name')) {
-      console.log('updated_at sütunu zaten mevcut');
+      // Sütun zaten mevcut - normal durum, sessizce geç
     } else {
       console.error('updated_at sütunu eklenemedi:', error.message);
       throw error;
