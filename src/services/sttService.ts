@@ -176,6 +176,8 @@ export class STTService {
       this.endpoint = settings.deepgramSTT?.endpoint || '/api/stt';
       this.modelId = settings.deepgramSTT?.modelId || 'nova-3';
       this.apiKey = settings.deepgramSTT?.apiKey || ''; // Backend handles API key
+    } else {
+      throw new Error(`Unsupported STT provider: ${this.provider}`);
     }
 
     // Audio capture settings optimized for Pi Zero 2W
