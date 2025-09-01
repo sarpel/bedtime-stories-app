@@ -22,3 +22,5 @@ build
 .next
 **/dist
 !dist
+pr-22-specific-recommendations.md
+pr-review-suggestions.md

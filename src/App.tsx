@@ -664,7 +664,6 @@ function App() {
             </div>
             <div>
               <h1 className="text-lg sm:text-xl font-bold">Uyku Masalları</h1>
-              <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Bedtime Stories</p>
             </div>
           </div>
           <div className="flex gap-1 sm:gap-2 flex-wrap">

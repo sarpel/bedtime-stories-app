@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently --names \"FRONTEND,BACKEND\" --prefix-colors \"cyan,magenta\" \"vite\" \"cd backend && npm run dev\"",
+    "dev:network": "concurrently --names \"FRONTEND,BACKEND\" --prefix-colors \"cyan,magenta\" \"vite --host 0.0.0.0\" \"cd backend && npm run dev\"",
     "dev:frontend": "vite",
     "dev:backend": "cd backend && npm run dev",
     "build": "tsc && vite build --mode production",
