@@ -226,10 +226,10 @@ const compressedAudio = await compressAudio(rawAudio, {
 3. **Caching**: Sık kullanılan komutları önbelleğe al
 
 ### **Implementation Roadmap**
-1. **Fase 1**: OpenAI Whisper entegrasyonu
-2. **Fase 2**: Audio buffering ve compression
-3. **Fase 3**: Deepgram streaming eklenmesi (isteğe bağlı)
-4. **Fase 4**: Offline backup çözümü
+1. **Faz 1**: OpenAI Whisper entegrasyonu
+2. **Faz 2**: Audio buffering ve compression
+3. **Faz 3**: Deepgram streaming eklenmesi (isteğe bağlı)
+4. **Faz 4**: Offline backup çözümü
 
 ---
 
