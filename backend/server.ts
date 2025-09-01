@@ -9,6 +9,8 @@ const axios = require('axios');
 const { PassThrough, pipeline } = require('stream');
 const pino = require('pino');
 const pinoHttp = require('pino-http');
+const multer = require('multer');
+const FormData = require('form-data');
 
 // Üretimde fallback istemiyoruz: sadece backend/.env (veya .env.production) okunur; yoksa hata.
 (() => {
@@ -68,6 +70,25 @@ const logger = pino({
 
 // Constants
 const LLM_REQUEST_TIMEOUT_MS = 120000; // 2 minutes
+const STT_REQUEST_TIMEOUT_MS = 30000; // 30 seconds
+
+// Multer configuration for audio file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fieldSize: 100 * 1024 * 1024 // 100MB for form fields
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept audio files
+    if (file.mimetype.startsWith('audio/') || 
+        file.originalname.match(/\.(webm|wav|mp3|m4a|ogg|flac)$/i)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Sadece ses dosyaları kabul edilir.'), false);
+    }
+  }
+});
 
 // Env anahtarlarının varlık durumunu başlangıçta logla (içerikleri değil)
 try {
@@ -1219,6 +1240,214 @@ app.post('/api/tts', async (req, res) => {
     }
 
     res.status(error.response?.status || 500).json({ error: errorMessage });
+  }
+});
+
+// --- STT API ENDPOINT ---
+
+// Speech-to-Text API endpoint with OpenAI Whisper and Deepgram support
+app.post('/api/stt', upload.single('audio'), async (req, res) => {
+  const tStart = Date.now();
+  
+  try {
+    logger.info({
+      msg: '[STT API] Request received',
+      provider: req.body.provider,
+      model: req.body.model,
+      language: req.body.language,
+      hasAudioFile: !!req.file,
+      audioSize: req.file?.size,
+      audioType: req.file?.mimetype
+    });
+
+    // Input validation
+    if (!req.file) {
+      return res.status(400).json({ error: 'Ses dosyası gereklidir.' });
+    }
+
+    const { provider = 'openai', model, language = 'tr', response_format, temperature } = req.body;
+
+    // Provider validation
+    if (!['openai', 'deepgram'].includes(provider)) {
+      return res.status(400).json({ error: 'Desteklenen provider: openai, deepgram' });
+    }
+
+    // Audio file validation
+    const audioBuffer = req.file.buffer;
+    if (!audioBuffer || audioBuffer.length === 0) {
+      return res.status(400).json({ error: 'Geçersiz ses dosyası.' });
+    }
+
+    // File size check (basic validation)
+    if (audioBuffer.length < 1000) {
+      return res.status(400).json({ error: 'Ses dosyası çok küçük. Lütfen daha uzun bir kayıt yapın.' });
+    }
+
+    let response;
+    let transcriptionResult;
+
+    if (provider === 'openai') {
+      // OpenAI Whisper API
+      const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+      
+      if (!OPENAI_API_KEY) {
+        return res.status(500).json({ 
+          error: 'OpenAI API anahtarı eksik. Lütfen backend/.env dosyasında OPENAI_API_KEY\'i ayarlayın.' 
+        });
+      }
+
+      // Create form data for OpenAI API
+      const formData = new FormData();
+      formData.append('file', audioBuffer, {
+        filename: 'audio.webm',
+        contentType: req.file.mimetype || 'audio/webm'
+      });
+      formData.append('model', model || 'whisper-1');
+      formData.append('language', language);
+      formData.append('response_format', response_format || 'json');
+      
+      if (temperature) {
+        formData.append('temperature', temperature.toString());
+      }
+
+      logger.debug({
+        msg: '[STT API] Sending to OpenAI Whisper',
+        model: model || 'whisper-1',
+        language,
+        audioSize: audioBuffer.length
+      });
+
+      // Call OpenAI Whisper API
+      response = await axios.post('https://api.openai.com/v1/audio/transcriptions', formData, {
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          ...formData.getHeaders()
+        },
+        timeout: STT_REQUEST_TIMEOUT_MS
+      });
+
+      // Extract transcription from OpenAI response
+      transcriptionResult = {
+        text: response.data.text?.trim() || '',
+        language: response.data.language,
+        duration: response.data.duration,
+        confidence: 0.9 // OpenAI doesn't provide confidence, assume high
+      };
+
+    } else if (provider === 'deepgram') {
+      // Deepgram API
+      const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY;
+      
+      if (!DEEPGRAM_API_KEY) {
+        return res.status(500).json({ 
+          error: 'Deepgram API anahtarı eksik. Lütfen backend/.env dosyasında DEEPGRAM_API_KEY\'i ayarlayın.' 
+        });
+      }
+
+      const deepgramModel = model || 'nova-3';
+      const smartFormat = req.body.smart_format !== false;
+      const interimResults = req.body.interim_results === true;
+
+      logger.debug({
+        msg: '[STT API] Sending to Deepgram',
+        model: deepgramModel,
+        language,
+        audioSize: audioBuffer.length,
+        smartFormat,
+        interimResults
+      });
+
+      // Call Deepgram API
+      response = await axios.post(
+        `https://api.deepgram.com/v1/listen?model=${deepgramModel}&language=${language}&smart_format=${smartFormat}&interim_results=${interimResults}`,
+        audioBuffer,
+        {
+          headers: {
+            'Authorization': `Token ${DEEPGRAM_API_KEY}`,
+            'Content-Type': req.file.mimetype || 'audio/webm'
+          },
+          timeout: STT_REQUEST_TIMEOUT_MS
+        }
+      );
+
+      // Extract transcription from Deepgram response
+      const results = response.data.results;
+      if (results?.channels?.[0]?.alternatives?.[0]) {
+        const alternative = results.channels[0].alternatives[0];
+        transcriptionResult = {
+          text: alternative.transcript?.trim() || '',
+          confidence: alternative.confidence || 0.8,
+          language: results.language || language,
+          duration: results.metadata?.duration
+        };
+      } else {
+        throw new Error('Deepgram API\'den geçersiz yanıt formatı.');
+      }
+    }
+
+    // Validate transcription result
+    if (!transcriptionResult?.text || transcriptionResult.text.length === 0) {
+      return res.status(422).json({ 
+        error: 'Ses dosyasından metin çıkarılamadı. Lütfen daha açık konuşmayı deneyin.' 
+      });
+    }
+
+    // Log successful transcription
+    const duration = Date.now() - tStart;
+    logger.info({
+      msg: '[STT API] Transcription successful',
+      provider,
+      textLength: transcriptionResult.text.length,
+      confidence: transcriptionResult.confidence,
+      durationMs: duration
+    });
+
+    // Return standardized response
+    res.json({
+      text: transcriptionResult.text,
+      confidence: transcriptionResult.confidence,
+      language: transcriptionResult.language,
+      duration: transcriptionResult.duration,
+      provider,
+      model: model || (provider === 'openai' ? 'whisper-1' : 'nova-3')
+    });
+
+  } catch (error) {
+    const duration = Date.now() - tStart;
+    
+    logger.error({
+      msg: '[STT API] Transcription failed',
+      provider: req.body.provider,
+      error: error.message,
+      status: error.response?.status,
+      durationMs: duration
+    });
+
+    // Handle specific error cases
+    let errorMessage = 'Ses tanıma işlemi başarısız oldu.';
+    let statusCode = 500;
+
+    if (error.response?.status === 401) {
+      errorMessage = `${req.body.provider || 'STT'} API anahtarı geçersiz.`;
+      statusCode = 401;
+    } else if (error.response?.status === 400) {
+      errorMessage = `Ses dosyası formatı geçersiz veya desteklenmiyor.`;
+      statusCode = 400;
+    } else if (error.response?.status === 429) {
+      errorMessage = `API rate limit aşıldı. Lütfen biraz bekleyip tekrar deneyin.`;
+      statusCode = 429;
+    } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+      errorMessage = `STT API zaman aşımına uğradı. Lütfen tekrar deneyin.`;
+      statusCode = 408;
+    } else if (error.message.includes('file too large')) {
+      errorMessage = 'Ses dosyası çok büyük. Maksimum 10MB destekleniyor.';
+      statusCode = 413;
+    }
+
+    res.status(statusCode).json({ 
+      error: errorMessage,
+      provider: req.body.provider || 'unknown'
+    });
   }
 });
 

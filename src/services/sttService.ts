@@ -74,7 +74,7 @@ class AudioRecorder {
       });
 
       // Create MediaRecorder
-      const options: MediaRecorderOptions = {
+      const options = {
         mimeType: this.getSupportedMimeType(),
         audioBitsPerSecond: this.audioSettings.bitDepth === 16 ? 128000 : 64000
       };
@@ -139,7 +139,7 @@ class AudioRecorder {
     return 'audio/webm'; // Fallback
   }
 
-  private cleanup(): void {
+  cleanup(): void {
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop());
       this.stream = null;
@@ -157,9 +157,9 @@ class AudioRecorder {
 // Main STT Service class
 export class STTService {
   provider: string;
-  endpoint: string;
-  modelId: string;
-  apiKey: string;
+  endpoint: string = '/api/stt';
+  modelId: string = 'whisper-1';
+  apiKey: string = '';
   audioSettings: any;
   audioRecorder: AudioRecorder;
 
@@ -176,6 +176,11 @@ export class STTService {
       this.endpoint = settings.deepgramSTT?.endpoint || '/api/stt';
       this.modelId = settings.deepgramSTT?.modelId || 'nova-3';
       this.apiKey = settings.deepgramSTT?.apiKey || ''; // Backend handles API key
+    } else {
+      // Default settings
+      this.endpoint = '/api/stt';
+      this.modelId = 'whisper-1';
+      this.apiKey = '';
     }
 
     // Audio capture settings optimized for Pi Zero 2W
@@ -418,97 +423,22 @@ export class STTService {
     parameters: any;
     confidence: number;
   }> {
-    const text = transcription.toLowerCase().trim();
+    // Use the new Turkish intent recognition system
+    const { processTurkishVoiceCommand } = await import('@/utils/intentRecognition');
     
-    // Simple intent recognition for Turkish
-    const intents = {
-      // Story requests
-      story_request: [
-        'masal', 'hikaye', 'öykü', 'masal anlat', 'hikaye anlat', 
-        'bir masal', 'masalı', 'hikayesi'
-      ],
-      // Story types
-      fairy_tale: ['peri masalı', 'prenses', 'şehzade', 'cadı', 'büyü'],
-      adventure: ['macera', 'kahraman', 'yolculuk', 'keşif'],
-      educational: ['öğretici', 'eğitici', 'bilim', 'matematik', 'doğa'],
-      animal: ['hayvan', 'kedi', 'köpek', 'kuş', 'balık', 'orman'],
-      // Character requests
-      character_request: ['karakter', 'kahraman', 'ana karakter'],
-      // Audio controls
-      play_story: ['oynat', 'çal', 'başlat', 'dinle'],
-      pause_story: ['duraklat', 'durdur', 'bekle'],
-      stop_story: ['bitir', 'kes', 'kapat'],
-      // Settings
-      settings: ['ayarlar', 'ayar', 'seçenekler', 'konfigürasyon'],
-      help: ['yardım', 'nasıl', 'ne yapabilirim', 'komutlar']
-    };
-
-    let detectedIntent = 'unknown';
-    let confidence = 0;
-    const parameters: any = {};
-
-    // Intent detection
-    for (const [intent, keywords] of Object.entries(intents)) {
-      for (const keyword of keywords) {
-        if (text.includes(keyword)) {
-          detectedIntent = intent;
-          confidence = 0.8; // Base confidence
-          break;
-        }
-      }
-      if (detectedIntent !== 'unknown') break;
-    }
-
-    // Extract parameters based on intent
-    if (detectedIntent === 'story_request') {
-      // Try to extract story type from the same text
-      for (const [type, keywords] of Object.entries(intents)) {
-        if (type.includes('_tale') || type === 'adventure' || type === 'educational' || type === 'animal') {
-          for (const keyword of keywords) {
-            if (text.includes(keyword)) {
-              parameters.storyType = type;
-              parameters.customTopic = keyword;
-              break;
-            }
-          }
-        }
-      }
-
-      // Extract character names (basic)
-      const characterPatterns = [
-        /(\w+) adında/g,
-        /(\w+) isminde/g,
-        /kahraman (\w+)/g
-      ];
-
-      for (const pattern of characterPatterns) {
-        const match = pattern.exec(text);
-        if (match) {
-          parameters.characterName = match[1];
-          confidence += 0.1;
-          break;
-        }
-      }
-
-      // Extract age if mentioned
-      const ageMatch = text.match(/(\d+) yaş/);
-      if (ageMatch) {
-        parameters.age = parseInt(ageMatch[1]);
-        confidence += 0.1;
-      }
-    }
-
+    const result = processTurkishVoiceCommand(transcription);
+    
     return {
-      intent: detectedIntent,
-      parameters,
-      confidence: Math.min(confidence, 1.0)
+      intent: result.intent,
+      parameters: result.parameters,
+      confidence: result.confidence
     };
   }
 
   // Clean up resources
   cleanup(): void {
     try {
-      this.audioRecorder.cleanup?.();
+      this.audioRecorder.cleanup();
     } catch (error) {
       logger.warn('STT cleanup failed', 'STTService', { 
         error: (error as Error)?.message 
