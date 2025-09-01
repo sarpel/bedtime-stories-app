@@ -508,7 +508,9 @@ export class STTService {
   // Clean up resources
   cleanup(): void {
     try {
-      this.audioRecorder.cleanup?.();
+      if (this.audioRecorder) {
+        this.audioRecorder.cleanup();
+      }
     } catch (error) {
       logger.warn('STT cleanup failed', 'STTService', { 
         error: (error as Error)?.message 
