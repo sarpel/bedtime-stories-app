@@ -304,26 +304,41 @@ const benchmarks = {
 ```typescript
 // backend/routes/stt.ts
 
+import FormData from 'form-data';
+import axios from 'axios';
+import express from 'express';
+import multer from 'multer';
+const upload = multer();
+
+const app = express();
+
 app.post('/api/stt', upload.single('audio'), async (req, res) => {
   try {
     const { provider, model, language } = req.body;
     const audioFile = req.file;
 
     if (provider === 'openai') {
-      const formData = new FormData();
-      formData.append('file', audioFile.buffer, 'audio.webm');
-      formData.append('model', model || 'whisper-1');
-      formData.append('language', language || 'tr');
-      formData.append('response_format', 'json');
+      const form = new FormData();
+      form.append('file', audioFile.buffer, {
+        filename: 'audio.webm',
+        contentType: audioFile.mimetype || 'audio/webm'
+      });
+      form.append('model', model || 'whisper-1');
+      form.append('language', language || 'tr');
+      // language/duration bilgisi için verbose_json önerilir
+      form.append('response_format', 'verbose_json');
 
       const response = await axios.post(
         'https://api.openai.com/v1/audio/transcriptions',
-        formData,
+        form,
         {
           headers: {
-            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-            'Content-Type': 'multipart/form-data'
-          }
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+            ...form.getHeaders()
+          },
+          timeout: Number(process.env.STT_TIMEOUT_MS || 15000),
+          maxBodyLength: Infinity,
+          maxContentLength: Infinity
         }
       );
 
@@ -332,12 +347,16 @@ app.post('/api/stt', upload.single('audio'), async (req, res) => {
         language: response.data.language,
         duration: response.data.duration
       });
+    } else {
+      res.status(400).json({ error: 'Unsupported provider' });
     }
   } catch (error) {
+    console.error('STT error:', error);
     res.status(500).json({ error: 'STT processing failed' });
   }
 });
-```
+
+export default app;
 
 ### Deepgram Integration (Optional)
 
