@@ -175,7 +175,7 @@ const connection = deepgram.listen.live({
 
 ## 🔧 Raspberry Pi Zero 2W Optimizasyonları
 
-### Audio Buffering Strategie
+### Audio Buffering Strategy
 ```javascript
 // Optimized audio capture for Pi Zero 2W
 const audioConfig = {
