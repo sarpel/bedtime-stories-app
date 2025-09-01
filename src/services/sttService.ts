@@ -177,10 +177,7 @@ export class STTService {
       this.modelId = settings.deepgramSTT?.modelId || 'nova-3';
       this.apiKey = settings.deepgramSTT?.apiKey || ''; // Backend handles API key
     } else {
-      // Default settings
-      this.endpoint = '/api/stt';
-      this.modelId = 'whisper-1';
-      this.apiKey = '';
+      throw new Error(`Unsupported STT provider: ${this.provider}`);
     }
 
     // Audio capture settings optimized for Pi Zero 2W
@@ -438,7 +435,9 @@ export class STTService {
   // Clean up resources
   cleanup(): void {
     try {
-      this.audioRecorder.cleanup();
+      if (this.audioRecorder) {
+        this.audioRecorder.cleanup();
+      }
     } catch (error) {
       logger.warn('STT cleanup failed', 'STTService', { 
         error: (error as Error)?.message 
