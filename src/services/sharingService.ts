@@ -5,13 +5,21 @@ class SharingService {
   baseUrl: string;
 
   constructor() {
-    this.baseUrl = 'http://localhost:3001';
+    // VITE_BACKEND_URL öncelik; yoksa aynı origin + /api prefix kullanılabilir
+    const envUrl = (import.meta as any).env?.VITE_BACKEND_URL as string | undefined
+    if (envUrl) {
+      this.baseUrl = envUrl.replace(/\/$/, '')
+    } else {
+      // Fallback: aynı origin (proxy varsayımı)
+      this.baseUrl = ''
+    }
   }
 
   // Masalı paylaşıma aç
   async shareStory(storyId: string) {
     try {
-      const response = await fetch(`${this.baseUrl}/api/stories/${storyId}/share`, {
+      const base = this.baseUrl || ''
+      const response = await fetch(`${base}/api/stories/${storyId}/share`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -42,7 +50,8 @@ class SharingService {
   // Masalın paylaşımını kaldır
   async unshareStory(storyId: string) {
     try {
-      const response = await fetch(`${this.baseUrl}/api/stories/${storyId}/share`, {
+      const base = this.baseUrl || ''
+      const response = await fetch(`${base}/api/stories/${storyId}/share`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -71,7 +80,8 @@ class SharingService {
   // Paylaşılan masalı getir
   async getSharedStory(shareId: string) {
     try {
-      const response = await fetch(`${this.baseUrl}/api/shared/${shareId}`);
+      const base = this.baseUrl || ''
+      const response = await fetch(`${base}/api/shared/${shareId}`);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -95,7 +105,8 @@ class SharingService {
   // Paylaşılan masalların listesini getir
   async getSharedStories() {
     try {
-      const response = await fetch(`${this.baseUrl}/api/shared`);
+      const base = this.baseUrl || ''
+      const response = await fetch(`${base}/api/shared`);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -118,7 +129,8 @@ class SharingService {
 
   // Paylaşılan masalın ses URL'ini oluştur
   getSharedAudioUrl(shareId: string) {
-    return `${this.baseUrl}/api/shared/${shareId}/audio`;
+    const base = this.baseUrl || ''
+    return `${base}/api/shared/${shareId}/audio`;
   }
 
   // Paylaşım URL'ini oluştur (frontend tarafında)

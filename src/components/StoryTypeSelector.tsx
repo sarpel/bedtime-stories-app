@@ -87,20 +87,45 @@ export default function StoryTypeSelector({
         {/* Masal Türü Butonları - Mobilde 2x5, desktopta 2x5 (toplam 10) */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">En Sevilen Masal Türleri</Label>
-      <div className="grid grid-flow-row grid-cols-2 sm:grid-cols-5 auto-rows-[3.5rem] gap-1.5 sm:gap-2 items-stretch">
-            {storyTypes.slice(0, 10).map((type) => (
+          {(() => {
+            // 10 türü al, mobilde 5+5 (iki satır), >=sm'de tek grid (5x2)
+            const topTen = storyTypes.slice(0, 10)
+            const firstRow = topTen.slice(0, 5)
+            const secondRow = topTen.slice(5, 10)
+
+            const renderButton = (type: (typeof storyTypes)[number]) => (
               <Button
                 key={type.id}
-                variant={selectedType === type.id ? "default" : "outline"}
+                variant={selectedType === type.id ? 'default' : 'outline'}
                 onClick={() => handleTypeChange(type.id)}
-        className="w-full min-w-0 justify-center flex flex-col items-center gap-1 h-14 p-2 text-xs"
+                className="w-full min-w-0 justify-center flex flex-col items-center gap-1 h-14 p-1.5 text-[10px] sm:text-xs"
                 size="sm"
               >
-        <span className="text-base sm:text-lg">{type.icon}</span>
-                <span className="leading-none text-center">{type.name}</span>
+                <span className="text-base sm:text-lg">{type.icon}</span>
+                <span className="leading-tight text-center line-clamp-2">
+                  {type.name}
+                </span>
               </Button>
-            ))}
-          </div>
+            )
+
+            return (
+              <>
+                {/* Mobil 5+5 düzeni */}
+                <div className="sm:hidden space-y-1">
+                  <div className="grid grid-cols-5 gap-1">
+                    {firstRow.map(renderButton)}
+                  </div>
+                  <div className="grid grid-cols-5 gap-1">
+                    {secondRow.map(renderButton)}
+                  </div>
+                </div>
+                {/* Desktop (>=sm) 5x2 grid */}
+                <div className="hidden sm:grid grid-cols-5 auto-rows-[3.5rem] gap-2 items-stretch">
+                  {topTen.map(renderButton)}
+                </div>
+              </>
+            )
+          })()}
         </div>
 
         {/* Özel Konu Girişi ve Butonlar */}
@@ -193,8 +218,8 @@ export default function StoryTypeSelector({
               {customTopic.trim() && !selectedType
                 ? `"${customTopic.substring(0, 80)}${customTopic.length > 80 ? '...' : ''}" konulu özel masal oluşturulacak`
                 : selectedType
-                ? storyTypes.find(t => t.id === selectedType)?.description
-                : ''
+                  ? storyTypes.find(t => t.id === selectedType)?.description
+                  : ''
               }
             </p>
           </div>

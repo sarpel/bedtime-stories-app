@@ -10,6 +10,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export default defineConfig(({ mode }) => {
   const isDev = mode === 'development'
   const isProd = mode === 'production'
+  const gv = (globalThis as any)
+  const backendPort = parseInt(gv?.process?.env?.BACKEND_PORT || gv?.process?.env?.PORT || '3001')
+  const backendHost = gv?.process?.env?.BACKEND_HOST || 'localhost'
+  const backendTarget = gv?.process?.env?.VITE_BACKEND_URL || `http://${backendHost}:${backendPort}`
 
   return {
     plugins: [
@@ -25,19 +29,23 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '0.0.0.0',
       port: 5173,
-      allowedHosts: ['all'],
+      // Allow specific external domains for development network access.
+      // Uses env var VITE_ALLOWED_HOSTS (comma separated) to extend list.
+      // Added arven.sarpel.net per request.
+      // Allow all hosts (user request)
+      allowedHosts: true,
       hmr: {
         overlay: false
       },
       proxy: {
         '/api': {
-          target: 'http://localhost:8080',
+          target: backendTarget,
           changeOrigin: true,
           ws: false,
           secure: false
         },
         '/audio': {
-          target: 'http://localhost:8080',
+          target: backendTarget,
           changeOrigin: true,
           ws: false,
           secure: false

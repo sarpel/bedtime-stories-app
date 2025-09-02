@@ -23,6 +23,7 @@ import { storyTypes, getStoryTypeName, extractStoryTitle } from '@/utils/storyTy
 import { shareStory, shareToSocialMedia, downloadStory } from '@/utils/share'
 import type { SupportedPlatform } from '@/utils/share'
 import sharingService from '@/services/sharingService'
+import { VoiceCommandPanel, type VoiceCommand } from '@/components/VoiceCommandPanel'
 
 // TypeScript interfaces
 interface StoryCreatorProps {
@@ -85,6 +86,7 @@ export default function StoryCreator({
   const [shareUrl, setShareUrl] = useState('')
   const [isSharing, setIsSharing] = useState(false)
   const shareMenuRef = useRef<HTMLDivElement>(null)
+  const [showVoicePanel, setShowVoicePanel] = useState(false)
 
   // Click outside handler için
   useEffect(() => {
@@ -201,6 +203,78 @@ export default function StoryCreator({
     const words = text.trim().split(/\s+/).length
     const minutes = Math.ceil(words / wordsPerMinute)
     return minutes
+  }
+
+  // Voice command handler
+  const handleVoiceCommand = (command: VoiceCommand) => {
+    const { intent, parameters } = command
+    
+    // Handle story request commands
+    if (intent === 'story_request' || intent === 'fairy_tale' || intent === 'adventure' || intent === 'educational' || intent === 'animal') {
+      // Set story type if detected
+      if (parameters.storyType) {
+        const storyTypeMap: { [key: string]: string } = {
+          fairy_tale: 'fairy_tale',
+          adventure: 'adventure', 
+          educational: 'science',
+          animal: 'animal'
+        }
+        const mappedType = storyTypeMap[parameters.storyType]
+        if (mappedType) {
+          onTypeChange(mappedType)
+        }
+      }
+      
+      // Build custom topic from parameters
+      let customTopicParts: string[] = []
+      if (parameters.characterName) {
+        customTopicParts.push(parameters.characterName + ' adında')
+      }
+      if (parameters.age) {
+        customTopicParts.push(parameters.age + ' yaşında')
+      }
+      if (parameters.customTopic) {
+        customTopicParts.push(parameters.customTopic + ' hakkında')
+      }
+      
+      if (customTopicParts.length > 0) {
+        const combinedTopic = customTopicParts.join(' ') + ' bir masal'
+        onCustomTopicChange(combinedTopic)
+        // Clear selected type if custom topic is set
+        if (selectedType) {
+          onTypeChange('')
+        }
+      }
+      
+      // Auto-generate story if we have enough information
+      if (parameters.storyType || customTopicParts.length > 0) {
+        setTimeout(() => {
+          onGenerateStory()
+        }, 500)
+      }
+    }
+    
+    // Handle audio control commands
+    else if (intent === 'play_story' && audioUrl) {
+      if (!isPlaying) {
+        onPlayAudio()
+      }
+    }
+    else if (intent === 'pause_story' && audioUrl && isPlaying) {
+      onPauseAudio()
+    }
+    else if (intent === 'stop_story' && audioUrl) {
+      onStopAudio()
+    }
+    
+    // Handle help and settings
+    else if (intent === 'help') {
+      // Could show help dialog or tips
+      console.log('Yardım: Sesli komutlarla masal isteyebilir, ses kontrolü yapabilirsiniz.')
+    }
+    
+    // Close voice panel after command
+    setShowVoicePanel(false)
   }
 
   const displayText = story || customTopic
@@ -411,6 +485,31 @@ export default function StoryCreator({
       </CardHeader>
 
       <CardContent className="space-y-4 p-3 sm:p-6">
+        {/* Voice Command Panel */}
+        {showVoicePanel && (
+          <div className="mb-6">
+            <VoiceCommandPanel
+              onVoiceCommand={handleVoiceCommand}
+              disabled={isGenerating}
+            />
+          </div>
+        )}
+
+        {/* Voice Command Toggle Button - Only show when no story */}
+        {!story && (
+          <div className="flex justify-center mb-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowVoicePanel(!showVoicePanel)}
+              className="flex items-center gap-2"
+              size="sm"
+            >
+              <Volume2 className="h-4 w-4" />
+              {showVoicePanel ? 'Sesli Komutu Kapat' : 'Sesli Komut Ver'}
+            </Button>
+          </div>
+        )}
+
         {/* Masal Türü Butonları - Sadece masal oluşturulmamışsa göster */}
         {!story && (
           <div className="space-y-3">
