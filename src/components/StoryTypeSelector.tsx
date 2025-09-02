@@ -39,6 +39,25 @@ interface StoryTypeSelectorProps {
   progress: number
 }
 
+/**
+ * Masal türü seçimi ile özel konu girişi sağlayan UI bileşeni.
+ *
+ * Bu bileşen kullanıcıya en popüler masal türlerinden birini seçme veya serbest metin ile özel bir konu girme imkânı sunar;
+ * seçilen tür ile özel konu girişleri birbirini dışlar (özel konu yazılmaya başlanınca veya textarea'ya odaklanınca seçili tür temizlenir).
+ *
+ * @param selectedType - Şu anda seçili masal türünün `id`'si; boş string ise tür seçili değildir.
+ * @param customTopic - Özel konu metni (textarea içeriği).
+ * @param onTypeChange - Seçili tür değiştirildiğinde çağrılır; boş string ile seçimi temizleme sağlar.
+ * @param onCustomTopicChange - Özel konu metni değiştiğinde çağrılır.
+ * @param onGenerateStory - "Masal Oluştur" butonuna basıldığında çağrılır.
+ * @param onGenerateAudio - Var olan bir masal için "Seslendir" butonuna basıldığında çağrılır.
+ * @param isGenerating - Masal oluşturma işleminde olduğu zamanı belirtir; true ise oluşturma butonu devre dışı ve spinner gösterilir.
+ * @param isGeneratingAudio - Ses oluşturma işleminde olduğu zamanı belirtir; true ise seslendirme butonu devre dışı ve spinner gösterilir.
+ * @param story - Oluşturulmuş masal nesnesi; mevcutsa "Seslendir" butonu gösterilir.
+ * @param progress - Oluşturma/seslendirme süreçlerinin yüzde bazlı ilerleme değeri (0–100); 0'dan büyükse ilerleme çubuğu gösterilir.
+ *
+ * @returns React elemanı: masal türü seçim ve oluşturma arayüzü.
+ */
 export default function StoryTypeSelector({
   selectedType,
   customTopic,

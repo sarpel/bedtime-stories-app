@@ -89,6 +89,19 @@ interface RemotePlaybackState {
   file?: string;
 }
 
+/**
+ * Uygulamanın ana React bileşeni — masal oluşturma, TTS ses üretimi, kayıtlı masalların yönetimi, favoriler,
+ * arama, analitik ve ayarlar panelleri ile oynatma kontrollerini bir araya getirir.
+ *
+ * Bu bileşen:
+ * - Kullanıcı girdisiyle masal oluşturma (LLM) ve oluşturulan metin için TTS sesi üretme akışlarını yönetir.
+ * - Yerel geçmiş (localStorage) ve opsiyonel veritabanı arasında hibrit okuma/yazma yapar (oluşturma, güncelleme, silme).
+ * - Favoriler, arama, favori/ Yönetim/ Kuyruk/Analitik/ Ayarlar panellerinin görünürlük durumlarını ve ilgili olay işleyicilerini barındırır.
+ * - Global ayarları yükler, derinlemesine birleştirir ve güncellemeleri güvenli şekilde localStorage'a yazar.
+ * - Tema uygulaması, uzak mini oynatıcı durumu ve ses oynatma kontrolleri (play/pause/stop/seek/volume) için durum ve efektleri yönetir.
+ *
+ * Döndürülen JSX uygulamanın tüm ana UI'sını (başlık, StoryCreator, paneller, mini oynatıcı, footer ve toast bildirimleri) render eder.
+ */
 function App() {
   const isMobile = useIsMobile()
   const [story, setStory] = useState<string>('')

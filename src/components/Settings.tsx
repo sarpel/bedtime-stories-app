@@ -79,6 +79,24 @@ interface SettingsProps {
   onClose: () => void
 }
 
+/**
+ * Ayarlar modalini render eden React bileşeni.
+ *
+ * Bu bileşen verilen başlangıç ayarlarının (settings) düzenlenebildiği bir modal panel sağlar:
+ * - LLM, TTS, STT, İçerik ve Toplu işlemler için sekmeler (tabs) içerir.
+ * - localSettings adında yerel düzenlenebilir bir kopya tutar; "Kaydet" ile onSettingsChange çağrılır,
+ *   "Sıfırla" ile varsayılan ayarlara dönülür ve onClose ile panel kapatılır.
+ * - Panel dışına tıklama veya Escape tuşu ile panel kapanır.
+ * - updateSetting(path, value) ile nokta ayrılmış path kullanılarak nested alanlar güncellenir.
+ * - Mount sırasında /api/batch/status çağrısı ile toplu işlem durumu alınır.
+ * - Toplu masal oluşturma ve toplu ses dönüştürme işlemleri sırasındaki istekler ilgili API uç noktalarına (POST /api/batch/stories, POST /api/batch/audio) yönlendirilir; sonuçlar kullanıcıya alert ile bildirilir ve durum yenilenir.
+ * - ElevenLabs için ses seçimi (VoiceSelector) anında onSettingsChange ile dışarıya yansıtılır.
+ *
+ * @param settings - Bileşenin başlangıç ayarlarını içeren SettingsData nesnesi.
+ * @param onSettingsChange - Kullanıcı kaydettiğinde (veya anlık voice seçimi gibi durumlarda) güncellenmiş ayarların iletileceği callback.
+ * @param onClose - Paneli kapatmak için çağrılan callback.
+ * @returns Render edilmiş ayarlar modalinin JSX elementi.
+ */
 export default function Settings({ settings, onSettingsChange, onClose }: SettingsProps) {
   const [localSettings, setLocalSettings] = useState<SettingsData>(settings)
   const panelRef = useRef<HTMLDivElement>(null)
