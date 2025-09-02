@@ -22,7 +22,6 @@ import ApiKeyHelp from './components/ApiKeyHelp.jsx'
 import safeLocalStorage from './utils/safeLocalStorage.js'
 // Pi Zero optimizations
 import { logger } from './utils/logger.js'
-import stabilityMonitor from './utils/stabilityMonitor.js'
 import './App.css'
 import { Toaster } from '@/components/ui/sonner.jsx'
 import { toast } from 'sonner'
@@ -290,17 +289,13 @@ function App() {
     }
   }
 
-  // Initialize Pi Zero monitoring systems
+  // Initialize systems
   useEffect(() => {
-    // Start monitoring systems optimized for Pi Zero 2W
-    stabilityMonitor.startMonitoring()
-
-    logger.info('Pi Zero 2W monitoring systems initialized')
+    logger.info('Application systems initialized')
 
     // Cleanup on unmount
     return () => {
-      stabilityMonitor.stopMonitoring()
-      logger.info('Pi Zero 2W monitoring systems cleaned up')
+      logger.info('Application systems cleaned up')
     }
   }, [])
 

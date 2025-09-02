@@ -1686,6 +1686,278 @@ app.get('/api/shared', (req, res) => {
   }
 });
 
+// Toplu Masal Oluşturma Endpoint
+app.post('/api/batch/stories', async (req, res) => {
+  try {
+    const { count, storyTypes, settings } = req.body;
+
+    if (!count || count < 1 || count > 10) {
+      return res.status(400).json({ error: 'Masal sayısı 1-10 arasında olmalıdır.' });
+    }
+
+    if (!Array.isArray(storyTypes) || storyTypes.length === 0) {
+      return res.status(400).json({ error: 'En az bir masal türü seçilmelidir.' });
+    }
+
+    logger.info({ msg: 'Toplu masal oluşturma başlatıldı', count, storyTypes });
+
+    const results = [];
+    const errors = [];
+
+    // Her masal için LLM isteği gönder
+    for (let i = 0; i < count; i++) {
+      try {
+        const selectedType = storyTypes[Math.floor(Math.random() * storyTypes.length)];
+        
+        // Aynı LLM logic'ini kullan (server.ts'teki /api/llm endpoint'inden)
+        const systemPrompt = process.env.SYSTEM_PROMPT_TURKISH || 
+          '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.';
+
+        const storyTypeMap = {
+          'princess': 'prenses masalı',
+          'unicorn': 'unicorn masalı',
+          'fairy': 'peri masalı',
+          'butterfly': 'kelebek masalı',
+          'mermaid': 'deniz kızı masalı',
+          'rainbow': 'gökkuşağı masalı'
+        };
+
+        const prompt = `${systemPrompt}\n\nMasal türü: ${storyTypeMap[selectedType] || selectedType}`;
+
+        // OpenAI API çağrısı
+        const apiKey = process.env.OPENAI_API_KEY;
+        const endpoint = process.env.OPENAI_ENDPOINT || 'https://api.openai.com/v1/responses';
+        const model = process.env.OPENAI_MODEL || 'gpt-5-mini';
+
+        const response = await axios.post(endpoint, {
+          model,
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 1500,
+          temperature: 0.7
+        }, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: LLM_REQUEST_TIMEOUT_MS
+        });
+
+        const storyText = response.data.choices?.[0]?.message?.content;
+        
+        if (storyText) {
+          // Masalı veritabanına kaydet
+          const story = storyDb.createStory({
+            story_text: storyText,
+            story_type: selectedType,
+            custom_topic: '',
+            voice_settings: settings?.voiceSettings
+          });
+
+          results.push({
+            id: story.id,
+            type: selectedType,
+            title: storyText.slice(0, 50) + '...',
+            success: true
+          });
+
+          logger.info({ msg: 'Toplu masal oluşturuldu', index: i + 1, storyId: story.id, type: selectedType });
+        } else {
+          errors.push({ index: i + 1, type: selectedType, error: 'Masal metni alınamadı' });
+        }
+
+        // Rate limiting için kısa bekleme
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+      } catch (error) {
+        logger.error({ msg: 'Toplu masal oluşturma hatası', index: i + 1, error: error?.message });
+        errors.push({ index: i + 1, error: error?.message || 'Bilinmeyen hata' });
+      }
+    }
+
+    res.json({
+      success: true,
+      total: count,
+      created: results.length,
+      failed: errors.length,
+      results,
+      errors
+    });
+
+  } catch (error) {
+    logger.error({ msg: 'Toplu masal oluşturma genel hatası', error: error?.message });
+    res.status(500).json({ error: 'Toplu masal oluşturma sırasında hata oluştu.' });
+  }
+});
+
+// Toplu Ses Dönüştürme Endpoint
+app.post('/api/batch/audio', async (req, res) => {
+  try {
+    const { priority, autoGenerate = true, provider = 'elevenlabs' } = req.body;
+
+    logger.info({ msg: 'Toplu ses dönüştürme başlatıldı', priority, provider });
+
+    // Ses dosyası olmayan masalları getir
+    let stories = [];
+    
+    if (priority === 'favorites') {
+      // Favori masalları getir (ses olmayan)
+      stories = storyDb.getFavoriteStoriesWithoutAudio();
+    } else if (priority === 'recent') {
+      // En yeni masalları getir (ses olmayan)
+      stories = storyDb.getRecentStoriesWithoutAudio(10);
+    } else {
+      // Tüm ses olmayan masalları getir
+      stories = storyDb.getAllStoriesWithoutAudio();
+    }
+
+    if (stories.length === 0) {
+      return res.json({
+        success: true,
+        message: 'Ses dönüştürülecek masal bulunamadı.',
+        total: 0,
+        converted: 0,
+        failed: 0,
+        results: [],
+        errors: []
+      });
+    }
+
+    const results = [];
+    const errors = [];
+
+    // Her masal için TTS isteği gönder
+    for (const story of stories.slice(0, 5)) { // Maksimum 5 masal
+      try {
+        // TTS API çağrısı (aynı logic /api/tts endpoint'inden)
+        const apiKey = provider === 'elevenlabs' ? process.env.ELEVENLABS_API_KEY : process.env.GEMINI_TTS_API_KEY;
+        const endpoint = provider === 'elevenlabs' ? 
+          (process.env.ELEVENLABS_ENDPOINT || 'https://api.elevenlabs.io/v1/text-to-speech') :
+          (process.env.GEMINI_TTS_ENDPOINT || 'https://generativelanguage.googleapis.com/v1beta/models');
+        const voiceId = provider === 'elevenlabs' ? 
+          (process.env.ELEVENLABS_VOICE_ID || 'xsGHrtxT5AdDzYXTQT0d') :
+          (process.env.GEMINI_TTS_VOICE_ID || 'Puck');
+
+        if (!apiKey) {
+          errors.push({ storyId: story.id, error: `${provider} API anahtarı eksik` });
+          continue;
+        }
+
+        let audioResponse;
+        
+        if (provider === 'elevenlabs') {
+          const fullUrl = `${endpoint}/${voiceId}`;
+          audioResponse = await axios.post(fullUrl, {
+            text: story.story_text,
+            model_id: process.env.ELEVENLABS_MODEL || 'eleven_turbo_v2_5',
+            language_code: 'tr',
+            voice_settings: {
+              similarity_boost: 0.75,
+              use_speaker_boost: false,
+              stability: 0.75,
+              style: 0.0,
+              speed: 0.9
+            }
+          }, {
+            headers: {
+              'xi-api-key': apiKey,
+              'Content-Type': 'application/json'
+            },
+            responseType: 'arraybuffer',
+            timeout: 60000
+          });
+        } else {
+          // Gemini TTS implementation
+          const fullUrl = `${endpoint}/${process.env.GEMINI_TTS_MODEL || 'gemini-2.0-flash-preview-tts'}:generateContent`;
+          audioResponse = await axios.post(fullUrl, {
+            contents: [{
+              parts: [{
+                text: story.story_text
+              }]
+            }],
+            generationConfig: {
+              speechConfig: {
+                voiceConfig: {
+                  name: voiceId,
+                  languageCode: 'tr-TR'
+                }
+              }
+            }
+          }, {
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            params: {
+              key: apiKey
+            },
+            timeout: 60000
+          });
+        }
+
+        if (audioResponse.status === 200) {
+          // Ses dosyasını kaydet
+          const audioBuffer = provider === 'elevenlabs' ? 
+            audioResponse.data : 
+            Buffer.from(audioResponse.data.audioContent || '', 'base64');
+
+          const audioId = storyDb.saveAudio(story.id, audioBuffer, 'mp3');
+          
+          results.push({
+            storyId: story.id,
+            audioId,
+            title: story.story_text.slice(0, 50) + '...',
+            success: true
+          });
+
+          logger.info({ msg: 'Toplu ses oluşturuldu', storyId: story.id, audioId });
+        } else {
+          errors.push({ storyId: story.id, error: 'Ses dosyası oluşturulamadı' });
+        }
+
+        // Rate limiting için bekleme
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+      } catch (error) {
+        logger.error({ msg: 'Toplu ses dönüştürme hatası', storyId: story.id, error: error?.message });
+        errors.push({ storyId: story.id, error: error?.message || 'Bilinmeyen hata' });
+      }
+    }
+
+    res.json({
+      success: true,
+      total: stories.length,
+      converted: results.length,
+      failed: errors.length,
+      results,
+      errors
+    });
+
+  } catch (error) {
+    logger.error({ msg: 'Toplu ses dönüştürme genel hatası', error: error?.message });
+    res.status(500).json({ error: 'Toplu ses dönüştürme sırasında hata oluştu.' });
+  }
+});
+
+// Toplu işlem durumu endpoint'i
+app.get('/api/batch/status', (req, res) => {
+  try {
+    // Ses dosyası olmayan masal sayısını getir
+    const storiesWithoutAudio = storyDb.getStoriesWithoutAudioCount();
+    const recentStoriesWithoutAudio = storyDb.getRecentStoriesWithoutAudioCount();
+    const favoriteStoriesWithoutAudio = storyDb.getFavoriteStoriesWithoutAudioCount();
+
+    res.json({
+      storiesWithoutAudio: {
+        total: storiesWithoutAudio,
+        recent: recentStoriesWithoutAudio,
+        favorites: favoriteStoriesWithoutAudio
+      }
+    });
+  } catch (error) {
+    logger.error({ msg: 'Toplu işlem durumu getirme hatası', error: error?.message });
+    res.status(500).json({ error: 'Durum bilgisi getirilemedi.' });
+  }
+});
+
 
 
 // Sunucuyu belirtilen port'ta dinlemeye başla

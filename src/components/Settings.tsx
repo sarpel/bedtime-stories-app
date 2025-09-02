@@ -8,11 +8,10 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group.jsx'
 import { Slider } from '@/components/ui/slider.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
-import { Brain, Volume2, MessageSquare, Save, RotateCcw, Settings as SettingsIcon, Mic, Monitor } from 'lucide-react'
+import { Brain, Volume2, MessageSquare, Save, RotateCcw, Settings as SettingsIcon, Mic, Package, Zap } from 'lucide-react'
 import { Switch } from '@/components/ui/switch.jsx'
 import { getDefaultSettings } from '@/services/configService.js'
 import VoiceSelector from './VoiceSelector.jsx'
-import PerformanceMonitor from './PerformanceMonitor'
 // Audio quality ve background music imports kaldırıldı - sadece basit ayarlar
 
 interface SettingsData {
@@ -83,6 +82,14 @@ interface SettingsProps {
 export default function Settings({ settings, onSettingsChange, onClose }: SettingsProps) {
   const [localSettings, setLocalSettings] = useState<SettingsData>(settings)
   const panelRef = useRef<HTMLDivElement>(null)
+  
+  // Batch operations state
+  const [batchStoryCount, setBatchStoryCount] = useState(3)
+  const [selectedStoryTypes, setSelectedStoryTypes] = useState(['princess', 'unicorn'])
+  const [isCreatingBatch, setIsCreatingBatch] = useState(false)
+  const [isConvertingAudio, setIsConvertingAudio] = useState(false)
+  const [batchStatus, setBatchStatus] = useState({ total: 0, recent: 0, favorites: 0 })
+  const [audioConversionPriority, setAudioConversionPriority] = useState('recent')
 
   // Click outside handler
   useEffect(() => {
@@ -141,6 +148,101 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
     setLocalSettings(defaultSettings)
   }
 
+  // Fetch batch status
+  useEffect(() => {
+    const fetchBatchStatus = async () => {
+      try {
+        const response = await fetch('/api/batch/status')
+        const data = await response.json()
+        setBatchStatus(data.storiesWithoutAudio)
+      } catch (error) {
+        console.error('Batch status fetch failed:', error)
+      }
+    }
+    fetchBatchStatus()
+  }, [])
+
+  // Batch story creation
+  const handleBatchStoryCreation = async () => {
+    if (selectedStoryTypes.length === 0) {
+      alert('En az bir masal türü seçin!')
+      return
+    }
+
+    setIsCreatingBatch(true)
+    try {
+      const response = await fetch('/api/batch/stories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          count: batchStoryCount,
+          storyTypes: selectedStoryTypes,
+          settings: localSettings
+        })
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        alert(`Başarılı! ${result.created} masal oluşturuldu, ${result.failed} hata.`)
+        // Refresh batch status
+        const statusResponse = await fetch('/api/batch/status')
+        const statusData = await statusResponse.json()
+        setBatchStatus(statusData.storiesWithoutAudio)
+      } else {
+        alert('Toplu masal oluşturma başarısız!')
+      }
+    } catch (error) {
+      console.error('Batch story creation failed:', error)
+      alert('Toplu masal oluşturma sırasında hata oluştu!')
+    }
+    setIsCreatingBatch(false)
+  }
+
+  // Batch audio conversion
+  const handleBatchAudioConversion = async () => {
+    setIsConvertingAudio(true)
+    try {
+      const response = await fetch('/api/batch/audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          priority: audioConversionPriority,
+          provider: localSettings.ttsProvider || 'elevenlabs'
+        })
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        if (result.converted > 0) {
+          alert(`Başarılı! ${result.converted} masal için ses oluşturuldu, ${result.failed} hata.`)
+        } else {
+          alert(result.message || 'Ses dönüştürülecek masal bulunamadı.')
+        }
+        // Refresh batch status
+        const statusResponse = await fetch('/api/batch/status')
+        const statusData = await statusResponse.json()
+        setBatchStatus(statusData.storiesWithoutAudio)
+      } else {
+        alert('Toplu ses dönüştürme başarısız!')
+      }
+    } catch (error) {
+      console.error('Batch audio conversion failed:', error)
+      alert('Toplu ses dönüştürme sırasında hata oluştu!')
+    }
+    setIsConvertingAudio(false)
+  }
+
+  // Handle story type selection
+  const handleStoryTypeChange = (type: string, checked: boolean) => {
+    if (checked) {
+      setSelectedStoryTypes([...selectedStoryTypes, type])
+    } else {
+      setSelectedStoryTypes(selectedStoryTypes.filter(t => t !== type))
+    }
+  }
+
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-1">
@@ -183,9 +285,9 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
                 <MessageSquare className="h-3 w-3" />
                 <span className="hidden sm:inline">İçerik</span>
               </TabsTrigger>
-              <TabsTrigger value="monitor" className="flex items-center gap-1 text-xs">
-                <Monitor className="h-3 w-3" />
-                <span className="hidden sm:inline">Monitor</span>
+              <TabsTrigger value="batch" className="flex items-center gap-1 text-xs">
+                <Package className="h-3 w-3" />
+                <span className="hidden sm:inline">Toplu</span>
               </TabsTrigger>
             </TabsList>
 
@@ -981,14 +1083,118 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
               </div>
             </TabsContent>
 
-            {/* Performance Monitor Tab */}
-            <TabsContent value="monitor" className="space-y-1.5">
-              <div className="mx-auto">
-                <PerformanceMonitor 
-                  className="w-full" 
-                  updateInterval={3000} 
-                  showAdvanced={false} 
-                />
+            {/* Batch Operations Tab */}
+            <TabsContent value="batch" className="space-y-1.5">
+              <div className="mx-auto space-y-1.5">
+                {/* Batch Story Creation */}
+                <Card className="p-1.5">
+                  <div className="flex items-center gap-1 mb-1">
+                    <Package className="h-3 w-3 text-primary" />
+                    <span className="text-xs font-medium">Toplu Masal Oluşturma</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Masal Sayısı</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="10"
+                        defaultValue="3"
+                        className="h-7 text-xs"
+                        placeholder="3"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Masal Türleri</Label>
+                      <div className="grid grid-cols-2 gap-1 text-xs">
+                        <label className="flex items-center space-x-1">
+                          <input type="checkbox" className="scale-75" defaultChecked />
+                          <span>Prenses</span>
+                        </label>
+                        <label className="flex items-center space-x-1">
+                          <input type="checkbox" className="scale-75" defaultChecked />
+                          <span>Unicorn</span>
+                        </label>
+                        <label className="flex items-center space-x-1">
+                          <input type="checkbox" className="scale-75" />
+                          <span>Peri</span>
+                        </label>
+                        <label className="flex items-center space-x-1">
+                          <input type="checkbox" className="scale-75" />
+                          <span>Kelebek</span>
+                        </label>
+                        <label className="flex items-center space-x-1">
+                          <input type="checkbox" className="scale-75" />
+                          <span>Deniz Kızı</span>
+                        </label>
+                        <label className="flex items-center space-x-1">
+                          <input type="checkbox" className="scale-75" />
+                          <span>Gökkuşağı</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <Button size="sm" className="w-full h-7 text-xs">
+                      <Package className="h-3 w-3 mr-1" />
+                      Toplu Masal Oluştur
+                    </Button>
+
+                    <div className="p-2 bg-muted/50 rounded text-xs text-muted-foreground">
+                      Seçilen türlerde otomatik masallar oluşturulacak ve kuyruğa eklenecek.
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Batch Audio Conversion */}
+                <Card className="p-1.5">
+                  <div className="flex items-center gap-1 mb-1">
+                    <Zap className="h-3 w-3 text-primary" />
+                    <span className="text-xs font-medium">Toplu Ses Dönüştürme</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Ses Olmayan Masallar</Label>
+                      <div className="p-2 bg-muted/30 rounded text-xs">
+                        <div className="text-muted-foreground">Sistemde X masal ses dosyası bekliyor</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs">
+                      <span>Otomatik ses oluşturma</span>
+                      <Switch defaultChecked />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Öncelik</Label>
+                      <RadioGroup defaultValue="recent" className="space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="recent" id="priority-recent" />
+                          <Label htmlFor="priority-recent" className="text-xs cursor-pointer">En yeni masallar</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="favorites" id="priority-favorites" />
+                          <Label htmlFor="priority-favorites" className="text-xs cursor-pointer">Favori masallar</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="all" id="priority-all" />
+                          <Label htmlFor="priority-all" className="text-xs cursor-pointer">Tüm masallar</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+
+                    <Button size="sm" className="w-full h-7 text-xs">
+                      <Zap className="h-3 w-3 mr-1" />
+                      Toplu Ses Oluştur
+                    </Button>
+
+                    <div className="p-2 bg-muted/50 rounded text-xs text-muted-foreground">
+                      Ses dosyası olmayan masallar için otomatik olarak ses oluşturulacak.
+                    </div>
+                  </div>
+                </Card>
               </div>
             </TabsContent>
 
