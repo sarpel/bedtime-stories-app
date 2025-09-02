@@ -24,7 +24,7 @@ export class WakeWordDetector {
   private config: WakeWordConfig;
   private frameLength = 512; // Porcupine standard frame length
   private sampleRate = 16000; // Porcupine standard sample rate
-  private audioBuffer: Int16Array[] = []; // Buffer for audio processing
+  private pcmRemainder: Int16Array = new Int16Array(0); // Persistent buffer for leftover PCM samples
 
   constructor(config: WakeWordConfig) {
     this.config = config;
@@ -58,10 +58,28 @@ export class WakeWordDetector {
       });
 
     } catch (error) {
+      const errorMessage = (error as Error)?.message;
+
+      // Check for platform compatibility error
+      if (errorMessage && errorMessage.includes('INVALID_ARGUMENT') &&
+          errorMessage.includes('different platform')) {
+        const platformError = 'Platform compatibility error: The hey-elsa.ppn file was created for a different platform. ' +
+                             'Please create a new wake word model specifically for "Web (WASM)" platform at https://console.picovoice.ai/';
+
+        logger.error('Wake word model platform mismatch', 'WakeWordDetector', {
+          error: errorMessage,
+          solution: 'Create new Web (WASM) compatible .ppn file',
+          url: 'https://console.picovoice.ai/',
+          currentModelPath: this.config.modelPath
+        });
+
+        throw new Error(platformError);
+      }
+
       logger.error('Failed to initialize wake word detector', 'WakeWordDetector', {
-        error: (error as Error)?.message
+        error: errorMessage
       });
-      throw new Error('Wake word detector initialization failed: ' + (error as Error)?.message);
+      throw new Error('Wake word detector initialization failed: ' + errorMessage);
     }
   }
 
@@ -132,8 +150,10 @@ export class WakeWordDetector {
         this.mediaStream = null;
       }
 
+      // Clear remainder buffer for clean state
+      this.pcmRemainder = new Int16Array(0);
+
       this.isListening = false;
-      this.audioBuffer = [];
 
       logger.debug('Wake word detection stopped', 'WakeWordDetector');
 
@@ -170,13 +190,36 @@ export class WakeWordDetector {
       const audioData = inputBuffer.getChannelData(0);
 
       // Convert to the format expected by Porcupine (16-bit PCM)
-      const pcmData = new Int16Array(audioData.length);
+      const newPcmData = new Int16Array(audioData.length);
       for (let i = 0; i < audioData.length; i++) {
-        pcmData[i] = Math.round(audioData[i] * 32767);
+        newPcmData[i] = Math.round(audioData[i] * 32767);
       }
 
-      // Process audio frame with actual Porcupine (detection handled by callback)
-      await this.porcupine.process(pcmData);
+      // Concatenate remainder from previous call with new PCM data
+      const totalLength = this.pcmRemainder.length + newPcmData.length;
+      const combinedBuffer = new Int16Array(totalLength);
+      combinedBuffer.set(this.pcmRemainder, 0);
+      combinedBuffer.set(newPcmData, this.pcmRemainder.length);
+
+      // Process complete 512-sample chunks
+      let offset = 0;
+      while (offset + this.frameLength <= combinedBuffer.length) {
+        // Extract exactly 512 samples for Porcupine
+        const frameData = combinedBuffer.slice(offset, offset + this.frameLength);
+
+        // Process audio frame with actual Porcupine (detection handled by callback)
+        await this.porcupine.process(frameData);
+
+        offset += this.frameLength;
+      }
+
+      // Store remaining samples for next call (length % 512)
+      const remainderLength = combinedBuffer.length - offset;
+      if (remainderLength > 0) {
+        this.pcmRemainder = combinedBuffer.slice(offset);
+      } else {
+        this.pcmRemainder = new Int16Array(0);
+      }
 
     } catch (error) {
       logger.warn('Error processing audio frame with Porcupine', 'WakeWordDetector', {
@@ -267,7 +310,29 @@ export class EnhancedSTTService {
 
   async initialize(): Promise<void> {
     if (this.wakeWordEnabled && this.wakeWordDetector) {
-      await this.wakeWordDetector.initialize();
+      try {
+        await this.wakeWordDetector.initialize();
+        logger.info('Enhanced STT: Wake word detector initialized successfully', 'EnhancedSTTService');
+      } catch (error) {
+        const errorMessage = (error as Error)?.message;
+
+        // If it's a platform compatibility error, disable wake word but continue
+        if (errorMessage && errorMessage.includes('Platform compatibility error')) {
+          logger.warn('Wake word disabled due to platform compatibility', 'EnhancedSTTService', {
+            error: errorMessage,
+            action: 'Continuing without wake word detection'
+          });
+
+          // Gracefully disable wake word detection
+          this.wakeWordEnabled = false;
+          this.wakeWordDetector = undefined;
+
+          return; // Continue without wake word
+        }
+
+        // For other errors, rethrow
+        throw error;
+      }
     }
   }
 

@@ -11,9 +11,37 @@ This document provides navigation to all project documentation and knowledge res
 ### 🏠 Main Documentation
 | Document | Purpose | Audience | Last Updated |
 |----------|---------|----------|--------------|
-| [`README.md`](README.md) | Project overview, installation, usage guide | End users, operators | 2025-01-30 |
+| [`../README.md`](../README.md) | Project overview, installation, usage guide | End users, operators | 2025-01-30 |
 | [`PROJECT-INDEX.md`](PROJECT-INDEX.md) | Complete project reference and index | Developers, maintainers | 2025-01-30 |
-| [`DOCUMENTATION-MAP.md`](DOCUMENTATION-MAP.md) | This file - documentation navigation | All stakeholders | 2025-01-30 |
+| [`DOCUMENTATION-MAP.md`](DOCUMENTATION-MAP.md) | This file - documentation navigation | All stakeholders | 2025-09-02 |
+
+### 📋 Analysis & Reports
+| Document | Purpose | Focus Area | Status |
+|----------|---------|------------|---------|
+| [`CLAUDE.md`](CLAUDE.md) | Claude AI interactions and configurations | AI Development | Current |
+| [`IMPLEMENTATION-PROGRESS.md`](IMPLEMENTATION-PROGRESS.md) | Development progress tracking | Project Management | Current |
+| [`ENTERPRISE-FEATURES-REMOVAL-REPORT.md`](ENTERPRISE-FEATURES-REMOVAL-REPORT.md) | Enterprise features cleanup | Code Cleanup | Completed |
+| [`ENTERPRISE-REMOVAL-SUMMARY.md`](ENTERPRISE-REMOVAL-SUMMARY.md) | Summary of enterprise removal | Code Cleanup | Completed |
+| [`PR-COMMENTS-ANALYSIS.md`](PR-COMMENTS-ANALYSIS.md) | Pull request feedback analysis | Code Review | Current |
+
+### 🎤 Speech & Audio Documentation
+| Document | Purpose | Technology Focus | Status |
+|----------|---------|------------------|---------|
+| [`STT-Implementation-Plan.md`](STT-Implementation-Plan.md) | Speech-to-text implementation strategy | STT Services | Planning |
+| [`STT-Implementation-Summary.md`](STT-Implementation-Summary.md) | STT implementation results | STT Integration | Current |
+| [`STT-Performance-Metrics.md`](STT-Performance-Metrics.md) | Speech recognition performance data | Performance Analysis | Current |
+| [`STT-Services-Comparison.md`](STT-Services-Comparison.md) | Comparison of STT services | Service Evaluation | Reference |
+| [`STT_AUDIO_FORMAT_FIX.md`](STT_AUDIO_FORMAT_FIX.md) | Audio format compatibility fixes | Audio Processing | Resolved |
+| [`GPT-4o-mini-transcribe-STT-Integration-Report.md`](GPT-4o-mini-transcribe-STT-Integration-Report.md) | GPT-4o mini transcription integration | AI Integration | Current |
+
+### 🔊 Wake Word Documentation
+| Document | Purpose | Technology Focus | Status |
+|----------|---------|------------------|---------|
+| [`WAKE_WORD_FIX_SUMMARY.md`](WAKE_WORD_FIX_SUMMARY.md) | Wake word implementation fixes | Porcupine | Resolved |
+| [`WAKE_WORD_PLATFORM_FIX.md`](WAKE_WORD_PLATFORM_FIX.md) | Platform compatibility solutions | WASM/Web | Resolved |
+| [`WAKE_WORD_IMPLEMENTATION_SUCCESS.md`](WAKE_WORD_IMPLEMENTATION_SUCCESS.md) | Successful wake word setup guide | Implementation Guide | Current |
+| [`WAKE_WORD_TROUBLESHOOTING_GUIDE.md`](WAKE_WORD_TROUBLESHOOTING_GUIDE.md) | Comprehensive troubleshooting | User Support | Current |
+| [`PORCUPINE-REACT-IMPLEMENTATION.md`](PORCUPINE-REACT-IMPLEMENTATION.md) | React integration details | React Implementation | Historical |
 
 ---
 
@@ -22,18 +50,18 @@ This document provides navigation to all project documentation and knowledge res
 ### 🏗️ Architecture & Setup
 | File | Description | Key Information |
 |------|-------------|-----------------|
-| [`setup.sh`](setup.sh) | One-click installer script | Pi Zero 2W installation, service setup |
-| [`deploy/storyapp.service`](deploy/storyapp.service) | SystemD service configuration | Service management, auto-start |
-| [`deploy/health-check.sh`](deploy/health-check.sh) | System health monitoring | Performance metrics, troubleshooting |
+| [`../setup.sh`](../setup.sh) | One-click installer script | Pi Zero 2W installation, service setup |
+| [`../deploy/storyapp.service`](../deploy/storyapp.service) | SystemD service configuration | Service management, auto-start |
+| [`../deploy/health-check.sh`](../deploy/health-check.sh) | System health monitoring | Performance metrics, troubleshooting |
 
 ### ⚙️ Configuration Files
 | File | Purpose | Documentation Location |
 |------|---------|------------------------|
-| [`package.json`](package.json) | Frontend dependencies & scripts | [PROJECT-INDEX.md](PROJECT-INDEX.md#frontend-stack) |
-| [`backend/package.json`](backend/package.json) | Backend dependencies & scripts | [PROJECT-INDEX.md](PROJECT-INDEX.md#backend-stack) |
-| [`tsconfig.json`](tsconfig.json) | TypeScript configuration | [PROJECT-INDEX.md](PROJECT-INDEX.md#core-technologies) |
-| [`vite.config.ts`](vite.config.ts) | Build configuration | [PROJECT-INDEX.md](PROJECT-INDEX.md#build-process) |
-| [`components.json`](components.json) | UI component configuration | [PROJECT-INDEX.md](PROJECT-INDEX.md#components-architecture) |
+| [`../package.json`](../package.json) | Frontend dependencies & scripts | [PROJECT-INDEX.md](PROJECT-INDEX.md#frontend-stack) |
+| [`../backend/package.json`](../backend/package.json) | Backend dependencies & scripts | [PROJECT-INDEX.md](PROJECT-INDEX.md#backend-stack) |
+| [`../tsconfig.json`](../tsconfig.json) | TypeScript configuration | [PROJECT-INDEX.md](PROJECT-INDEX.md#core-technologies) |
+| [`../vite.config.ts`](../vite.config.ts) | Build configuration | [PROJECT-INDEX.md](PROJECT-INDEX.md#build-process) |
+| [`../components.json`](../components.json) | UI component configuration | [PROJECT-INDEX.md](PROJECT-INDEX.md#components-architecture) |
 
 ---
 

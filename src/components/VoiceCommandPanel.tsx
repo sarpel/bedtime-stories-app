@@ -47,7 +47,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ isActive }) => {
 
   useEffect(() => {
     if (!canvasRef.current) return;
-    
+
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -56,17 +56,17 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ isActive }) => {
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
+
       if (isActive) {
         // Draw animated sound waves
         const centerY = canvas.height / 2;
         const amplitude = 20;
         const frequency = 0.02;
-        
+
         ctx.strokeStyle = '#3b82f6';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        
+
         for (let x = 0; x < canvas.width; x += 2) {
           const y = centerY + Math.sin(x * frequency + animationTime) * amplitude * (0.5 + Math.random() * 0.5);
           if (x === 0) {
@@ -75,11 +75,11 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ isActive }) => {
             ctx.lineTo(x, y);
           }
         }
-        
+
         ctx.stroke();
         animationTime += 0.1;
       }
-      
+
       animationRef.current = requestAnimationFrame(draw);
     };
 
@@ -123,11 +123,11 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
   useEffect(() => {
     const sttSettings = settings?.sttSettings || {};
     const modelId = sttSettings.model || 'gpt-4o-mini-transcribe';
-    
+
     // Choose service based on settings
     if (sttSettings.wakeWordEnabled) {
       // Use enhanced service with wake word detection
-      const baseSTTService = modelId === 'gpt-4o-mini-transcribe' 
+      const baseSTTService = modelId === 'gpt-4o-mini-transcribe'
         ? new GPT4oMiniSTTService({
             sttProvider: sttSettings.provider || 'openai',
             openaiSTT: {
@@ -153,22 +153,35 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
               format: 'webm'
             }
           });
-      
+
       sttServiceRef.current = new EnhancedSTTService({
         wakeWordEnabled: true,
         wakeWordModel: './hey-elsa.ppn',
         wakeWordSensitivity: (sttSettings.wakeWordSensitivity as 'low' | 'medium' | 'high') || 'medium',
         sttService: baseSTTService
       });
-      
+
       // Initialize enhanced service
-      (sttServiceRef.current as EnhancedSTTService).initialize().then(() => {
-        if (sttSettings.continuousListening) {
-          (sttServiceRef.current as EnhancedSTTService).startContinuousListening();
-          setWakeWordActive(true);
-        }
-      });
-      
+      (sttServiceRef.current as EnhancedSTTService).initialize()
+        .then(() => {
+          if (sttSettings.continuousListening) {
+            (sttServiceRef.current as EnhancedSTTService).startContinuousListening();
+            setWakeWordActive(true);
+          }
+        })
+        .catch((error: Error) => {
+          console.error('Failed to initialize enhanced STT service:', error);
+          setError(`Wake word initialization failed: ${error.message}`);
+
+          // Fall back to basic STT service if wake word fails
+          try {
+            sttServiceRef.current = baseSTTService;
+            setWakeWordActive(false);
+          } catch (fallbackError) {
+            console.error('Fallback to basic STT also failed:', fallbackError);
+          }
+        });
+
     } else if (modelId === 'gpt-4o-mini-transcribe') {
       // Use GPT-4o-mini-transcribe service
       sttServiceRef.current = new GPT4oMiniSTTService({
@@ -234,8 +247,8 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
       setMicrophonePermission('granted');
 
     } catch (error) {
-      logger.error('Failed to start listening', 'VoiceCommandPanel', { 
-        error: (error as Error)?.message 
+      logger.error('Failed to start listening', 'VoiceCommandPanel', {
+        error: (error as Error)?.message
       });
       setError('Mikrofon erişimi başarısız. Lütfen izin verin.');
       setIsListening(false);
@@ -265,7 +278,7 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
       // Process voice command
       if (result.text && result.text.length > 0) {
         const command = await sttServiceRef.current.processVoiceCommand(result.text);
-        
+
         const voiceCommand: VoiceCommand = {
           ...command,
           originalText: result.text
@@ -291,8 +304,8 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
       }
 
     } catch (error) {
-      logger.error('Voice command processing failed', 'VoiceCommandPanel', { 
-        error: (error as Error)?.message 
+      logger.error('Voice command processing failed', 'VoiceCommandPanel', {
+        error: (error as Error)?.message
       });
       setError('Ses tanıma başarısız: ' + (error as Error)?.message);
     } finally {
@@ -398,7 +411,7 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
           <div className="space-y-2">
             <Progress value={progress} className="w-full" />
             <p className="text-xs text-center text-gray-500">
-              {progress < 50 ? 'Ses tanınıyor...' : 
+              {progress < 50 ? 'Ses tanınıyor...' :
                progress < 90 ? 'Komut işleniyor...' : 'Tamamlanıyor...'}
             </p>
           </div>
@@ -441,7 +454,7 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
                 </span>
               </div>
             </div>
-            
+
             {/* Parameters */}
             {Object.keys(lastCommand.parameters).length > 0 && (
               <div className="space-y-1">

@@ -1,7 +1,7 @@
 # Enhanced STT Production Deployment Guide
 
-**Version**: 4.0  
-**Target Platform**: Raspberry Pi Zero 2W  
+**Version**: 4.0
+**Target Platform**: Raspberry Pi Zero 2W
 **Generated**: 2025-01-27
 
 ## Quick Start
@@ -69,7 +69,7 @@ This guide covers deploying the enhanced STT system with wake word detection opt
    ```bash
    # List audio devices
    arecord -l
-   
+
    # Test recording
    arecord -D plughw:1,0 -f cd test.wav
    ```
@@ -78,7 +78,7 @@ This guide covers deploying the enhanced STT system with wake word detection opt
    ```bash
    # Add user to audio group
    sudo usermod -a -G audio pi
-   
+
    # Set audio device permissions
    sudo chmod 666 /dev/snd/*
    ```
@@ -222,7 +222,7 @@ User=pi
 Group=pi
 WorkingDirectory=/home/pi/bedtime-stories-app
 Environment=NODE_ENV=production
-Environment=PORT=3000
+Environment=PORT=3001
 ExecStart=/usr/bin/node server.js
 Restart=always
 RestartSec=10

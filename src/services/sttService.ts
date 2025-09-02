@@ -67,6 +67,7 @@ class AudioRecorder {
   private stream: MediaStream | null = null;
   private audioChunks: Blob[] = [];
   private isRecording = false;
+  private actualMimeType: string = ''; // Track the actual MIME type used
 
   constructor(private audioSettings: any) {}
 
@@ -88,16 +89,19 @@ class AudioRecorder {
       });
 
       // Create MediaRecorder with Pi Zero 2W optimizations
-      const mimeType = this.getSupportedMimeType();
+      const preferredMimeType = this.getSupportedMimeType();
       const options = {
-        mimeType: mimeType,
+        mimeType: preferredMimeType || undefined,
         // Use very low bitrate for Pi Zero 2W to minimize CPU load
-        audioBitsPerSecond: mimeType.includes('wav') ?
-          undefined : // WAV doesn't need bitrate setting
-          (this.audioSettings.webmBitRate || 32000) // Low bitrate for WebM
+        audioBitsPerSecond: (preferredMimeType && preferredMimeType.includes('webm')) ?
+          (this.audioSettings.webmBitRate || 32000) : undefined // Low bitrate for WebM only
       };
 
       this.mediaRecorder = new MediaRecorder(this.stream, options);
+
+      // Store the actual MIME type that MediaRecorder is using
+      this.actualMimeType = this.mediaRecorder.mimeType;
+
       this.audioChunks = [];
 
       this.mediaRecorder.ondataavailable = (event) => {
@@ -111,7 +115,9 @@ class AudioRecorder {
 
       logger.debug('Audio recording started', 'STTService', {
         sampleRate: this.audioSettings.sampleRate,
-        channels: this.audioSettings.channels
+        channels: this.audioSettings.channels,
+        preferredMimeType: preferredMimeType,
+        actualMimeType: this.actualMimeType
       });
     } catch (error) {
       logger.error('Failed to start audio recording', 'STTService', {
@@ -129,9 +135,17 @@ class AudioRecorder {
       }
 
       this.mediaRecorder.onstop = () => {
+        // Use the actual MIME type that was used during recording
         const audioBlob = new Blob(this.audioChunks, {
-          type: this.getSupportedMimeType()
+          type: this.actualMimeType || 'audio/webm'
         });
+
+        logger.debug('Audio recording stopped', 'AudioRecorder', {
+          blobSize: audioBlob.size,
+          blobType: audioBlob.type,
+          chunksCount: this.audioChunks.length
+        });
+
         this.cleanup();
         resolve(audioBlob);
       };
@@ -142,20 +156,25 @@ class AudioRecorder {
   }
 
   private getSupportedMimeType(): string {
-    // Prioritize formats that work reliably with OpenAI API
+    // For GPT-4o-mini-transcribe, we need to be more specific about formats
+    // WebM with Opus is most commonly supported by browsers
     const types = [
-      'audio/wav',        // Most compatible with OpenAI
-      'audio/mp4',        // Also well supported
-      'audio/webm',       // Less reliable with OpenAI
-      'audio/webm;codecs=opus'
+      'audio/webm;codecs=opus', // Most commonly supported
+      'audio/webm',             // Fallback WebM
+      'audio/mp4',              // Less common but good compatibility with OpenAI
+      'audio/wav'               // Rarely supported by MediaRecorder
     ];
 
     for (const type of types) {
       if (MediaRecorder.isTypeSupported(type)) {
+        logger.debug('Selected audio format', 'AudioRecorder', { mimeType: type });
         return type;
       }
     }
-    return 'audio/wav'; // Fallback to most compatible format
+
+    // If nothing is supported, default to letting the browser choose
+    logger.warn('No preferred mime type supported, using browser default', 'AudioRecorder');
+    return ''; // Let MediaRecorder choose
   }
 
   cleanup(): void {
@@ -165,6 +184,7 @@ class AudioRecorder {
     }
     this.mediaRecorder = null;
     this.audioChunks = [];
+    this.actualMimeType = '';
     this.isRecording = false;
   }
 
@@ -291,10 +311,28 @@ export class STTService {
       // Prepare form data for backend
       const formData = new FormData();
 
-      // Convert blob to file if needed
-      const audioFile = audioData instanceof File ?
-        audioData :
-        new File([audioData], 'recording.webm', { type: audioData.type });
+      // Convert blob to file if needed with proper MIME type handling
+      let audioFile: File;
+      if (audioData instanceof File) {
+        audioFile = audioData;
+      } else {
+        // For recorded audio, ensure we have the correct MIME type and filename
+        const mimeType = audioData.type || 'audio/webm';
+        const extension = this.getFileExtension(mimeType);
+
+        audioFile = new File([audioData], `recording${extension}`, {
+          type: mimeType,
+          lastModified: Date.now()
+        });
+      }
+
+      logger.debug('Preparing audio for transcription', 'STTService', {
+        fileName: audioFile.name,
+        fileSize: audioFile.size,
+        fileType: audioFile.type,
+        provider: this.provider,
+        model: this.modelId
+      });
 
       formData.append('audio', audioFile);
       formData.append('provider', this.provider);
@@ -446,6 +484,29 @@ export class STTService {
   // Get recording status
   isListening(): boolean {
     return this.audioRecorder.getRecordingStatus();
+  }
+
+  // Helper method to get file extension from MIME type
+  private getFileExtension(mimeType: string): string {
+    switch (mimeType.toLowerCase()) {
+      case 'audio/wav':
+      case 'audio/wave':
+        return '.wav';
+      case 'audio/mp3':
+      case 'audio/mpeg':
+        return '.mp3';
+      case 'audio/mp4':
+      case 'audio/m4a':
+        return '.m4a';
+      case 'audio/webm':
+      case 'audio/webm;codecs=opus':
+        return '.webm';
+      case 'audio/ogg':
+      case 'audio/ogg;codecs=opus':
+        return '.ogg';
+      default:
+        return '.webm'; // Default to webm for unknown formats
+    }
   }
 
   // Process voice commands for bedtime stories
