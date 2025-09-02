@@ -78,8 +78,10 @@ interface SettingsData {
   }
 }
 
-// AppState extends SettingsData with additional app-specific properties
-interface AppState extends SettingsData { }
+// AppState extends SettingsData with additional app-specific properties  
+interface AppState extends SettingsData {
+  // Additional app-specific properties can be added here if needed
+}
 
 // TypeScript interfaces
 interface RemotePlaybackState {
@@ -126,7 +128,8 @@ function App() {
           elevenlabs: { ...defaults.elevenlabs, ...(savedSettings.elevenlabs || {}) },
           geminiTTS: { ...defaults.geminiTTS, ...(savedSettings.geminiTTS || {}) },
           llmSettings: { ...defaults.llmSettings, ...(savedSettings.llmSettings || {}) },
-          voiceSettings: { ...defaults.voiceSettings, ...(savedSettings.voiceSettings || {}) }
+          voiceSettings: { ...defaults.voiceSettings, ...(savedSettings.voiceSettings || {}) },
+          sttSettings: { ...defaults.sttSettings, ...(savedSettings.sttSettings || {}) }
         }
       } catch (error) {
         console.error('Ayarlar yüklenirken hata:', error)
@@ -734,6 +737,7 @@ function App() {
           isGenerating={isGenerating}
           isGeneratingAudio={isGeneratingAudio}
           story={story}
+          settings={settings}
           onStoryChange={handleStoryChange}
           progress={progress}
           audioUrl={audioUrl}

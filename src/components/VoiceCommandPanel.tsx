@@ -4,7 +4,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Mic, MicOff, Volume2, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
-import { STTService } from '@/services/sttService';
+import { STTService, GPT4oMiniSTTService } from '@/services/sttService';
+import { EnhancedSTTService } from '@/services/wakeWordDetector';
 import { logger } from '@/utils/logger';
 
 export interface VoiceCommand {
@@ -23,6 +24,17 @@ interface VoiceCommandPanelProps {
   onVoiceCommand: (command: VoiceCommand) => void;
   disabled?: boolean;
   className?: string;
+  settings?: {
+    sttSettings?: {
+      provider?: string;
+      model?: string;
+      wakeWordEnabled?: boolean;
+      wakeWordSensitivity?: string;
+      continuousListening?: boolean;
+      responseFormat?: string;
+      language?: string;
+    };
+  };
 }
 
 interface AudioVisualizerProps {
@@ -93,7 +105,8 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ isActive }) => {
 export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
   onVoiceCommand,
   disabled = false,
-  className = ''
+  className = '',
+  settings
 }) => {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -102,20 +115,90 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string>('');
   const [microphonePermission, setMicrophonePermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
+  const [wakeWordActive, setWakeWordActive] = useState(false);
 
-  const sttServiceRef = useRef<STTService | null>(null);
+  const sttServiceRef = useRef<STTService | GPT4oMiniSTTService | EnhancedSTTService | null>(null);
 
   // Initialize STT service
   useEffect(() => {
-    sttServiceRef.current = new STTService({
-      sttProvider: 'openai',
-      audioSettings: {
-        sampleRate: 16000,
-        channels: 1,
-        bitDepth: 16,
-        format: 'webm'
-      }
-    });
+    const sttSettings = settings?.sttSettings || {};
+    const modelId = sttSettings.model || 'gpt-4o-mini-transcribe';
+    
+    // Choose service based on settings
+    if (sttSettings.wakeWordEnabled) {
+      // Use enhanced service with wake word detection
+      const baseSTTService = modelId === 'gpt-4o-mini-transcribe' 
+        ? new GPT4oMiniSTTService({
+            sttProvider: sttSettings.provider || 'openai',
+            openaiSTT: {
+              modelId: modelId
+            },
+            audioSettings: {
+              sampleRate: 16000,
+              channels: 1,
+              bitDepth: 16,
+              format: 'webm'
+            },
+            responseFormat: (sttSettings.responseFormat as 'json' | 'verbose_json') || 'verbose_json'
+          })
+        : new STTService({
+            sttProvider: sttSettings.provider || 'openai',
+            openaiSTT: {
+              modelId: modelId
+            },
+            audioSettings: {
+              sampleRate: 16000,
+              channels: 1,
+              bitDepth: 16,
+              format: 'webm'
+            }
+          });
+      
+      sttServiceRef.current = new EnhancedSTTService({
+        wakeWordEnabled: true,
+        wakeWordModel: './hey-elsa.ppn',
+        wakeWordSensitivity: (sttSettings.wakeWordSensitivity as 'low' | 'medium' | 'high') || 'medium',
+        sttService: baseSTTService
+      });
+      
+      // Initialize enhanced service
+      (sttServiceRef.current as EnhancedSTTService).initialize().then(() => {
+        if (sttSettings.continuousListening) {
+          (sttServiceRef.current as EnhancedSTTService).startContinuousListening();
+          setWakeWordActive(true);
+        }
+      });
+      
+    } else if (modelId === 'gpt-4o-mini-transcribe') {
+      // Use GPT-4o-mini-transcribe service
+      sttServiceRef.current = new GPT4oMiniSTTService({
+        sttProvider: sttSettings.provider || 'openai',
+        openaiSTT: {
+          modelId: modelId
+        },
+        audioSettings: {
+          sampleRate: 16000,
+          channels: 1,
+          bitDepth: 16,
+          format: 'webm'
+        },
+        responseFormat: (sttSettings.responseFormat as 'json' | 'verbose_json') || 'verbose_json'
+      });
+    } else {
+      // Use standard STT service
+      sttServiceRef.current = new STTService({
+        sttProvider: sttSettings.provider || 'openai',
+        openaiSTT: {
+          modelId: modelId
+        },
+        audioSettings: {
+          sampleRate: 16000,
+          channels: 1,
+          bitDepth: 16,
+          format: 'webm'
+        }
+      });
+    }
 
     // Check microphone permission
     checkMicrophonePermission();
@@ -124,8 +207,9 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
       if (sttServiceRef.current) {
         sttServiceRef.current.cleanup();
       }
+      setWakeWordActive(false);
     };
-  }, []);
+  }, [settings?.sttSettings]);
 
   const checkMicrophonePermission = async () => {
     try {
@@ -255,6 +339,18 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
             </Badge>
           )}
         </div>
+
+        {/* Wake Word Status Indicator */}
+        {settings?.sttSettings?.wakeWordEnabled && (
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <div className={`w-3 h-3 rounded-full ${
+              wakeWordActive ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
+            }`} />
+            <span className="text-sm text-gray-600">
+              {wakeWordActive ? 'Listening for "Hey Elsa"...' : 'Wake word disabled'}
+            </span>
+          </div>
+        )}
 
         {/* Audio Visualizer */}
         <div className="flex justify-center">
@@ -386,16 +482,45 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
           </div>
         )}
 
+        {/* Model Information */}
+        {(settings?.sttSettings?.model === 'gpt-4o-mini-transcribe') && (
+          <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-md">
+            <h4 className="text-sm font-medium text-green-700 dark:text-green-300 mb-2">
+              ✓ Enhanced STT Active
+            </h4>
+            <div className="text-xs text-green-600 dark:text-green-400 space-y-1">
+              <div>• GPT-4o-mini-transcribe model</div>
+              <div>• Superior Turkish language support</div>
+              <div>• Word-level timing information</div>
+              {settings?.sttSettings?.wakeWordEnabled && (
+                <div>• Wake word "Hey Elsa" detection enabled</div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Usage Examples */}
         <div className="mt-6 p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
           <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Örnek Komutlar:
           </h4>
           <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-            <li>• "Elif için peri masalı anlat"</li>
-            <li>• "5 yaşında macera hikayesi istiyorum"</li>
-            <li>• "Hayvanlar hakkında eğitici bir hikaye"</li>
-            <li>• "Masalı oynat / durdur / duraklat"</li>
+            {settings?.sttSettings?.wakeWordEnabled ? (
+              <>
+                <li>• Say "Hey Elsa" to activate, then:</li>
+                <li>• "Elif için peri masalı anlat"</li>
+                <li>• "5 yaşında macera hikayesi istiyorum"</li>
+                <li>• "Hayvanlar hakkında eğitici bir hikaye"</li>
+                <li>• "Masalı oynat / durdur / duraklat"</li>
+              </>
+            ) : (
+              <>
+                <li>• "Elif için peri masalı anlat"</li>
+                <li>• "5 yaşında macera hikayesi istiyorum"</li>
+                <li>• "Hayvanlar hakkında eğitici bir hikaye"</li>
+                <li>• "Masalı oynat / durdur / duraklat"</li>
+              </>
+            )}
           </ul>
         </div>
       </CardContent>

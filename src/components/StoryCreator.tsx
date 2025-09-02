@@ -37,6 +37,7 @@ interface StoryCreatorProps {
   isGenerating: boolean;
   isGeneratingAudio: boolean;
   story: string | null;
+  settings?: any; // App settings including STT configuration
   onStoryChange: (story: string) => void;
   progress: number;
   audioUrl: string | null;
@@ -65,6 +66,7 @@ export default function StoryCreator({
   isGenerating,
   isGeneratingAudio,
   story,
+  settings,
   onStoryChange,
   progress,
   audioUrl,
@@ -491,6 +493,7 @@ export default function StoryCreator({
             <VoiceCommandPanel
               onVoiceCommand={handleVoiceCommand}
               disabled={isGenerating}
+              settings={settings}
             />
           </div>
         )}

@@ -1245,7 +1245,140 @@ app.post('/api/tts', async (req, res) => {
 
 // --- STT API ENDPOINT ---
 
-// Speech-to-Text API endpoint with OpenAI Whisper and Deepgram support
+// GPT-4o-mini-transcribe endpoint (new enhanced STT model)
+app.post('/api/stt/transcribe', upload.single('audio'), async (req, res) => {
+  const tStart = Date.now();
+  
+  try {
+    logger.info({
+      msg: '[STT GPT-4o-mini-transcribe] Request received',
+      language: req.body.language,
+      hasAudioFile: !!req.file,
+      audioSize: req.file?.size,
+      audioType: req.file?.mimetype
+    });
+
+    // Input validation
+    if (!req.file) {
+      return res.status(400).json({ error: 'Audio file required' });
+    }
+
+    const { language = 'tr', response_format = 'verbose_json' } = req.body;
+
+    // Audio file validation
+    const audioBuffer = req.file.buffer;
+    if (!audioBuffer || audioBuffer.length === 0) {
+      return res.status(400).json({ error: 'Invalid audio file.' });
+    }
+
+    // File size check
+    if (audioBuffer.length < 1000) {
+      return res.status(400).json({ error: 'Audio file too short. Please record longer.' });
+    }
+
+    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+    if (!OPENAI_API_KEY) {
+      return res.status(500).json({ 
+        error: 'OpenAI API key missing. Please set OPENAI_API_KEY in backend/.env.' 
+      });
+    }
+
+    // Create form data for GPT-4o-mini-transcribe
+    const formData = new FormData();
+    formData.append('file', audioBuffer, {
+      filename: 'audio.webm',
+      contentType: req.file.mimetype || 'audio/webm'
+    });
+    formData.append('model', 'gpt-4o-mini-transcribe');
+    formData.append('language', language);
+    formData.append('response_format', response_format);
+
+    logger.debug({
+      msg: '[STT GPT-4o-mini-transcribe] Sending to OpenAI',
+      model: 'gpt-4o-mini-transcribe',
+      language,
+      audioSize: audioBuffer.length,
+      responseFormat: response_format
+    });
+
+    // Call OpenAI GPT-4o-mini-transcribe API
+    const response = await axios.post('https://api.openai.com/v1/audio/transcriptions', formData, {
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        ...formData.getHeaders()
+      },
+      timeout: Number(process.env.STT_TIMEOUT_MS || 15000),
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity
+    });
+
+    // Extract transcription with enhanced metadata
+    const transcriptionResult = {
+      text: response.data.text?.trim() || '',
+      language: response.data.language,
+      duration: response.data.duration,
+      segments: response.data.segments || [], // Word-level timing
+      model: 'gpt-4o-mini-transcribe'
+    };
+
+    // Validate transcription result
+    if (!transcriptionResult.text || transcriptionResult.text.length === 0) {
+      return res.status(422).json({ 
+        error: 'No text extracted from audio. Please speak more clearly.' 
+      });
+    }
+
+    // Log successful transcription
+    const duration = Date.now() - tStart;
+    logger.info({
+      msg: '[STT GPT-4o-mini-transcribe] Transcription successful',
+      textLength: transcriptionResult.text.length,
+      durationMs: duration,
+      hasSegments: transcriptionResult.segments.length > 0
+    });
+
+    res.json(transcriptionResult);
+
+  } catch (error) {
+    const duration = Date.now() - tStart;
+    
+    logger.error({
+      msg: '[STT GPT-4o-mini-transcribe] Transcription failed',
+      error: error.message,
+      status: error.response?.status,
+      durationMs: duration
+    });
+
+    let errorMessage = 'GPT-4o-mini-transcribe processing failed.';
+    let statusCode = 500;
+
+    if (error.response?.status === 401) {
+      errorMessage = 'OpenAI API key invalid.';
+      statusCode = 401;
+    } else if (error.response?.status === 400) {
+      errorMessage = 'Audio file format invalid or unsupported.';
+      statusCode = 400;
+    } else if (error.response?.status === 429) {
+      errorMessage = 'API rate limit exceeded. Please try again later.';
+      statusCode = 429;
+    } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+      errorMessage = 'STT API timeout. Please try again.';
+      statusCode = 408;
+    }
+
+    res.status(statusCode).json({ 
+      error: errorMessage,
+      model: 'gpt-4o-mini-transcribe'
+    });
+  }
+});
+
+// Test route to verify server updates
+app.get('/api/test/stt-transcribe', (req, res) => {
+  res.json({ message: 'STT transcribe endpoint test - server updated successfully', timestamp: new Date().toISOString() });
+});
+
+// Speech-to-Text API endpoint with OpenAI Whisper and Deepgram support (legacy)
 app.post('/api/stt', upload.single('audio'), async (req, res) => {
   const tStart = Date.now();
   

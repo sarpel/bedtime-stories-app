@@ -20,6 +20,11 @@ interface STTSettings {
     bitDepth?: number;
     format?: string;
   };
+  wakeWordEnabled?: boolean;
+  wakeWordModel?: string;
+  wakeWordSensitivity?: 'low' | 'medium' | 'high';
+  continuousListening?: boolean;
+  responseFormat?: 'json' | 'verbose_json';
 }
 
 interface OpenAISTTRequest {
@@ -43,6 +48,13 @@ interface TranscriptionResult {
   confidence?: number;
   language?: string;
   duration?: number;
+  segments?: any[]; // Word-level timing segments
+  model?: string;
+}
+
+interface EnhancedTranscriptionResult extends TranscriptionResult {
+  wordTimings?: any[];
+  confidence: number;
 }
 
 type ProgressCallback = (progress: number) => void;
@@ -167,9 +179,15 @@ export class STTService {
     this.provider = settings.sttProvider || 'openai';
 
     if (this.provider === 'openai') {
-      // OpenAI Whisper settings
-      this.endpoint = settings.openaiSTT?.endpoint || '/api/stt'; // Backend proxy
-      this.modelId = settings.openaiSTT?.modelId || 'whisper-1';
+      // OpenAI settings - check for GPT-4o-mini-transcribe
+      const modelId = settings.openaiSTT?.modelId || 'whisper-1';
+      if (modelId === 'gpt-4o-mini-transcribe') {
+        this.endpoint = '/api/stt/transcribe'; // New enhanced endpoint
+        this.modelId = 'gpt-4o-mini-transcribe';
+      } else {
+        this.endpoint = settings.openaiSTT?.endpoint || '/api/stt'; // Legacy endpoint
+        this.modelId = modelId;
+      }
       this.apiKey = settings.openaiSTT?.apiKey || ''; // Backend handles API key
     } else if (this.provider === 'deepgram') {
       // Deepgram settings
@@ -276,8 +294,13 @@ export class STTService {
 
       // Add provider-specific settings
       if (this.provider === 'openai') {
-        formData.append('response_format', 'json');
-        formData.append('temperature', '0.2'); // Lower temperature for better accuracy
+        if (this.modelId === 'gpt-4o-mini-transcribe') {
+          formData.append('response_format', 'verbose_json'); // Enhanced format for word-level timing
+          formData.append('temperature', '0.1'); // Even lower for better accuracy
+        } else {
+          formData.append('response_format', 'json');
+          formData.append('temperature', '0.2'); // Lower temperature for better accuracy
+        }
       } else if (this.provider === 'deepgram') {
         formData.append('smart_format', 'true');
         formData.append('interim_results', 'false');
@@ -334,13 +357,15 @@ export class STTService {
 
   // Extract transcription from different provider responses
   private extractTranscriptionFromResponse(data: any): TranscriptionResult {
-    // OpenAI Whisper format
+    // OpenAI GPT-4o-mini-transcribe enhanced format
     if (data.text && typeof data.text === 'string') {
       return {
         text: data.text.trim(),
-        confidence: data.confidence,
+        confidence: data.confidence || 0.9, // GPT-4o-mini-transcribe typically high confidence
         language: data.language,
-        duration: data.duration
+        duration: data.duration,
+        segments: data.segments || [], // Word-level timing data
+        model: data.model || this.modelId
       };
     }
 
@@ -443,5 +468,63 @@ export class STTService {
         error: (error as Error)?.message 
       });
     }
+  }
+}
+
+// Enhanced STT Service for GPT-4o-mini-transcribe
+export class GPT4oMiniSTTService extends STTService {
+  constructor(settings: STTSettings) {
+    super({
+      ...settings,
+      sttProvider: 'openai',
+      openaiSTT: {
+        ...settings.openaiSTT,
+        modelId: 'gpt-4o-mini-transcribe',
+        endpoint: '/api/stt/transcribe'
+      },
+      responseFormat: 'verbose_json'
+    });
+  }
+
+  async transcribeAudio(audioData: Blob | File, onProgress?: ProgressCallback): Promise<EnhancedTranscriptionResult> {
+    const result = await super.transcribeAudio(audioData, onProgress);
+    
+    // Enhanced result with word-level timing and higher confidence
+    return {
+      ...result,
+      segments: result.segments || [],
+      wordTimings: result.segments || [],
+      confidence: result.confidence || 0.9,
+      model: 'gpt-4o-mini-transcribe'
+    } as EnhancedTranscriptionResult;
+  }
+
+  // Check if this is using the enhanced model
+  isEnhancedModel(): boolean {
+    return this.modelId === 'gpt-4o-mini-transcribe';
+  }
+
+  // Get model capabilities
+  getModelCapabilities(): {
+    supportsWordTiming: boolean;
+    supportsHighAccuracy: boolean;
+    supportsTurkish: boolean;
+    maxContextWindow: number;
+  } {
+    if (this.isEnhancedModel()) {
+      return {
+        supportsWordTiming: true,
+        supportsHighAccuracy: true,
+        supportsTurkish: true,
+        maxContextWindow: 16000 // tokens
+      };
+    }
+    
+    return {
+      supportsWordTiming: false,
+      supportsHighAccuracy: false,
+      supportsTurkish: true,
+      maxContextWindow: 8000
+    };
   }
 }

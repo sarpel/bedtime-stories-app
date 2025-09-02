@@ -125,6 +125,16 @@ export const getDefaultSettings = () => ({
   llmSettings: {
     temperature: 0.9,
     maxTokens: 5000
+  },
+  sttSettings: {
+    provider: 'openai',
+    model: 'gpt-4o-mini-transcribe',
+    wakeWordEnabled: false,
+    wakeWordModel: './hey-elsa.ppn',
+    wakeWordSensitivity: 'medium',
+    continuousListening: false,
+    responseFormat: 'verbose_json',
+    language: 'tr'
   }
 })
 

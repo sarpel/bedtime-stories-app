@@ -41,7 +41,7 @@ fi
 
 # Configuration variables
 CURRENT_USER=$(whoami)
-APP_NAME="bedtime-stories-app"
+APP_NAME="Bedtime Stories"
 INSTALL_DIR="/opt/storyapp"
 SERVICE_NAME="storyapp-$CURRENT_USER"
 USER_HOME="/home/$CURRENT_USER"
@@ -210,25 +210,25 @@ AUDIO_PLAYER_COMMAND=mpg123
 DRY_RUN_AUDIO_PLAYBACK=false
 
 # Logging
-LOG_LEVEL=info
+LOG_LEVEL=warn
 
 # API Keys (Configure these with your actual keys)
 # OpenAI Configuration
 OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=gpt-5-mini
 OPENAI_ENDPOINT=https://api.openai.com/v1/responses
 
 # ElevenLabs Configuration
 ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
-ELEVENLABS_VOICE_ID=your_voice_id_here
+ELEVENLABS_VOICE_ID=xsGHrtxT5AdDzYXTQT0d
 ELEVENLABS_ENDPOINT=https://api.elevenlabs.io/v1/text-to-speech
 
 # Gemini Configuration (Optional)
 # GEMINI_LLM_API_KEY=your_gemini_api_key_here
 # GEMINI_TTS_API_KEY=your_gemini_tts_api_key_here
-# GEMINI_LLM_MODEL=gemini-pro
+# GEMINI_LLM_MODEL=gemini-2.5-flash-lite
 # GEMINI_LLM_ENDPOINT=https://generativelanguage.googleapis.com/v1beta/models
-# GEMINI_TTS_MODEL=gemini-pro
+# GEMINI_TTS_MODEL=gemini-2.5-flash-preview-tts
 # GEMINI_TTS_ENDPOINT=https://generativelanguage.googleapis.com/v1beta/models
 
 # System Prompt (Optional customization)
@@ -242,7 +242,7 @@ fi
 mkdir -p "$INSTALL_DIR/backend/audio"
 sudo chown -R $CURRENT_USER:$CURRENT_USER "$INSTALL_DIR/backend/audio"
 
-# Create database directory  
+# Create database directory
 mkdir -p "$INSTALL_DIR/backend/database"
 sudo chown -R $CURRENT_USER:$CURRENT_USER "$INSTALL_DIR/backend/database"
 
@@ -279,12 +279,12 @@ sudo tee "/etc/nginx/sites-available/$APP_NAME" > /dev/null <<EOF
 server {
     listen 80;
     server_name localhost;
-    
+
     # Security headers
     add_header X-Frame-Options DENY;
     add_header X-Content-Type-Options nosniff;
     add_header X-XSS-Protection "1; mode=block";
-    
+
     # Main application
     location / {
         proxy_pass http://127.0.0.1:3001;
@@ -296,27 +296,27 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_cache_bypass \$http_upgrade;
-        
+
         # Timeout settings
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
     }
-    
+
     # Static files (if needed)
     location /assets/ {
         alias $INSTALL_DIR/dist/assets/;
         expires 1y;
         add_header Cache-Control "public, immutable";
     }
-    
+
     # Audio files
     location /audio/ {
         alias $INSTALL_DIR/backend/audio/;
         expires 1h;
         add_header Cache-Control "public";
     }
-    
+
     # Health check
     location /health {
         proxy_pass http://127.0.0.1:3001/health;
@@ -407,7 +407,7 @@ log_info "Testing audio configuration..."
 # Test if audio device is detected
 if aplay -l | grep -q "card 0"; then
     log_success "Audio device detected"
-    
+
     # Test audio playback (if speaker-test is available)
     if command -v speaker-test > /dev/null; then
         log_info "Running audio test (2 seconds)..."
@@ -454,7 +454,7 @@ echo "  • Logs: sudo journalctl -u $SERVICE_NAME"
 echo ""
 echo "🔧 Management Commands:"
 echo "  • Start:   sudo systemctl start $SERVICE_NAME"
-echo "  • Stop:    sudo systemctl stop $SERVICE_NAME"  
+echo "  • Stop:    sudo systemctl stop $SERVICE_NAME"
 echo "  • Restart: sudo systemctl restart $SERVICE_NAME"
 echo "  • Status:  sudo systemctl status $SERVICE_NAME"
 echo "  • Logs:    sudo journalctl -u $SERVICE_NAME -f"
