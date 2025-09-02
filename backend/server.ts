@@ -1940,17 +1940,14 @@ app.post('/api/batch/audio', async (req, res) => {
 // Toplu işlem durumu endpoint'i
 app.get('/api/batch/status', (req, res) => {
   try {
-    // Ses dosyası olmayan masal sayısını getir
-    const storiesWithoutAudio = storyDb.getStoriesWithoutAudioCount();
-    const recentStoriesWithoutAudio = storyDb.getRecentStoriesWithoutAudioCount();
-    const favoriteStoriesWithoutAudio = storyDb.getFavoriteStoriesWithoutAudioCount();
+    // Ses dosyası olmayan masalları getir
+    const storiesWithoutAudio = storyDb.getStoriesWithoutAudio();
+    const allStories = storyDb.getAllStories();
 
     res.json({
-      storiesWithoutAudio: {
-        total: storiesWithoutAudio,
-        recent: recentStoriesWithoutAudio,
-        favorites: favoriteStoriesWithoutAudio
-      }
+      storiesWithoutAudio: storiesWithoutAudio.length,
+      totalStories: allStories.length,
+      storiesWithAudio: allStories.length - storiesWithoutAudio.length
     });
   } catch (error) {
     logger.error({ msg: 'Toplu işlem durumu getirme hatası', error: error?.message });

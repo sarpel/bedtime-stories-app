@@ -903,6 +903,104 @@ const storyDb = {
     return AUDIO_DIR;
   },
 
+  // Batch operations methods
+  getStoriesWithoutAudio(): StoryWithAudio[] {
+    try {
+      const query = `
+        SELECT s.*, a.file_name, a.file_path, a.voice_id
+        FROM stories s
+        LEFT JOIN audio_files a ON s.id = a.story_id
+        WHERE a.id IS NULL
+        ORDER BY s.created_at DESC
+      `;
+      const rows = db.prepare(query).all() as any[];
+      
+      return rows.map((row: any) => ({
+        id: row.id,
+        story_text: row.story_text,
+        story_type: row.story_type,
+        custom_topic: row.custom_topic,
+        is_favorite: row.is_favorite,
+        is_shared: row.is_shared,
+        share_id: row.share_id,
+        shared_at: row.shared_at,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        audio: null
+      }));
+    } catch (error) {
+      console.error('Get stories without audio error:', error);
+      throw error;
+    }
+  },
+
+  getRecentStories(limit: number = 10): StoryWithAudio[] {
+    try {
+      const query = `
+        SELECT s.*, a.file_name, a.file_path, a.voice_id
+        FROM stories s
+        LEFT JOIN audio_files a ON s.id = a.story_id
+        ORDER BY s.created_at DESC
+        LIMIT ?
+      `;
+      const rows = db.prepare(query).all(limit) as any[];
+      
+      return rows.map((row: any) => ({
+        id: row.id,
+        story_text: row.story_text,
+        story_type: row.story_type,
+        custom_topic: row.custom_topic,
+        is_favorite: row.is_favorite,
+        is_shared: row.is_shared,
+        share_id: row.share_id,
+        shared_at: row.shared_at,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        audio: row.file_name ? {
+          file_name: row.file_name,
+          file_path: row.file_path,
+          voice_id: row.voice_id
+        } : null
+      }));
+    } catch (error) {
+      console.error('Get recent stories error:', error);
+      throw error;
+    }
+  },
+
+  getFavoriteStories(): StoryWithAudio[] {
+    try {
+      const query = `
+        SELECT s.*, a.file_name, a.file_path, a.voice_id
+        FROM stories s
+        LEFT JOIN audio_files a ON s.id = a.story_id
+        WHERE s.is_favorite = 1
+        ORDER BY s.created_at DESC
+      `;
+      const rows = db.prepare(query).all() as any[];
+      
+      return rows.map((row: any) => ({
+        id: row.id,
+        story_text: row.story_text,
+        story_type: row.story_type,
+        custom_topic: row.custom_topic,
+        is_favorite: row.is_favorite,
+        is_shared: row.is_shared,
+        share_id: row.share_id,
+        shared_at: row.shared_at,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        audio: row.file_name ? {
+          file_name: row.file_name,
+          file_path: row.file_path,
+          voice_id: row.voice_id
+        } : null
+      }));
+    } catch (error) {
+      console.error('Get favorite stories error:', error);
+      throw error;
+    }
+  },
 
   close() {
     db.close();

@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group.jsx'
 import { Slider } from '@/components/ui/slider.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
-import { Brain, Volume2, MessageSquare, Save, RotateCcw, Settings as SettingsIcon, Mic, Package, Zap } from 'lucide-react'
+import { Brain, Volume2, MessageSquare, Save, RotateCcw, Settings as SettingsIcon, Mic, Package, Zap, Loader2 } from 'lucide-react'
 import { Switch } from '@/components/ui/switch.jsx'
 import { getDefaultSettings } from '@/services/configService.js'
 import VoiceSelector from './VoiceSelector.jsx'
@@ -1100,7 +1100,8 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
                         type="number"
                         min="1"
                         max="10"
-                        defaultValue="3"
+                        value={batchStoryCount}
+                        onChange={(e) => setBatchStoryCount(parseInt(e.target.value) || 3)}
                         className="h-7 text-xs"
                         placeholder="3"
                       />
@@ -1110,35 +1111,79 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
                       <Label className="text-xs">Masal Türleri</Label>
                       <div className="grid grid-cols-2 gap-1 text-xs">
                         <label className="flex items-center space-x-1">
-                          <input type="checkbox" className="scale-75" defaultChecked />
+                          <input 
+                            type="checkbox" 
+                            className="scale-75" 
+                            checked={selectedStoryTypes.includes('princess')}
+                            onChange={() => handleStoryTypeChange('princess')}
+                          />
                           <span>Prenses</span>
                         </label>
                         <label className="flex items-center space-x-1">
-                          <input type="checkbox" className="scale-75" defaultChecked />
+                          <input 
+                            type="checkbox" 
+                            className="scale-75" 
+                            checked={selectedStoryTypes.includes('unicorn')}
+                            onChange={() => handleStoryTypeChange('unicorn')}
+                          />
                           <span>Unicorn</span>
                         </label>
                         <label className="flex items-center space-x-1">
-                          <input type="checkbox" className="scale-75" />
+                          <input 
+                            type="checkbox" 
+                            className="scale-75" 
+                            checked={selectedStoryTypes.includes('fairy')}
+                            onChange={() => handleStoryTypeChange('fairy')}
+                          />
                           <span>Peri</span>
                         </label>
                         <label className="flex items-center space-x-1">
-                          <input type="checkbox" className="scale-75" />
+                          <input 
+                            type="checkbox" 
+                            className="scale-75" 
+                            checked={selectedStoryTypes.includes('butterfly')}
+                            onChange={() => handleStoryTypeChange('butterfly')}
+                          />
                           <span>Kelebek</span>
                         </label>
                         <label className="flex items-center space-x-1">
-                          <input type="checkbox" className="scale-75" />
+                          <input 
+                            type="checkbox" 
+                            className="scale-75" 
+                            checked={selectedStoryTypes.includes('mermaid')}
+                            onChange={() => handleStoryTypeChange('mermaid')}
+                          />
                           <span>Deniz Kızı</span>
                         </label>
                         <label className="flex items-center space-x-1">
-                          <input type="checkbox" className="scale-75" />
+                          <input 
+                            type="checkbox" 
+                            className="scale-75" 
+                            checked={selectedStoryTypes.includes('rainbow')}
+                            onChange={() => handleStoryTypeChange('rainbow')}
+                          />
                           <span>Gökkuşağı</span>
                         </label>
                       </div>
                     </div>
 
-                    <Button size="sm" className="w-full h-7 text-xs">
-                      <Package className="h-3 w-3 mr-1" />
-                      Toplu Masal Oluştur
+                    <Button 
+                      size="sm" 
+                      className="w-full h-7 text-xs"
+                      onClick={handleBatchStoryCreation}
+                      disabled={isCreatingBatch || selectedStoryTypes.length === 0}
+                    >
+                      {isCreatingBatch ? (
+                        <>
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          Oluşturuluyor...
+                        </>
+                      ) : (
+                        <>
+                          <Package className="h-3 w-3 mr-1" />
+                          Toplu Masal Oluştur
+                        </>
+                      )}
                     </Button>
 
                     <div className="p-2 bg-muted/50 rounded text-xs text-muted-foreground">
@@ -1158,7 +1203,11 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
                     <div className="space-y-1">
                       <Label className="text-xs">Ses Olmayan Masallar</Label>
                       <div className="p-2 bg-muted/30 rounded text-xs">
-                        <div className="text-muted-foreground">Sistemde X masal ses dosyası bekliyor</div>
+                        <div className="text-muted-foreground">
+                          {batchStatus.storiesWithoutAudio > 0 
+                            ? `Sistemde ${batchStatus.storiesWithoutAudio} masal ses dosyası bekliyor`
+                            : 'Tüm masalların ses dosyaları mevcut'}
+                        </div>
                       </div>
                     </div>
 
@@ -1169,7 +1218,11 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
 
                     <div className="space-y-1">
                       <Label className="text-xs">Öncelik</Label>
-                      <RadioGroup defaultValue="recent" className="space-y-1">
+                      <RadioGroup 
+                        value={audioConversionPriority} 
+                        onValueChange={setAudioConversionPriority}
+                        className="space-y-1"
+                      >
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="recent" id="priority-recent" />
                           <Label htmlFor="priority-recent" className="text-xs cursor-pointer">En yeni masallar</Label>
@@ -1185,9 +1238,23 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
                       </RadioGroup>
                     </div>
 
-                    <Button size="sm" className="w-full h-7 text-xs">
-                      <Zap className="h-3 w-3 mr-1" />
-                      Toplu Ses Oluştur
+                    <Button 
+                      size="sm" 
+                      className="w-full h-7 text-xs"
+                      onClick={handleBatchAudioConversion}
+                      disabled={isConvertingAudio || batchStatus.storiesWithoutAudio === 0}
+                    >
+                      {isConvertingAudio ? (
+                        <>
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          Dönüştürülüyor...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="h-3 w-3 mr-1" />
+                          Toplu Ses Oluştur
+                        </>
+                      )}
                     </Button>
 
                     <div className="p-2 bg-muted/50 rounded text-xs text-muted-foreground">
