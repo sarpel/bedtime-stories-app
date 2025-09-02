@@ -82,13 +82,13 @@ interface SettingsProps {
 export default function Settings({ settings, onSettingsChange, onClose }: SettingsProps) {
   const [localSettings, setLocalSettings] = useState<SettingsData>(settings)
   const panelRef = useRef<HTMLDivElement>(null)
-  
+
   // Batch operations state
   const [batchStoryCount, setBatchStoryCount] = useState(3)
   const [selectedStoryTypes, setSelectedStoryTypes] = useState(['princess', 'unicorn'])
   const [isCreatingBatch, setIsCreatingBatch] = useState(false)
   const [isConvertingAudio, setIsConvertingAudio] = useState(false)
-  const [batchStatus, setBatchStatus] = useState({ total: 0, recent: 0, favorites: 0 })
+  const [batchStatus, setBatchStatus] = useState({ total: 0, recent: 0, favorites: 0, storiesWithoutAudio: 0 })
   const [audioConversionPriority, setAudioConversionPriority] = useState('recent')
 
   // Click outside handler
@@ -182,7 +182,7 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
       })
 
       const result = await response.json()
-      
+
       if (result.success) {
         alert(`Başarılı! ${result.created} masal oluşturuldu, ${result.failed} hata.`)
         // Refresh batch status
@@ -213,7 +213,7 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
       })
 
       const result = await response.json()
-      
+
       if (result.success) {
         if (result.converted > 0) {
           alert(`Başarılı! ${result.converted} masal için ses oluşturuldu, ${result.failed} hata.`)
@@ -842,12 +842,12 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs">Enable Wake Word</Label>
-                      <Switch 
+                      <Switch
                         checked={localSettings.sttSettings?.wakeWordEnabled || false}
                         onCheckedChange={(checked) => updateSetting('sttSettings.wakeWordEnabled', checked)}
                       />
                     </div>
-                    
+
                     {localSettings.sttSettings?.wakeWordEnabled && (
                       <div className="ml-4 space-y-2">
                         <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs">
@@ -889,7 +889,7 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
 
                         <div className="flex items-center justify-between">
                           <Label className="text-xs">Continuous Listening</Label>
-                          <Switch 
+                          <Switch
                             checked={localSettings.sttSettings?.continuousListening || false}
                             onCheckedChange={(checked) => updateSetting('sttSettings.continuousListening', checked)}
                           />
@@ -1111,64 +1111,64 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
                       <Label className="text-xs">Masal Türleri</Label>
                       <div className="grid grid-cols-2 gap-1 text-xs">
                         <label className="flex items-center space-x-1">
-                          <input 
-                            type="checkbox" 
-                            className="scale-75" 
+                          <input
+                            type="checkbox"
+                            className="scale-75"
                             checked={selectedStoryTypes.includes('princess')}
-                            onChange={() => handleStoryTypeChange('princess')}
+                            onChange={(e) => handleStoryTypeChange('princess', e.target.checked)}
                           />
                           <span>Prenses</span>
                         </label>
                         <label className="flex items-center space-x-1">
-                          <input 
-                            type="checkbox" 
-                            className="scale-75" 
+                          <input
+                            type="checkbox"
+                            className="scale-75"
                             checked={selectedStoryTypes.includes('unicorn')}
-                            onChange={() => handleStoryTypeChange('unicorn')}
+                            onChange={(e) => handleStoryTypeChange('unicorn', e.target.checked)}
                           />
                           <span>Unicorn</span>
                         </label>
                         <label className="flex items-center space-x-1">
-                          <input 
-                            type="checkbox" 
-                            className="scale-75" 
+                          <input
+                            type="checkbox"
+                            className="scale-75"
                             checked={selectedStoryTypes.includes('fairy')}
-                            onChange={() => handleStoryTypeChange('fairy')}
+                            onChange={(e) => handleStoryTypeChange('fairy', e.target.checked)}
                           />
                           <span>Peri</span>
                         </label>
                         <label className="flex items-center space-x-1">
-                          <input 
-                            type="checkbox" 
-                            className="scale-75" 
+                          <input
+                            type="checkbox"
+                            className="scale-75"
                             checked={selectedStoryTypes.includes('butterfly')}
-                            onChange={() => handleStoryTypeChange('butterfly')}
+                            onChange={(e) => handleStoryTypeChange('butterfly', e.target.checked)}
                           />
                           <span>Kelebek</span>
                         </label>
                         <label className="flex items-center space-x-1">
-                          <input 
-                            type="checkbox" 
-                            className="scale-75" 
+                          <input
+                            type="checkbox"
+                            className="scale-75"
                             checked={selectedStoryTypes.includes('mermaid')}
-                            onChange={() => handleStoryTypeChange('mermaid')}
+                            onChange={(e) => handleStoryTypeChange('mermaid', e.target.checked)}
                           />
                           <span>Deniz Kızı</span>
                         </label>
                         <label className="flex items-center space-x-1">
-                          <input 
-                            type="checkbox" 
-                            className="scale-75" 
+                          <input
+                            type="checkbox"
+                            className="scale-75"
                             checked={selectedStoryTypes.includes('rainbow')}
-                            onChange={() => handleStoryTypeChange('rainbow')}
+                            onChange={(e) => handleStoryTypeChange('rainbow', e.target.checked)}
                           />
                           <span>Gökkuşağı</span>
                         </label>
                       </div>
                     </div>
 
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       className="w-full h-7 text-xs"
                       onClick={handleBatchStoryCreation}
                       disabled={isCreatingBatch || selectedStoryTypes.length === 0}
@@ -1204,7 +1204,7 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
                       <Label className="text-xs">Ses Olmayan Masallar</Label>
                       <div className="p-2 bg-muted/30 rounded text-xs">
                         <div className="text-muted-foreground">
-                          {batchStatus.storiesWithoutAudio > 0 
+                          {batchStatus.storiesWithoutAudio > 0
                             ? `Sistemde ${batchStatus.storiesWithoutAudio} masal ses dosyası bekliyor`
                             : 'Tüm masalların ses dosyaları mevcut'}
                         </div>
@@ -1218,8 +1218,8 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
 
                     <div className="space-y-1">
                       <Label className="text-xs">Öncelik</Label>
-                      <RadioGroup 
-                        value={audioConversionPriority} 
+                      <RadioGroup
+                        value={audioConversionPriority}
                         onValueChange={setAudioConversionPriority}
                         className="space-y-1"
                       >
@@ -1238,8 +1238,8 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
                       </RadioGroup>
                     </div>
 
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       className="w-full h-7 text-xs"
                       onClick={handleBatchAudioConversion}
                       disabled={isConvertingAudio || batchStatus.storiesWithoutAudio === 0}

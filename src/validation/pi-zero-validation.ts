@@ -2,7 +2,6 @@ import { SystemIntegrationManager } from '@/services/systemIntegrationManager';
 import { PiZeroOptimizer } from '@/services/piZeroOptimizer';
 import { ResourceMonitor } from '@/services/resourceMonitor';
 import { AudioBufferManager } from '@/services/audioBufferManager';
-import { PowerManager } from '@/services/powerManager';
 import { ErrorRecoveryManager } from '@/services/errorRecoveryManager';
 import { EnhancedSTTService } from '@/services/wakeWordDetector';
 import { GPT4oMiniSTTService } from '@/services/sttService';
@@ -35,59 +34,59 @@ export class PiZeroValidator {
   async runFullValidation(): Promise<ValidationResults> {
     try {
       logger.info('Starting Pi Zero 2W Validation Suite', 'PiZeroValidator');
-      
+
       // Hardware validation
       await this.validateHardwareConstraints();
-      
+
       // Performance benchmarks
       await this.runPerformanceBenchmarks();
-      
+
       // Optimization validation
       await this.validateOptimizations();
-      
+
       // Integration testing
       await this.validateSystemIntegration();
-      
+
       // Memory usage validation
       await this.validateMemoryUsage();
-      
+
       // Power management validation
       await this.validatePowerManagement();
-      
+
       // Audio system validation
       await this.validateAudioSystem();
-      
+
       // Calculate overall result
       this.calculateOverallResult();
-      
+
       logger.info('Pi Zero 2W Validation Complete', 'PiZeroValidator', {
         passed: this.results.passed,
         errors: this.results.errors.length
       });
 
       return this.results;
-      
+
     } catch (error) {
       this.results.errors.push({
         component: 'Validation Suite',
         error: (error as Error)?.message || 'Unknown error',
         severity: 'critical'
       });
-      
+
       logger.error('Validation suite failed', 'PiZeroValidator', {
         error: (error as Error)?.message
       });
-      
+
       return this.results;
     }
   }
 
   private async validateHardwareConstraints(): Promise<void> {
     logger.info('Validating hardware constraints', 'PiZeroValidator');
-    
+
     try {
       const hardwareSpec = this.piZeroOptimizer.getHardwareSpec();
-      
+
       this.results.hardware = {
         totalRAM: hardwareSpec.memory.totalRAM,
         cpuCores: hardwareSpec.cpu.cores,
@@ -128,7 +127,7 @@ export class PiZeroValidator {
       }
 
       logger.debug('Hardware validation completed', 'PiZeroValidator', this.results.hardware);
-      
+
     } catch (error) {
       this.results.errors.push({
         component: 'Hardware Validation',
@@ -140,20 +139,20 @@ export class PiZeroValidator {
 
   private async runPerformanceBenchmarks(): Promise<void> {
     logger.info('Running performance benchmarks', 'PiZeroValidator');
-    
+
     try {
       const benchmarks: any = {};
-      
+
       // System initialization benchmark
       const initStart = performance.now();
       await this.systemManager.optimizeSystem();
       benchmarks.systemInitTime = performance.now() - initStart;
-      
+
       // Resource monitoring benchmark
       const resourceStart = performance.now();
       const resources = await this.resourceMonitor.getCurrentResources();
       benchmarks.resourceMonitorTime = performance.now() - resourceStart;
-      
+
       // Audio buffer creation benchmark
       const audioStart = performance.now();
       const audioManager = new AudioBufferManager({
@@ -166,7 +165,7 @@ export class PiZeroValidator {
       audioManager.createBuffer('test-buffer');
       benchmarks.audioBufferCreateTime = performance.now() - audioStart;
       audioManager.cleanup();
-      
+
       // STT service initialization benchmark
       const sttStart = performance.now();
       const sttService = new GPT4oMiniSTTService({
@@ -175,7 +174,7 @@ export class PiZeroValidator {
         responseFormat: 'verbose_json'
       });
       benchmarks.sttInitTime = performance.now() - sttStart;
-      
+
       // Memory optimization benchmark
       const memoryStart = performance.now();
       if (typeof window !== 'undefined' && (window as any).gc) {
@@ -198,7 +197,7 @@ export class PiZeroValidator {
       Object.keys(benchmarks).forEach(key => {
         const target = (this.results.performance as any).targets[key];
         const actual = benchmarks[key];
-        
+
         if (target && actual > target) {
           this.results.errors.push({
             component: 'Performance',
@@ -209,7 +208,7 @@ export class PiZeroValidator {
       });
 
       logger.debug('Performance benchmarks completed', 'PiZeroValidator', benchmarks);
-      
+
     } catch (error) {
       this.results.errors.push({
         component: 'Performance Benchmarks',
@@ -221,11 +220,11 @@ export class PiZeroValidator {
 
   private async validateOptimizations(): Promise<void> {
     logger.info('Validating system optimizations', 'PiZeroValidator');
-    
+
     try {
       const systemStatus = this.piZeroOptimizer.getSystemStatus();
       const profiles = this.piZeroOptimizer.getOptimizationProfiles();
-      
+
       this.results.optimization = {
         currentProfile: systemStatus.profile,
         availableProfiles: Object.keys(profiles),
@@ -236,12 +235,12 @@ export class PiZeroValidator {
       // Test profile switching
       const profileTests = ['performance', 'balanced', 'power-saver', 'minimal'];
       const profileSwitchTimes: Record<string, number> = {};
-      
+
       for (const profile of profileTests) {
         const switchStart = performance.now();
         const success = await this.piZeroOptimizer.setOptimizationProfile(profile);
         profileSwitchTimes[profile] = performance.now() - switchStart;
-        
+
         if (!success) {
           this.results.errors.push({
             component: 'Optimization',
@@ -267,7 +266,7 @@ export class PiZeroValidator {
       await this.piZeroOptimizer.setOptimizationProfile('balanced');
 
       logger.debug('Optimization validation completed', 'PiZeroValidator', this.results.optimization);
-      
+
     } catch (error) {
       this.results.errors.push({
         component: 'Optimization Validation',
@@ -279,11 +278,11 @@ export class PiZeroValidator {
 
   private async validateSystemIntegration(): Promise<void> {
     logger.info('Validating system integration', 'PiZeroValidator');
-    
+
     try {
       const systemStats = this.systemManager.getSystemStats();
       const systemHealth = this.systemManager.getSystemHealth();
-      
+
       this.results.integration = {
         systemHealth: systemHealth.overall,
         serviceStatus: systemHealth.services,
@@ -292,7 +291,7 @@ export class PiZeroValidator {
         managersPresent: {
           errorRecovery: !!systemStats.errorStats,
           audioBuffer: !!systemStats.audioBufferStats,
-          power: !!systemStats.powerStats,
+          power: false, // Power management removed
           piZero: !!systemStats.piZeroStats
         }
       };
@@ -328,7 +327,7 @@ export class PiZeroValidator {
       }
 
       logger.debug('System integration validation completed', 'PiZeroValidator', this.results.integration);
-      
+
     } catch (error) {
       this.results.errors.push({
         component: 'System Integration',
@@ -340,11 +339,11 @@ export class PiZeroValidator {
 
   private async validateMemoryUsage(): Promise<void> {
     logger.info('Validating memory usage', 'PiZeroValidator');
-    
+
     try {
       const systemStats = this.systemManager.getSystemStats();
       const audioBufferStats = systemStats.audioBufferStats;
-      
+
       // Get memory information
       let memoryInfo: any = {};
       if (typeof performance !== 'undefined' && 'memory' in performance) {
@@ -387,9 +386,9 @@ export class PiZeroValidator {
       const cleanupStart = performance.now();
       await this.piZeroOptimizer.performMemoryCleanup();
       const cleanupTime = performance.now() - cleanupStart;
-      
+
       (this.results.memory as any).cleanupTime = cleanupTime;
-      
+
       if (cleanupTime > 1000) { // >1s is too slow
         this.results.errors.push({
           component: 'Memory Usage',
@@ -399,7 +398,7 @@ export class PiZeroValidator {
       }
 
       logger.debug('Memory validation completed', 'PiZeroValidator', this.results.memory);
-      
+
     } catch (error) {
       this.results.errors.push({
         component: 'Memory Validation',
@@ -410,82 +409,24 @@ export class PiZeroValidator {
   }
 
   private async validatePowerManagement(): Promise<void> {
-    logger.info('Validating power management', 'PiZeroValidator');
-    
-    try {
-      const powerManager = new PowerManager({
-        initialMode: 'balanced',
-        batteryMonitoring: true,
-        thermalProtection: true,
-        adaptiveScaling: true
-      });
+    logger.info('Skipping power management validation (power management removed)', 'PiZeroValidator');
 
-      await powerManager.initialize();
-      
-      const powerModes = ['performance', 'balanced', 'power-saver', 'sleep'];
-      const modeSwitchTimes: Record<string, number> = {};
-      
-      // Test power mode switching
-      for (const mode of powerModes) {
-        const switchStart = performance.now();
-        await powerManager.setMode(mode as any);
-        modeSwitchTimes[mode] = performance.now() - switchStart;
-        
-        const status = powerManager.getStatus();
-        if (status.currentMode !== mode) {
-          this.results.errors.push({
-            component: 'Power Management',
-            error: `Failed to switch to ${mode} mode`,
-            severity: 'warning'
-          });
-        }
-      }
+    // Set default power results since power management is removed
+    this.results.power = {
+      currentMode: 'normal',
+      batteryLevel: 100, // No battery management needed
+      thermalThrottling: false,
+      activityLevel: 50,
+      modeSwitchTimes: {},
+      powerSavingsEnabled: false
+    };
 
-      const finalStatus = powerManager.getStatus();
-      
-      this.results.power = {
-        currentMode: finalStatus.currentMode,
-        batteryLevel: finalStatus.batteryLevel,
-        thermalThrottling: finalStatus.thermalThrottling,
-        activityLevel: finalStatus.activityLevel,
-        modeSwitchTimes,
-        powerSavingsEnabled: finalStatus.powerSavingsEnabled
-      };
-
-      // Validate thermal protection
-      if (finalStatus.thermalThrottling) {
-        this.results.errors.push({
-          component: 'Power Management',
-          error: 'Thermal throttling detected',
-          severity: 'warning'
-        });
-      }
-
-      // Validate battery monitoring
-      if (finalStatus.batteryLevel < 20) {
-        this.results.errors.push({
-          component: 'Power Management',
-          error: `Low battery level: ${finalStatus.batteryLevel}%`,
-          severity: 'warning'
-        });
-      }
-
-      await powerManager.cleanup();
-      
-      logger.debug('Power management validation completed', 'PiZeroValidator', this.results.power);
-      
-    } catch (error) {
-      this.results.errors.push({
-        component: 'Power Management',
-        error: (error as Error)?.message || 'Power validation failed',
-        severity: 'critical'
-      });
-    }
+    logger.debug('Power management validation skipped (feature removed)', 'PiZeroValidator');
   }
 
   private async validateAudioSystem(): Promise<void> {
     logger.info('Validating audio system', 'PiZeroValidator');
-    
+
     try {
       // Test audio buffer manager
       const audioManager = new AudioBufferManager({
@@ -500,12 +441,12 @@ export class PiZeroValidator {
       // Create test buffers
       const bufferIds = ['stt-buffer', 'wake-word-buffer', 'playback-buffer'];
       const bufferCreationTimes: Record<string, number> = {};
-      
+
       for (const bufferId of bufferIds) {
         const createStart = performance.now();
         const success = audioManager.createBuffer(bufferId, 1024);
         bufferCreationTimes[bufferId] = performance.now() - createStart;
-        
+
         if (!success) {
           this.results.errors.push({
             component: 'Audio System',
@@ -517,7 +458,7 @@ export class PiZeroValidator {
 
       // Test audio data processing
       const testAudioData = new Float32Array(512).map(() => Math.random() * 0.1 - 0.05);
-      
+
       const processStart = performance.now();
       for (const bufferId of bufferIds) {
         audioManager.addAudioData(bufferId, testAudioData);
@@ -570,9 +511,9 @@ export class PiZeroValidator {
       }
 
       audioManager.cleanup();
-      
+
       logger.debug('Audio system validation completed', 'PiZeroValidator', this.results.audio);
-      
+
     } catch (error) {
       this.results.errors.push({
         component: 'Audio System',
@@ -585,10 +526,10 @@ export class PiZeroValidator {
   private calculateOverallResult(): void {
     const criticalErrors = this.results.errors.filter(e => e.severity === 'critical').length;
     const warningErrors = this.results.errors.filter(e => e.severity === 'warning').length;
-    
+
     // Pass criteria: No critical errors, and less than 5 warnings
     this.results.passed = criticalErrors === 0 && warningErrors < 5;
-    
+
     logger.info('Validation Results Summary', 'PiZeroValidator', {
       passed: this.results.passed,
       criticalErrors,
@@ -611,7 +552,7 @@ Overall Result: ${this.results.passed ? '✅ PASSED' : '❌ FAILED'}
 - Audio Sample Rate: ${this.results.hardware.maxSampleRate}Hz
 
 ## Performance Benchmarks
-${Object.entries(this.results.performance.targets || {}).map(([key, target]) => 
+${Object.entries(this.results.performance.targets || {}).map(([key, target]) =>
   `- ${key}: ${(this.results.performance as any)[key]?.toFixed(2)}ms (target: ${target}ms)`
 ).join('\n')}
 
@@ -626,14 +567,14 @@ ${Object.entries(this.results.performance.targets || {}).map(([key, target]) =>
 - Uptime: ${Math.round((this.results.integration.uptime || 0) / 1000)}s
 
 ## Errors and Warnings
-${this.results.errors.map(error => 
+${this.results.errors.map(error =>
   `- [${error.severity.toUpperCase()}] ${error.component}: ${error.error}`
 ).join('\n')}
 
 ${this.results.errors.length === 0 ? 'No errors detected.' : ''}
 
 ## Recommendations
-${this.results.optimization.recommendations?.map(rec => `- ${rec}`).join('\n') || 'None'}
+${this.results.optimization.recommendations?.map((rec: any) => `- ${rec}`).join('\n') || 'None'}
 `;
 
     return report;

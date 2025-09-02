@@ -5,21 +5,8 @@ import './index.css'
 import App from './App.tsx'
 import SharedStoryViewer from './components/SharedStoryViewer.tsx'
 import ErrorBoundary from './components/ErrorBoundary.tsx'
-import stabilityMonitor from './utils/stabilityMonitor.ts'
 
-// Extend window interface for stability monitor
-declare global {
-  interface Window {
-    _stabilityMonitorInitialized?: boolean
-  }
-}
-
-// Initialize stability monitoring only once (guard for SSR/undefined window)
-if (typeof window !== 'undefined' && !window._stabilityMonitorInitialized) {
-  stabilityMonitor.startMonitoring()
-  window._stabilityMonitorInitialized = true
-}
-
+// Simplified main entry point for personal use
 const appTree = (
   <ErrorBoundary>
     <BrowserRouter>

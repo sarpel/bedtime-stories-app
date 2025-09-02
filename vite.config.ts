@@ -105,10 +105,8 @@ export default defineConfig(({ mode }) => {
               './src/utils/logger',
               './src/utils/safeLocalStorage',
               './src/utils/share'
-            ],
-            'app-monitoring': [
-              './src/utils/stabilityMonitor'
             ]
+
           },
           // Optimize chunk naming for production
           chunkFileNames: isProd ? 'assets/[name].[hash].js' : '[name].js',

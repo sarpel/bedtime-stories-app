@@ -4,6 +4,8 @@ import { logger } from '@/utils/logger';
 // STT service interfaces
 interface STTSettings {
   sttProvider?: string;
+  model?: string; // Added for GPT-4o-mini-transcribe support
+  language?: string; // Added for language support
   openaiSTT?: {
     endpoint?: string;
     modelId?: string;
@@ -77,7 +79,7 @@ class AudioRecorder {
       // Get microphone permission
       this.stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          sampleRate: this.audioSettings.sampleRate || 16000,
+          sampleRate: this.audioSettings.sampleRate || 16000, // Lower sample rate for Pi Zero 2W
           channelCount: this.audioSettings.channels || 1,
           echoCancellation: true,
           noiseSuppression: true,
@@ -85,10 +87,14 @@ class AudioRecorder {
         }
       });
 
-      // Create MediaRecorder
+      // Create MediaRecorder with Pi Zero 2W optimizations
+      const mimeType = this.getSupportedMimeType();
       const options = {
-        mimeType: this.getSupportedMimeType(),
-        audioBitsPerSecond: this.audioSettings.bitDepth === 16 ? 128000 : 64000
+        mimeType: mimeType,
+        // Use very low bitrate for Pi Zero 2W to minimize CPU load
+        audioBitsPerSecond: mimeType.includes('wav') ?
+          undefined : // WAV doesn't need bitrate setting
+          (this.audioSettings.webmBitRate || 32000) // Low bitrate for WebM
       };
 
       this.mediaRecorder = new MediaRecorder(this.stream, options);
@@ -108,8 +114,8 @@ class AudioRecorder {
         channels: this.audioSettings.channels
       });
     } catch (error) {
-      logger.error('Failed to start audio recording', 'STTService', { 
-        error: (error as Error)?.message 
+      logger.error('Failed to start audio recording', 'STTService', {
+        error: (error as Error)?.message
       });
       throw new Error('Mikrofon erişimi başarısız. Lütfen izin verin.');
     }
@@ -123,8 +129,8 @@ class AudioRecorder {
       }
 
       this.mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(this.audioChunks, { 
-          type: this.getSupportedMimeType() 
+        const audioBlob = new Blob(this.audioChunks, {
+          type: this.getSupportedMimeType()
         });
         this.cleanup();
         resolve(audioBlob);
@@ -136,11 +142,12 @@ class AudioRecorder {
   }
 
   private getSupportedMimeType(): string {
+    // Prioritize formats that work reliably with OpenAI API
     const types = [
-      'audio/webm;codecs=opus',
-      'audio/webm',
-      'audio/mp4',
-      'audio/wav'
+      'audio/wav',        // Most compatible with OpenAI
+      'audio/mp4',        // Also well supported
+      'audio/webm',       // Less reliable with OpenAI
+      'audio/webm;codecs=opus'
     ];
 
     for (const type of types) {
@@ -148,7 +155,7 @@ class AudioRecorder {
         return type;
       }
     }
-    return 'audio/webm'; // Fallback
+    return 'audio/wav'; // Fallback to most compatible format
   }
 
   cleanup(): void {
@@ -198,16 +205,18 @@ export class STTService {
       throw new Error(`Unsupported STT provider: ${this.provider}`);
     }
 
-    // Audio capture settings optimized for Pi Zero 2W
+    // Audio capture settings optimized for Pi Zero 2W (ARM Cortex-A53, 512MB RAM)
     this.audioSettings = {
-      sampleRate: settings.audioSettings?.sampleRate || 16000,
+      sampleRate: settings.audioSettings?.sampleRate || 8000, // Reduced from 16kHz to minimize CPU load
       channels: settings.audioSettings?.channels || 1,
       bitDepth: settings.audioSettings?.bitDepth || 16,
-      format: settings.audioSettings?.format || 'webm',
-      // Raspberry Pi optimizations
-      bufferSize: 4096,
+      format: settings.audioSettings?.format || 'wav', // Prefer WAV for minimal CPU usage
+      // Raspberry Pi Zero 2W specific optimizations
+      bufferSize: 2048, // Smaller buffer for limited RAM
       maxDuration: 30, // Maximum 30 seconds recording
       silenceThreshold: 0.01,
+      // WebM fallback settings (when WAV not supported)
+      webmBitRate: 32000, // Very low bitrate to reduce CPU load
       ...settings.audioSettings
     };
 
@@ -225,8 +234,8 @@ export class STTService {
     try {
       await this.audioRecorder.startRecording();
     } catch (error) {
-      logger.error('Failed to start listening', 'STTService', { 
-        error: (error as Error)?.message 
+      logger.error('Failed to start listening', 'STTService', {
+        error: (error as Error)?.message
       });
       throw error;
     }
@@ -260,8 +269,8 @@ export class STTService {
       return result;
 
     } catch (error) {
-      logger.error('Failed to stop listening and transcribe', 'STTService', { 
-        error: (error as Error)?.message 
+      logger.error('Failed to stop listening and transcribe', 'STTService', {
+        error: (error as Error)?.message
       });
       throw error;
     }
@@ -269,7 +278,7 @@ export class STTService {
 
   // Transcribe audio file or blob
   async transcribeAudio(
-    audioData: Blob | File, 
+    audioData: Blob | File,
     onProgress?: ProgressCallback
   ): Promise<TranscriptionResult> {
     try {
@@ -281,10 +290,10 @@ export class STTService {
 
       // Prepare form data for backend
       const formData = new FormData();
-      
+
       // Convert blob to file if needed
-      const audioFile = audioData instanceof File ? 
-        audioData : 
+      const audioFile = audioData instanceof File ?
+        audioData :
         new File([audioData], 'recording.webm', { type: audioData.type });
 
       formData.append('audio', audioFile);
@@ -325,9 +334,9 @@ export class STTService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        logger.error('STT API error', 'STTService', { 
-          status: response.status, 
-          error: errorText 
+        logger.error('STT API error', 'STTService', {
+          status: response.status,
+          error: errorText
         });
         throw new Error(`STT API hatası (${response.status}): ${errorText}`);
       }
@@ -348,8 +357,8 @@ export class STTService {
       return result;
 
     } catch (error) {
-      logger.error('STT transcription failed', 'STTService', { 
-        error: (error as Error)?.message 
+      logger.error('STT transcription failed', 'STTService', {
+        error: (error as Error)?.message
       });
       throw error;
     }
@@ -427,8 +436,8 @@ export class STTService {
       stream.getTracks().forEach(track => track.stop());
       return true;
     } catch (error) {
-      logger.warn('Microphone permission denied', 'STTService', { 
-        error: (error as Error)?.message 
+      logger.warn('Microphone permission denied', 'STTService', {
+        error: (error as Error)?.message
       });
       return false;
     }
@@ -447,9 +456,9 @@ export class STTService {
   }> {
     // Use the new Turkish intent recognition system
     const { processTurkishVoiceCommand } = await import('@/utils/intentRecognition');
-    
+
     const result = processTurkishVoiceCommand(transcription);
-    
+
     return {
       intent: result.intent,
       parameters: result.parameters,
@@ -464,8 +473,8 @@ export class STTService {
         this.audioRecorder.cleanup();
       }
     } catch (error) {
-      logger.warn('STT cleanup failed', 'STTService', { 
-        error: (error as Error)?.message 
+      logger.warn('STT cleanup failed', 'STTService', {
+        error: (error as Error)?.message
       });
     }
   }
@@ -488,7 +497,7 @@ export class GPT4oMiniSTTService extends STTService {
 
   async transcribeAudio(audioData: Blob | File, onProgress?: ProgressCallback): Promise<EnhancedTranscriptionResult> {
     const result = await super.transcribeAudio(audioData, onProgress);
-    
+
     // Enhanced result with word-level timing and higher confidence
     return {
       ...result,
@@ -519,12 +528,31 @@ export class GPT4oMiniSTTService extends STTService {
         maxContextWindow: 16000 // tokens
       };
     }
-    
+
     return {
       supportsWordTiming: false,
       supportsHighAccuracy: false,
       supportsTurkish: true,
       maxContextWindow: 8000
+    };
+  }
+
+  /**
+   * Get current service configuration
+   * Logic: Returns the configuration settings used by the service
+   */
+  getConfig(): STTSettings & { modelId: string } {
+    return {
+      sttProvider: this.provider,
+      model: this.modelId,
+      modelId: this.modelId,
+      language: 'tr', // Default to Turkish
+      openaiSTT: {
+        endpoint: this.endpoint,
+        modelId: this.modelId,
+        apiKey: this.apiKey
+      },
+      audioSettings: this.audioSettings
     };
   }
 }

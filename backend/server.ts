@@ -1283,11 +1283,29 @@ app.post('/api/stt/transcribe', upload.single('audio'), async (req, res) => {
       });
     }
 
+    // Helper function to get file extension from MIME type
+    const getFileExtension = (mimeType: string): string => {
+      switch (mimeType) {
+        case 'audio/wav': return '.wav';
+        case 'audio/mp4': return '.mp4';
+        case 'audio/mpeg': return '.mp3';
+        case 'audio/mp3': return '.mp3';
+        case 'audio/webm': return '.webm';
+        case 'audio/webm;codecs=opus': return '.webm';
+        case 'audio/ogg': return '.ogg';
+        case 'audio/m4a': return '.m4a';
+        default: return '.wav'; // Default to WAV for compatibility
+      }
+    };
+
     // Create form data for GPT-4o-mini-transcribe
     const formData = new FormData();
+    const mimeType = req.file.mimetype || 'audio/wav';
+    const fileExtension = getFileExtension(mimeType);
+    
     formData.append('file', audioBuffer, {
-      filename: 'audio.webm',
-      contentType: req.file.mimetype || 'audio/webm'
+      filename: `audio${fileExtension}`,
+      contentType: mimeType
     });
     formData.append('model', 'gpt-4o-mini-transcribe');
     formData.append('language', language);

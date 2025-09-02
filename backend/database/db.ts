@@ -291,10 +291,7 @@ function initDatabase(): void {
   } catch (e) {
     console.error('Örnek hikayeler eklenemedi:', e.message);
   }
-}
-
-// Veritabanını başlat
-initDatabase();
+} initDatabase();
 
 // Prepared statements - tablolar ve sütunlar oluşturulduktan sonra
 const statements = {
@@ -528,7 +525,7 @@ const storyDb = {
   deleteStory(id: number): boolean {
     try {
       console.log(`[DB:deleteStory] Attempting to delete story with id: ${id}`);
-      
+
       const audio = statements.getAudioByStoryId.get(id) as AudioFile | undefined;
       if (audio) {
         console.log(`[DB:deleteStory] Found associated audio file: ${audio.file_path}`);
@@ -546,7 +543,7 @@ const storyDb = {
       console.log(`[DB:deleteStory] Deleting story record from database.`);
       const result = statements.deleteStory.run(id);
       console.log(`[DB:deleteStory] Database deletion result: ${result.changes} changes.`);
-      
+
       return result.changes > 0;
     } catch (error) {
       console.error('Masal silme hatası:', error);
@@ -875,7 +872,7 @@ const storyDb = {
           story_text: row.story_text,
           story_type: row.story_type,
           custom_topic: row.custom_topic,
-            is_favorite: row.is_favorite,
+          is_favorite: row.is_favorite,
           is_shared: row.is_shared,
           share_id: row.share_id,
           shared_at: row.shared_at,
@@ -914,7 +911,7 @@ const storyDb = {
         ORDER BY s.created_at DESC
       `;
       const rows = db.prepare(query).all() as any[];
-      
+
       return rows.map((row: any) => ({
         id: row.id,
         story_text: row.story_text,
@@ -944,7 +941,7 @@ const storyDb = {
         LIMIT ?
       `;
       const rows = db.prepare(query).all(limit) as any[];
-      
+
       return rows.map((row: any) => ({
         id: row.id,
         story_text: row.story_text,
@@ -978,7 +975,7 @@ const storyDb = {
         ORDER BY s.created_at DESC
       `;
       const rows = db.prepare(query).all() as any[];
-      
+
       return rows.map((row: any) => ({
         id: row.id,
         story_text: row.story_text,
@@ -1007,8 +1004,7 @@ const storyDb = {
   }
 }
 
-// Veritabanını başlat
-initDatabase();
+
 
 export default storyDb;
 export { Story, AudioFile, StoryWithAudio, SearchResult, DatabaseConfig };
