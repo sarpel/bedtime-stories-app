@@ -55,6 +55,25 @@ interface StoryCreatorProps {
   onSaveStory: () => void;
 }
 
+/**
+ * Masal oluşturma, seslendirme, paylaşma ve indirme işlevlerini içeren bir React bileşeni.
+ *
+ * Bu bileşen kullanıcıdan masal türü veya özel konu alır, masal oluşturma ve ses üretme işlemlerini tetikler,
+ * oluşturulan masalı oynatma/durdurma/susturma kontrolleri sağlar, paylaşma/indirme/kopyalama iş akışlarını yönetir
+ * ve isteğe bağlı olarak sesli komut paneli ile sesli komutları işler. İçeride kısmi UI durumları (paylaşma menüsü,
+ * kopyalandı durumu, paylaşılan link URL'si, sesli komut paneli görünürlüğü vb.) ve dış tıklama (share menüsü için)
+ * dinleyicisi gibi yan etkiler yönetilir. Paylaşma başarısız olduğunda bir yedek paylaşma yöntemi kullanılır.
+ *
+ * Önemli davranışlar:
+ * - selectedType / customTopic ile girişleri kontrol eder; tür seçildiğinde özel konu temizlenir, özel konu yazılırsa tür temizlenir.
+ * - onGenerateStory / onGenerateAudio gibi callback'leri çağırarak oluşturma işlevlerini başlatır.
+ * - audioUrl, isPlaying, audioProgress, audioDuration gibi oynatma durumlarına göre oynatma kontrolleri sağlar.
+ * - handleShare içinde storyId varsa sunucu tabanlı paylaşım (sharingService), başarısızlıkta eski shareStory fallback'i kullanılır.
+ * - VoiceCommandPanel'den gelen komutları handleVoiceCommand ile işler (masal isteği, tür atama, konu oluşturma, oynatma kontrolleri, yardım).
+ *
+ * @remarks
+ * - settings prop'u sesli komut paneline iletilir.
+ */
 export default function StoryCreator({
   selectedType,
   customTopic,

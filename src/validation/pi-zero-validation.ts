@@ -599,13 +599,30 @@ export interface ValidationResults {
   timestamp: string;
 }
 
-// Export validation runner function for external use
+/**
+ * Pi Zero 2W için tam donanım ve performans doğrulamasını çalıştırır.
+ *
+ * PiZeroValidator örneği oluşturur, tüm doğrulama adımlarını (donanım, performans,
+ * optimizasyon, entegrasyon, bellek, güç, ses) sırayla yürütür ve biriktirilen
+ * ValidationResults nesnesini döner.
+ *
+ * @returns Promise içinde gerçekleştirilen tüm doğrulama adımlarının sonuçlarını içeren ValidationResults.
+ */
 export async function runPiZeroValidation(): Promise<ValidationResults> {
   const validator = new PiZeroValidator();
   return await validator.runFullValidation();
 }
 
-// Export report generator
+/**
+ * Tam Pi Zero 2W doğrulamasını çalıştırır ve insan tarafından okunabilir bir rapor döndürür.
+ *
+ * Bu fonksiyon bir PiZeroValidator örneği oluşturur, tüm doğrulama ve benchmark adımlarını yürütmek için
+ * runFullValidation()'ı çağırır ve ortaya çıkan sonuçlardan formatlanmış, bölümlere ayrılmış bir rapor
+ * dizesi üretir. Rapor; zaman damgası, genel durum (geçti/başarısız), donanım, performans (hedeflerle),
+ * bellek kullanımı, sistem entegrasyonu, tespit edilen hata/uyarı girdileri ve önerileri içerir.
+ *
+ * @returns Formatlanmış doğrulama raporunu içeren dize.
+ */
 export async function generateValidationReport(): Promise<string> {
   const validator = new PiZeroValidator();
   const results = await validator.runFullValidation();
