@@ -29,6 +29,8 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '0.0.0.0',
       port: 5173,
+      // Note: Modern browsers allow microphone access on localhost without HTTPS
+      // HTTPS can be enabled with: https: true, but may cause certificate issues
       // Allow specific external domains for development network access.
       // Uses env var VITE_ALLOWED_HOSTS (comma separated) to extend list.
       // Added arven.sarpel.net per request.

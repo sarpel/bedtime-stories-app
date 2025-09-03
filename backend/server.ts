@@ -81,7 +81,7 @@ const upload = multer({
   },
   fileFilter: (req, file, cb) => {
     // Accept audio files
-    if (file.mimetype.startsWith('audio/') || 
+    if (file.mimetype.startsWith('audio/') ||
         file.originalname.match(/\.(webm|wav|mp3|m4a|ogg|flac)$/i)) {
       cb(null, true);
     } else {
@@ -481,7 +481,7 @@ app.post('/api/llm', async (req, res) => {
     }
     if (!process.env.OPENAI_MODEL) { return res.status(500).json({ error: 'OPENAI_MODEL tanımlı değil.' }); }
     if (!process.env.OPENAI_ENDPOINT) { return res.status(500).json({ error: 'OPENAI_ENDPOINT tanımlı değil.' }); }
-    
+
     if (clientEndpoint && typeof clientEndpoint === 'string' && clientEndpoint.startsWith('http')) {
       endpoint = clientEndpoint;
     } else {
@@ -497,7 +497,7 @@ app.post('/api/llm', async (req, res) => {
 
     const effectiveModel = modelId || process.env.OPENAI_MODEL;
     headers.Authorization = `Bearer ${OPENAI_API_KEY}`;
-    
+
     // Sadece Responses API formatı desteklenir
     const defaultSystemPrompt = '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.';
     const systemPrompt = (process.env.SYSTEM_PROMPT_TURKISH || defaultSystemPrompt).trim();
@@ -1248,7 +1248,7 @@ app.post('/api/tts', async (req, res) => {
 // GPT-4o-mini-transcribe endpoint (new enhanced STT model)
 app.post('/api/stt/transcribe', upload.single('audio'), async (req, res) => {
   const tStart = Date.now();
-  
+
   try {
     logger.info({
       msg: '[STT GPT-4o-mini-transcribe] Request received',
@@ -1263,7 +1263,7 @@ app.post('/api/stt/transcribe', upload.single('audio'), async (req, res) => {
       return res.status(400).json({ error: 'Audio file required' });
     }
 
-    const { language = 'tr', response_format = 'verbose_json' } = req.body;
+    const { language = 'tr', response_format = 'json' } = req.body;
 
     // Audio file validation
     const audioBuffer = req.file.buffer;
@@ -1278,8 +1278,8 @@ app.post('/api/stt/transcribe', upload.single('audio'), async (req, res) => {
 
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
     if (!OPENAI_API_KEY) {
-      return res.status(500).json({ 
-        error: 'OpenAI API key missing. Please set OPENAI_API_KEY in backend/.env.' 
+      return res.status(500).json({
+        error: 'OpenAI API key missing. Please set OPENAI_API_KEY in backend/.env.'
       });
     }
 
@@ -1302,7 +1302,7 @@ app.post('/api/stt/transcribe', upload.single('audio'), async (req, res) => {
     const formData = new FormData();
     const mimeType = req.file.mimetype || 'audio/wav';
     const fileExtension = getFileExtension(mimeType);
-    
+
     formData.append('file', audioBuffer, {
       filename: `audio${fileExtension}`,
       contentType: mimeType
@@ -1316,7 +1316,10 @@ app.post('/api/stt/transcribe', upload.single('audio'), async (req, res) => {
       model: 'gpt-4o-mini-transcribe',
       language,
       audioSize: audioBuffer.length,
-      responseFormat: response_format
+      mimeType,
+      fileExtension,
+      responseFormat: response_format,
+      filename: `audio${fileExtension}`
     });
 
     // Call OpenAI GPT-4o-mini-transcribe API
@@ -1341,8 +1344,8 @@ app.post('/api/stt/transcribe', upload.single('audio'), async (req, res) => {
 
     // Validate transcription result
     if (!transcriptionResult.text || transcriptionResult.text.length === 0) {
-      return res.status(422).json({ 
-        error: 'No text extracted from audio. Please speak more clearly.' 
+      return res.status(422).json({
+        error: 'No text extracted from audio. Please speak more clearly.'
       });
     }
 
@@ -1359,12 +1362,17 @@ app.post('/api/stt/transcribe', upload.single('audio'), async (req, res) => {
 
   } catch (error) {
     const duration = Date.now() - tStart;
-    
+
+    // Log detailed error information
     logger.error({
       msg: '[STT GPT-4o-mini-transcribe] Transcription failed',
       error: error.message,
       status: error.response?.status,
-      durationMs: duration
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      durationMs: duration,
+      mimeType: req.file?.mimetype,
+      audioSize: req.file?.size
     });
 
     let errorMessage = 'GPT-4o-mini-transcribe processing failed.';
@@ -1374,7 +1382,9 @@ app.post('/api/stt/transcribe', upload.single('audio'), async (req, res) => {
       errorMessage = 'OpenAI API key invalid.';
       statusCode = 401;
     } else if (error.response?.status === 400) {
-      errorMessage = 'Audio file format invalid or unsupported.';
+      // Get more specific error from OpenAI
+      const openaiError = error.response?.data?.error || {};
+      errorMessage = `Audio file format invalid or unsupported. ${openaiError.message || ''}`.trim();
       statusCode = 400;
     } else if (error.response?.status === 429) {
       errorMessage = 'API rate limit exceeded. Please try again later.';
@@ -1384,7 +1394,7 @@ app.post('/api/stt/transcribe', upload.single('audio'), async (req, res) => {
       statusCode = 408;
     }
 
-    res.status(statusCode).json({ 
+    res.status(statusCode).json({
       error: errorMessage,
       model: 'gpt-4o-mini-transcribe'
     });
@@ -1399,7 +1409,7 @@ app.get('/api/test/stt-transcribe', (req, res) => {
 // Speech-to-Text API endpoint with OpenAI Whisper and Deepgram support (legacy)
 app.post('/api/stt', upload.single('audio'), async (req, res) => {
   const tStart = Date.now();
-  
+
   try {
     logger.info({
       msg: '[STT API] Request received',
@@ -1440,10 +1450,10 @@ app.post('/api/stt', upload.single('audio'), async (req, res) => {
     if (provider === 'openai') {
       // OpenAI Whisper API
       const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-      
+
       if (!OPENAI_API_KEY) {
-        return res.status(500).json({ 
-          error: 'OpenAI API anahtarı eksik. Lütfen backend/.env dosyasında OPENAI_API_KEY\'i ayarlayın.' 
+        return res.status(500).json({
+          error: 'OpenAI API anahtarı eksik. Lütfen backend/.env dosyasında OPENAI_API_KEY\'i ayarlayın.'
         });
       }
 
@@ -1456,7 +1466,7 @@ app.post('/api/stt', upload.single('audio'), async (req, res) => {
       formData.append('model', model || 'whisper-1');
       formData.append('language', language);
       formData.append('response_format', response_format || 'json');
-      
+
       if (temperature) {
         formData.append('temperature', temperature.toString());
       }
@@ -1488,10 +1498,10 @@ app.post('/api/stt', upload.single('audio'), async (req, res) => {
     } else if (provider === 'deepgram') {
       // Deepgram API
       const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY;
-      
+
       if (!DEEPGRAM_API_KEY) {
-        return res.status(500).json({ 
-          error: 'Deepgram API anahtarı eksik. Lütfen backend/.env dosyasında DEEPGRAM_API_KEY\'i ayarlayın.' 
+        return res.status(500).json({
+          error: 'Deepgram API anahtarı eksik. Lütfen backend/.env dosyasında DEEPGRAM_API_KEY\'i ayarlayın.'
         });
       }
 
@@ -1538,8 +1548,8 @@ app.post('/api/stt', upload.single('audio'), async (req, res) => {
 
     // Validate transcription result
     if (!transcriptionResult?.text || transcriptionResult.text.length === 0) {
-      return res.status(422).json({ 
-        error: 'Ses dosyasından metin çıkarılamadı. Lütfen daha açık konuşmayı deneyin.' 
+      return res.status(422).json({
+        error: 'Ses dosyasından metin çıkarılamadı. Lütfen daha açık konuşmayı deneyin.'
       });
     }
 
@@ -1565,7 +1575,7 @@ app.post('/api/stt', upload.single('audio'), async (req, res) => {
 
   } catch (error) {
     const duration = Date.now() - tStart;
-    
+
     logger.error({
       msg: '[STT API] Transcription failed',
       provider: req.body.provider,
@@ -1595,7 +1605,7 @@ app.post('/api/stt', upload.single('audio'), async (req, res) => {
       statusCode = 413;
     }
 
-    res.status(statusCode).json({ 
+    res.status(statusCode).json({
       error: errorMessage,
       provider: req.body.provider || 'unknown'
     });
@@ -1726,9 +1736,9 @@ app.post('/api/batch/stories', async (req, res) => {
     for (let i = 0; i < count; i++) {
       try {
         const selectedType = storyTypes[Math.floor(Math.random() * storyTypes.length)];
-        
+
         // Aynı LLM logic'ini kullan (server.ts'teki /api/llm endpoint'inden)
-        const systemPrompt = process.env.SYSTEM_PROMPT_TURKISH || 
+        const systemPrompt = process.env.SYSTEM_PROMPT_TURKISH ||
           '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.';
 
         const storyTypeMap = {
@@ -1761,7 +1771,7 @@ app.post('/api/batch/stories', async (req, res) => {
         });
 
         const storyText = response.data.choices?.[0]?.message?.content;
-        
+
         if (storyText) {
           // Masalı veritabanına kaydet
           const story = storyDb.createStory({
@@ -1816,7 +1826,7 @@ app.post('/api/batch/audio', async (req, res) => {
 
     // Ses dosyası olmayan masalları getir
     let stories = [];
-    
+
     if (priority === 'favorites') {
       // Favori masalları getir (ses olmayan)
       stories = storyDb.getFavoriteStoriesWithoutAudio();
@@ -1848,10 +1858,10 @@ app.post('/api/batch/audio', async (req, res) => {
       try {
         // TTS API çağrısı (aynı logic /api/tts endpoint'inden)
         const apiKey = provider === 'elevenlabs' ? process.env.ELEVENLABS_API_KEY : process.env.GEMINI_TTS_API_KEY;
-        const endpoint = provider === 'elevenlabs' ? 
+        const endpoint = provider === 'elevenlabs' ?
           (process.env.ELEVENLABS_ENDPOINT || 'https://api.elevenlabs.io/v1/text-to-speech') :
           (process.env.GEMINI_TTS_ENDPOINT || 'https://generativelanguage.googleapis.com/v1beta/models');
-        const voiceId = provider === 'elevenlabs' ? 
+        const voiceId = provider === 'elevenlabs' ?
           (process.env.ELEVENLABS_VOICE_ID || 'xsGHrtxT5AdDzYXTQT0d') :
           (process.env.GEMINI_TTS_VOICE_ID || 'Puck');
 
@@ -1861,7 +1871,7 @@ app.post('/api/batch/audio', async (req, res) => {
         }
 
         let audioResponse;
-        
+
         if (provider === 'elevenlabs') {
           const fullUrl = `${endpoint}/${voiceId}`;
           audioResponse = await axios.post(fullUrl, {
@@ -1913,12 +1923,12 @@ app.post('/api/batch/audio', async (req, res) => {
 
         if (audioResponse.status === 200) {
           // Ses dosyasını kaydet
-          const audioBuffer = provider === 'elevenlabs' ? 
-            audioResponse.data : 
+          const audioBuffer = provider === 'elevenlabs' ?
+            audioResponse.data :
             Buffer.from(audioResponse.data.audioContent || '', 'base64');
 
           const audioId = storyDb.saveAudio(story.id, audioBuffer, 'mp3');
-          
+
           results.push({
             storyId: story.id,
             audioId,

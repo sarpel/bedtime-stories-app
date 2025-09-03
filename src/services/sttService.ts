@@ -61,6 +61,94 @@ interface EnhancedTranscriptionResult extends TranscriptionResult {
 
 type ProgressCallback = (progress: number) => void;
 
+// Audio conversion utilities
+class AudioConverter {
+  /**
+   * Convert WebM audio to WAV format for better OpenAI compatibility
+   * Logic: Uses Web Audio API to decode and re-encode audio as WAV
+   */
+  static async convertToWav(audioBlob: Blob): Promise<Blob> {
+    try {
+      // Create audio context
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+      // Convert blob to array buffer
+      const arrayBuffer = await audioBlob.arrayBuffer();
+
+      // Decode audio data
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+      // Convert to WAV format
+      const wavArrayBuffer = AudioConverter.audioBufferToWav(audioBuffer);
+
+      // Close audio context to free resources
+      audioContext.close();
+
+      return new Blob([wavArrayBuffer], { type: 'audio/wav' });
+    } catch (error) {
+      logger.warn('Audio conversion failed, using original format', 'AudioConverter', {
+        error: (error as Error)?.message,
+        originalType: audioBlob.type
+      });
+      // If conversion fails, return original blob
+      return audioBlob;
+    }
+  }
+
+  /**
+   * Convert AudioBuffer to WAV format array buffer
+   * Logic: Manually create WAV file headers and data
+   */
+  private static audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
+    const length = buffer.length;
+    const numberOfChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const bytesPerSample = 2; // 16-bit
+
+    const arrayBuffer = new ArrayBuffer(44 + length * numberOfChannels * bytesPerSample);
+    const view = new DataView(arrayBuffer);
+
+    // WAV header
+    const writeString = (offset: number, string: string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    };
+
+    // RIFF chunk descriptor
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + length * numberOfChannels * bytesPerSample, true);
+    writeString(8, 'WAVE');
+
+    // fmt sub-chunk
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true); // Sub-chunk size
+    view.setUint16(20, 1, true); // Audio format (PCM)
+    view.setUint16(22, numberOfChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * numberOfChannels * bytesPerSample, true); // Byte rate
+    view.setUint16(32, numberOfChannels * bytesPerSample, true); // Block align
+    view.setUint16(34, 16, true); // Bits per sample
+
+    // data sub-chunk
+    writeString(36, 'data');
+    view.setUint32(40, length * numberOfChannels * bytesPerSample, true);
+
+    // Write audio data
+    let offset = 44;
+    for (let i = 0; i < length; i++) {
+      for (let channel = 0; channel < numberOfChannels; channel++) {
+        const sample = buffer.getChannelData(channel)[i];
+        const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+        view.setInt16(offset, intSample, true);
+        offset += 2;
+      }
+    }
+
+    return arrayBuffer;
+  }
+}
+
 // Audio recorder utility class
 class AudioRecorder {
   private mediaRecorder: MediaRecorder | null = null;
@@ -156,18 +244,22 @@ class AudioRecorder {
   }
 
   private getSupportedMimeType(): string {
-    // For GPT-4o-mini-transcribe, we need to be more specific about formats
-    // WebM with Opus is most commonly supported by browsers
+    // Prioritize formats that OpenAI handles best for gpt-4o-mini-transcribe
+    // Based on testing, let's try the most compatible formats first
     const types = [
-      'audio/webm;codecs=opus', // Most commonly supported
-      'audio/webm',             // Fallback WebM
-      'audio/mp4',              // Less common but good compatibility with OpenAI
-      'audio/wav'               // Rarely supported by MediaRecorder
+      'audio/wav',              // Universal compatibility
+      'audio/mp4',              // Good compatibility with OpenAI
+      'audio/mpeg',             // MP3 format, widely supported
+      'audio/webm;codecs=opus', // Modern browsers, but last resort
+      'audio/webm'              // Fallback WebM
     ];
 
     for (const type of types) {
       if (MediaRecorder.isTypeSupported(type)) {
-        logger.debug('Selected audio format', 'AudioRecorder', { mimeType: type });
+        logger.info('Selected audio format for STT', 'AudioRecorder', {
+          mimeType: type,
+          isSupported: true
+        });
         return type;
       }
     }
@@ -317,21 +409,59 @@ export class STTService {
         audioFile = audioData;
       } else {
         // For recorded audio, ensure we have the correct MIME type and filename
-        const mimeType = audioData.type || 'audio/webm';
-        const extension = this.getFileExtension(mimeType);
+        const originalMimeType = audioData.type || 'audio/webm';
+        const originalSize = audioData.size;
 
-        audioFile = new File([audioData], `recording${extension}`, {
-          type: mimeType,
+        logger.info('Original audio blob details', 'STTService', {
+          originalMimeType,
+          originalSize,
+          blobType: Object.prototype.toString.call(audioData)
+        });
+
+        // Convert audio to WAV for better OpenAI compatibility
+        let finalBlob = audioData;
+        let finalMimeType = originalMimeType;
+
+        // For WebM or non-standard formats, convert to WAV
+        if (originalMimeType.includes('webm') || originalMimeType.includes('opus')) {
+          logger.info('Converting audio to WAV for OpenAI compatibility', 'STTService', {
+            originalFormat: originalMimeType
+          });
+
+          try {
+            // Convert to WAV format
+            finalBlob = await AudioConverter.convertToWav(audioData);
+            finalMimeType = 'audio/wav';
+
+            logger.info('Audio conversion successful', 'STTService', {
+              originalSize: originalSize,
+              convertedSize: finalBlob.size,
+              convertedType: finalMimeType
+            });
+          } catch (conversionError) {
+            logger.warn('Audio conversion failed, using original format', 'STTService', {
+              error: (conversionError as Error)?.message
+            });
+            // Fallback to original format if conversion fails
+            finalBlob = audioData;
+            finalMimeType = originalMimeType;
+          }
+        }
+
+        const extension = this.getFileExtension(finalMimeType);
+        audioFile = new File([finalBlob], `recording${extension}`, {
+          type: finalMimeType,
           lastModified: Date.now()
         });
       }
 
-      logger.debug('Preparing audio for transcription', 'STTService', {
+      logger.info('Final audio file for transcription', 'STTService', {
         fileName: audioFile.name,
         fileSize: audioFile.size,
         fileType: audioFile.type,
         provider: this.provider,
-        model: this.modelId
+        model: this.modelId,
+        endpoint: this.endpoint
       });
 
       formData.append('audio', audioFile);
@@ -342,7 +472,7 @@ export class STTService {
       // Add provider-specific settings
       if (this.provider === 'openai') {
         if (this.modelId === 'gpt-4o-mini-transcribe') {
-          formData.append('response_format', 'verbose_json'); // Enhanced format for word-level timing
+          formData.append('response_format', 'json'); // Use 'json' format for gpt-4o-mini-transcribe
           formData.append('temperature', '0.1'); // Even lower for better accuracy
         } else {
           formData.append('response_format', 'json');
@@ -355,12 +485,25 @@ export class STTService {
 
       onProgress?.(40);
 
-      logger.debug('Starting STT transcription', 'STTService', {
+      logger.info('Starting STT transcription', 'STTService', {
         provider: this.provider,
         model: this.modelId,
+        endpoint: this.endpoint,
         fileSize: audioFile.size,
-        fileType: audioFile.type
+        fileType: audioFile.type,
+        fileName: audioFile.name
       });
+
+      // Log FormData contents (for debugging)
+      const formDataEntries: any = {};
+      for (const [key, value] of formData.entries()) {
+        if (value instanceof File) {
+          formDataEntries[key] = `File: ${value.name} (${value.size} bytes, ${value.type})`;
+        } else {
+          formDataEntries[key] = value;
+        }
+      }
+      logger.debug('FormData contents', 'STTService', formDataEntries);
 
       // Send to backend proxy
       const response = await fetch(this.endpoint, {
@@ -374,6 +517,8 @@ export class STTService {
         const errorText = await response.text();
         logger.error('STT API error', 'STTService', {
           status: response.status,
+          statusText: response.statusText,
+          url: this.endpoint,
           error: errorText
         });
         throw new Error(`STT API hatası (${response.status}): ${errorText}`);

@@ -173,9 +173,14 @@ export const ModernVoiceCommandPanel: React.FC<ModernVoiceCommandPanelProps> = (
 
   const checkMicrophonePermission = async () => {
     try {
+      logger.debug('Checking microphone permission...', 'ModernVoiceCommandPanel');
       const hasPermission = await STTService.checkMicrophonePermission();
       setMicrophonePermission(hasPermission ? 'granted' : 'denied');
+      logger.info(`Microphone permission: ${hasPermission ? 'granted' : 'denied'}`, 'ModernVoiceCommandPanel');
     } catch (error) {
+      logger.error('Error checking microphone permission', 'ModernVoiceCommandPanel', {
+        error: (error as Error)?.message
+      });
       setMicrophonePermission('denied');
     }
   };
@@ -210,11 +215,24 @@ export const ModernVoiceCommandPanel: React.FC<ModernVoiceCommandPanelProps> = (
       setMicrophonePermission('granted');
 
     } catch (error) {
+      const errorMessage = (error as Error)?.message || 'Unknown error';
       logger.error('Failed to start listening', 'ModernVoiceCommandPanel', {
-        error: (error as Error)?.message
+        error: errorMessage
       });
-      setError(`Failed to start listening: ${(error as Error)?.message}`);
+
+      // Provide specific error messages for common microphone issues
+      if (errorMessage.includes('izin') || errorMessage.includes('permission') || errorMessage.includes('denied')) {
+        setError('Mikrofon izni gerekli. Lütfen tarayıcınızda mikrofon erişimine izin verin ve sayfayı yenileyin.');
+      } else if (errorMessage.includes('https') || errorMessage.includes('secure')) {
+        setError('Mikrofon erişimi için güvenli bağlantı (HTTPS) gerekli. Lütfen sayfayı HTTPS üzerinden açın.');
+      } else if (errorMessage.includes('not found') || errorMessage.includes('device')) {
+        setError('Mikrofon cihazı bulunamadı. Lütfen mikrofonunuzun bağlı ve çalışır durumda olduğundan emin olun.');
+      } else {
+        setError(`Ses kaydı başlatılamadı: ${errorMessage}`);
+      }
+
       setIsListening(false);
+      setMicrophonePermission('denied');
     }
   };
 
@@ -454,8 +472,26 @@ export const ModernVoiceCommandPanel: React.FC<ModernVoiceCommandPanelProps> = (
           {/* Microphone Permission Status */}
           {microphonePermission === 'denied' && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-              <p className="text-sm text-yellow-800">
-                Microphone access is required for voice commands. Please enable microphone permissions in your browser settings.
+              <p className="text-sm text-yellow-800 mb-2">
+                Mikrofon erişimi ses komutları için gereklidir. Lütfen tarayıcı ayarlarınızdan mikrofon izinlerini etkinleştirin.
+              </p>
+              <Button
+                onClick={checkMicrophonePermission}
+                variant="outline"
+                size="sm"
+                className="flex items-center space-x-1"
+              >
+                <Mic className="h-3 w-3" />
+                <span>İzni Tekrar Dene</span>
+              </Button>
+            </div>
+          )}
+
+          {/* HTTPS Warning - only show for non-localhost HTTP */}
+          {location.protocol === 'http:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1' && (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+              <p className="text-sm text-orange-800">
+                ⚠️ Mikrofon erişimi için güvenli bağlantı (HTTPS) gereklidir. HTTP üzerinden mikrofon erişimi kısıtlıdır.
               </p>
             </div>
           )}
