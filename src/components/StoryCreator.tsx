@@ -52,7 +52,8 @@ interface StoryCreatorProps {
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onClearStory: () => void;
-  onSaveStory: () => void;
+  onSaveStory: (isAutoSave?: boolean) => Promise<void>;
+  onVoiceGeneratedStory?: (storyContent: string) => Promise<void>; // New prop for voice commands
 }
 
 /**
@@ -100,7 +101,8 @@ export default function StoryCreator({
   isFavorite,
   onToggleFavorite,
   onClearStory,
-  onSaveStory
+  onSaveStory,
+  onVoiceGeneratedStory
 }: StoryCreatorProps) {
   const [copied, setCopied] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
@@ -230,50 +232,25 @@ export default function StoryCreator({
   const handleVoiceCommand = (command: VoiceCommand) => {
     const { intent, parameters } = command
 
-    // Handle TTS generation requests (marked by LLM)
-    if (intent === 'generate_audio' && story && !isGeneratingAudio) {
-      // Generate audio from current story
-      onGenerateAudio()
+    if (intent === 'generate_audio') {
+      if (story && story.length > 0 && !isGeneratingAudio) {
+        onGenerateAudio()
+      } else {
+        console.warn('🎵 [Voice Pipeline] generate_audio intent but story empty')
+      }
+      return
     }
 
-    // Handle story requests (all other voice input goes to story generation)
-    else if (intent === 'story_request') {
-      // LLM has processed the voice input and provided complete story content
-      if (parameters.customTopic) {
-        // The LLM response contains a complete story, not just a topic
-        // Set it directly as the story content (like generated stories)
-        onStoryChange(parameters.customTopic)
-
-        // Clear custom topic and selected type since we now have a complete story
-        onCustomTopicChange('')
-        if (selectedType) {
-          onTypeChange('')
-        }
-
-        // AUTO-GENERATE AUDIO: After story is set, automatically create TTS and play
-        setTimeout(async () => {
-          console.log('🎵 [Voice Pipeline] Starting auto TTS generation...')
-          // Generate TTS audio automatically
-          onGenerateAudio()
-
-          // Note: Audio will auto-play once TTS completes (handled in App.tsx)
-        }, 1000) // Small delay to ensure story is set properly
+    if (intent === 'story_request' && parameters.customTopic) {
+      const storyContent = parameters.customTopic
+      if (onVoiceGeneratedStory) {
+        onVoiceGeneratedStory(storyContent)
+      } else {
+        onTypeChange('voice_generated')
+        onCustomTopicChange('Voice Generated Story')
+        onStoryChange(storyContent)
       }
     }
-
-    // Handle audio control commands (still supported for convenience)
-    else if (intent === 'play_story' && audioUrl && !isPlaying) {
-      onPlayAudio()
-    }
-    else if (intent === 'pause_story' && audioUrl && isPlaying) {
-      onPauseAudio()
-    }
-    else if (intent === 'stop_story' && audioUrl) {
-      onStopAudio()
-    }
-
-    // Close voice panel after command
-    setShowVoicePanel(false)
   }
 
   const displayText = story || customTopic
@@ -332,7 +309,13 @@ export default function StoryCreator({
               <Button
                 variant="default"
                 size="sm"
-                onClick={onSaveStory}
+                onClick={async () => {
+                  try {
+                    await onSaveStory(false) // Manual save
+                  } catch (error) {
+                    console.error('Manual save error:', error)
+                  }
+                }} // Manual save
                 className="flex-1 sm:flex-none"
               >
                 <CheckCircle className="h-4 w-4 sm:mr-2" />

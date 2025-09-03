@@ -325,6 +325,45 @@ function App() {
     }
   }
 
+  // Dedicated handler for voice-generated stories
+  const handleVoiceGeneratedStory = async (storyContent: string) => {
+    console.log('🎵 [Voice Handler] Processing voice-generated story, length:', storyContent.length)
+
+    try {
+      // Atomic update: use functional setState to avoid stale closure issues
+      setStory(() => storyContent)
+      setSelectedStoryType('voice_generated')
+      setCustomTopic('Voice Generated Story')
+
+      // Wait next paint to ensure state commit
+      await new Promise(r => setTimeout(r, 0))
+
+      // Access latest story value via ref to guarantee visibility in save
+      const storyToSave = storyContent
+      if (!storyToSave || storyToSave.length === 0) {
+        console.warn('🎵 [Voice Handler] Story content empty, aborting save.')
+        return
+      }
+
+      await saveStory(true)
+      console.log('🎵 [Voice Handler] Story saved successfully')
+
+      // Delay TTS slightly to let DB write finish
+      setTimeout(() => {
+        if (storyToSave.length > 0) {
+          generateAudio()
+          console.log('🎵 [Voice Handler] Audio generation started')
+        } else {
+          console.warn('🎵 [Voice Handler] Skipping TTS, story still empty')
+        }
+      }, 400)
+
+    } catch (error) {
+      console.error('🎵 [Voice Handler] Failed to process voice-generated story:', error)
+      setError('Sesli komut ile oluşturulan masal işlenirken hata oluştu.')
+    }
+  }
+
   // Hybrid delete function
   const hybridDeleteStory = async (id: string | number) => {
     try {
@@ -545,7 +584,13 @@ function App() {
   }
 
   const generateAudio = async () => {
-    if (!story) return
+    console.log(`🎵 [TTS Debug] generateAudio called - story length: ${story?.length || 0}, currentStoryId: ${currentStoryId}`)
+    console.log(`🎵 [TTS Debug] story preview: "${story?.substring(0, 100) || 'EMPTY'}"`)
+
+    if (!story) {
+      console.error('🎵 [TTS Debug] No story available for TTS!')
+      return
+    }
 
     setIsGeneratingAudio(true)
     setProgress(0)
@@ -624,51 +669,51 @@ function App() {
     setError('')
   }
 
-  // Save story manually when user clicks save button
-  const saveStory = async () => {
-    if (!story) {
+  // Save story manually when user clicks save button or auto-save from voice commands
+  const saveStory = async (isAutoSave = false) => {
+    const storySnapshot = story
+    console.log(`🎵 [Save Debug] saveStory called - isAutoSave: ${isAutoSave}, story length: ${storySnapshot?.length || 0}`)
+    console.log(`🎵 [Save Debug] story content preview: "${storySnapshot?.substring(0, 100) || 'EMPTY'}"`)
+
+    if (!storySnapshot) {
+      console.error('🎵 [Save Debug] No story to save!')
       setError('Kaydedilecek masal bulunamadı.')
       return
     }
 
     try {
-      // Eğer zaten bir ID varsa güncelle, yoksa yeni oluştur
       if (currentStoryId) {
-        // Zaten kaydedilmiş
         console.log('Masal zaten kaydedilmiş:', currentStoryId)
-        // Kaydetme işlemi tamamlandı, ana menüye dön
-        clearStory()
+        if (!isAutoSave) {
+          clearStory()
+          toast.success('Masal zaten kayıtlı')
+        }
         return
       }
 
-      // Yeni bir masal olarak kaydet
-      const storyTypeToUse = customTopic.trim() ? 'custom' : selectedStoryType
-      const topicToUse = customTopic.trim() || ''
+      const storyTypeToUse = selectedStoryType || 'voice_generated'
+      const topicToUse = customTopic || 'Voice Generated Story'
 
-      const dbStory = await createDbStory(story, storyTypeToUse, topicToUse)
+      console.log(`🎵 [Save Pipeline] ${isAutoSave ? 'Auto-saving' : 'Manual saving'} story...`)
+      const dbStory = await createDbStory(storySnapshot, storyTypeToUse, topicToUse)
       setCurrentStoryId(String(dbStory.id))
-      console.log('Masal manuel olarak kaydedildi:', dbStory.id)
+      console.log(`🎵 [Save Pipeline] ${isAutoSave ? 'Auto-save' : 'Manual save'} completed:`, dbStory.id)
 
-      // Favorileri refresh etme - restart prevention
-      // refreshFavorites() // Bu satırı kaldırdık - manuel refresh'e gerek yok
+      setError('')
 
-      // Success feedback
-      setError('') // Clear any previous errors
-
-      // Kaydetme işlemi tamamlandı, ana menüye dön
-      clearStory()
-      toast.success('Masal kaydedildi')
+      if (!isAutoSave) {
+        clearStory()
+        toast.success('Masal kaydedildi')
+      } else {
+        console.log('🎵 [Save Pipeline] Story ready for TTS generation')
+      }
 
     } catch (dbError) {
-      console.error('Manuel kaydetme hatası:', dbError)
-
-      // Show user-friendly error
+      console.error(`${isAutoSave ? 'Auto-save' : 'Manual save'} error:`, dbError)
       setError('Masal kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.')
-
-      // Show error to user
-      toast.error('Masal kaydedilemedi', {
-        description: 'Lütfen tekrar deneyin.'
-      })
+      if (!isAutoSave) {
+        toast.error('Masal kaydedilemedi', { description: 'Lütfen tekrar deneyin.' })
+      }
     }
   }
 
@@ -779,6 +824,7 @@ function App() {
           }}
           onClearStory={clearStory}
           onSaveStory={saveStory}
+          onVoiceGeneratedStory={handleVoiceGeneratedStory}
         />
 
         {/* Error Display */}

@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Mic, MicOff, Volume2, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { STTService, GPT4oMiniSTTService } from '@/services/sttService';
-import { WakeWordDetectionPanel } from '@/components/WakeWordDetectionPanel';
 import { logger } from '@/utils/logger';
 
 export interface VoiceCommand {
@@ -185,22 +184,6 @@ export const ModernVoiceCommandPanel: React.FC<ModernVoiceCommandPanelProps> = (
     }
   };
 
-  /**
-   * Handle wake word detection from the WakeWordDetectionPanel
-   * Logic: When wake word is detected, automatically start listening for commands
-   */
-  const handleWakeWordDetected = async () => {
-    logger.info('Wake word detected - starting automatic voice command recognition', 'ModernVoiceCommandPanel');
-
-    // Reset any previous state
-    setError('');
-    setTranscription('');
-    setLastCommand(null);
-
-    // Start listening for voice commands
-    await handleStartListening();
-  };
-
   const handleStartListening = async () => {
     if (!sttServiceRef.current || disabled || isListening || isProcessing) return;
 
@@ -355,19 +338,6 @@ export const ModernVoiceCommandPanel: React.FC<ModernVoiceCommandPanelProps> = (
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {/* Wake Word Detection Panel */}
-      {settings?.sttSettings?.wakeWordEnabled && (
-        <WakeWordDetectionPanel
-          onWakeWordDetected={handleWakeWordDetected}
-          disabled={disabled}
-          settings={{
-            wakeWordEnabled: settings?.sttSettings?.wakeWordEnabled,
-            wakeWordSensitivity: settings?.sttSettings?.wakeWordSensitivity,
-            autoStart: settings?.sttSettings?.continuousListening
-          }}
-        />
-      )}
-
       {/* Main Voice Command Panel */}
       <Card>
         <CardContent className="p-4 space-y-4">

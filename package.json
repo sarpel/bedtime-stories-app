@@ -13,16 +13,14 @@
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx --max-warnings=10",
     "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
     "type-check": "tsc --noEmit",
-    "check": "npm run type-check && npm run lint",
+  "check": "npm run type-check && npm run lint",
+  "test": "jest --runInBand",
     "preview": "vite preview"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@picovoice/porcupine-react": "^3.0.3",
-    "@picovoice/porcupine-web": "^3.0.3",
-    "@picovoice/web-voice-processor": "^4.0.9",
     "@radix-ui/react-alert-dialog": "^1.1.13",
     "@radix-ui/react-dialog": "^1.1.13",
     "@radix-ui/react-label": "^2.1.6",
@@ -67,6 +65,10 @@
     "jest": "^30.1.2",
     "typescript": "^5.6.0",
     "vite": "^6.3.5"
+  ,
+  "ts-jest": "^29.2.5",
+  "supertest": "^7.1.1",
+  "@types/supertest": "^2.0.16"
   },
   "engines": {
     "node": ">=20.0.0",

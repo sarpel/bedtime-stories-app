@@ -64,10 +64,6 @@ interface SettingsData {
   sttSettings?: {
     provider: string
     model: string
-    wakeWordEnabled: boolean
-    wakeWordModel: string
-    wakeWordSensitivity: string
-    continuousListening: boolean
     responseFormat: string
     language: string
   }
@@ -850,73 +846,6 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
                   </Card>
                 )}
 
-                {/* Wake Word Detection Settings */}
-                <Card className="p-1.5 rounded-md">
-                  <div className="flex items-center gap-1 mb-1">
-                    <Mic className="h-3 w-3 text-primary" />
-                    <span className="text-xs font-medium">Wake Word Detection</span>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs">Enable Wake Word</Label>
-                      <Switch
-                        checked={localSettings.sttSettings?.wakeWordEnabled || false}
-                        onCheckedChange={(checked) => updateSetting('sttSettings.wakeWordEnabled', checked)}
-                      />
-                    </div>
-
-                    {localSettings.sttSettings?.wakeWordEnabled && (
-                      <div className="ml-4 space-y-2">
-                        <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs">
-                          <div className="font-medium text-blue-700 dark:text-blue-300 mb-1">
-                            Wake Phrase: "Hey Elsa"
-                          </div>
-                          <div className="text-blue-600 dark:text-blue-400">
-                            Model: hey-elsa.ppn (Porcupine format)
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <Label className="text-xs">Sensitivity</Label>
-                          <RadioGroup
-                            value={localSettings.sttSettings?.wakeWordSensitivity || 'medium'}
-                            onValueChange={(value) => updateSetting('sttSettings.wakeWordSensitivity', value)}
-                            className="space-y-1"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="low" id="sens-low" />
-                              <Label htmlFor="sens-low" className="text-xs cursor-pointer">
-                                Low <span className="text-muted-foreground">(Fewer false positives)</span>
-                              </Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="medium" id="sens-medium" />
-                              <Label htmlFor="sens-medium" className="text-xs cursor-pointer">
-                                Medium <span className="text-muted-foreground">(Recommended)</span>
-                              </Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="high" id="sens-high" />
-                              <Label htmlFor="sens-high" className="text-xs cursor-pointer">
-                                High <span className="text-muted-foreground">(More responsive)</span>
-                              </Label>
-                            </div>
-                          </RadioGroup>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <Label className="text-xs">Continuous Listening</Label>
-                          <Switch
-                            checked={localSettings.sttSettings?.continuousListening || false}
-                            onCheckedChange={(checked) => updateSetting('sttSettings.continuousListening', checked)}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </Card>
-
                 {/* Audio Settings */}
                 <Card className="p-1.5 rounded-md">
                   <div className="flex items-center gap-1 mb-1">
@@ -976,8 +905,8 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
 
                   <div className="space-y-1 text-xs text-muted-foreground">
                     <div>Platform: Raspberry Pi Zero 2W Optimized</div>
-                    <div>Memory Usage: ~35MB additional for STT + Wake Word</div>
-                    <div>Latency: 2-4s (Remote) vs 15-30s (Local Whisper)</div>
+                    <div>Memory Usage: ~15MB for STT (Manual Mode)</div>
+                    <div>Latency: 2-4s (Remote STT via OpenAI)</div>
                     <div>Accuracy: 95%+ Turkish with GPT-4o-mini-transcribe</div>
                   </div>
                 </Card>

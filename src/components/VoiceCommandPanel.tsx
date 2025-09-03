@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Mic, MicOff, Volume2, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { STTService, GPT4oMiniSTTService } from '@/services/sttService';
-import { EnhancedSTTService } from '@/services/wakeWordDetector';
 import { VoiceAssistantService } from '@/services/voiceAssistantService';
 import { logger } from '@/utils/logger';
 
@@ -116,75 +115,16 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string>('');
   const [microphonePermission, setMicrophonePermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
-  const [wakeWordActive, setWakeWordActive] = useState(false);
 
-  const sttServiceRef = useRef<STTService | GPT4oMiniSTTService | EnhancedSTTService | null>(null);
+  const sttServiceRef = useRef<STTService | GPT4oMiniSTTService | null>(null);
 
-  // Initialize STT service
+  // Initialize STT service (manual mode only)
   useEffect(() => {
     const sttSettings = settings?.sttSettings || {};
     const modelId = sttSettings.model || 'gpt-4o-mini-transcribe';
 
-    // Choose service based on settings
-    if (sttSettings.wakeWordEnabled) {
-      // Use enhanced service with wake word detection
-      const baseSTTService = modelId === 'gpt-4o-mini-transcribe'
-        ? new GPT4oMiniSTTService({
-            sttProvider: sttSettings.provider || 'openai',
-            openaiSTT: {
-              modelId: modelId
-            },
-            audioSettings: {
-              sampleRate: 16000,
-              channels: 1,
-              bitDepth: 16,
-              format: 'webm'
-            },
-            responseFormat: (sttSettings.responseFormat as 'json' | 'verbose_json') || 'verbose_json'
-          })
-        : new STTService({
-            sttProvider: sttSettings.provider || 'openai',
-            openaiSTT: {
-              modelId: modelId
-            },
-            audioSettings: {
-              sampleRate: 16000,
-              channels: 1,
-              bitDepth: 16,
-              format: 'webm'
-            }
-          });
-
-      sttServiceRef.current = new EnhancedSTTService({
-        wakeWordEnabled: true,
-        wakeWordModel: './hey-elsa.ppn',
-        wakeWordSensitivity: (sttSettings.wakeWordSensitivity as 'low' | 'medium' | 'high') || 'medium',
-        sttService: baseSTTService
-      });
-
-      // Initialize enhanced service
-      (sttServiceRef.current as EnhancedSTTService).initialize()
-        .then(() => {
-          if (sttSettings.continuousListening) {
-            (sttServiceRef.current as EnhancedSTTService).startContinuousListening();
-            setWakeWordActive(true);
-          }
-        })
-        .catch((error: Error) => {
-          console.error('Failed to initialize enhanced STT service:', error);
-          setError(`Wake word initialization failed: ${error.message}`);
-
-          // Fall back to basic STT service if wake word fails
-          try {
-            sttServiceRef.current = baseSTTService;
-            setWakeWordActive(false);
-          } catch (fallbackError) {
-            console.error('Fallback to basic STT also failed:', fallbackError);
-          }
-        });
-
-    } else if (modelId === 'gpt-4o-mini-transcribe') {
-      // Use GPT-4o-mini-transcribe service
+    // Choose service based on model
+    if (modelId === 'gpt-4o-mini-transcribe') {
       sttServiceRef.current = new GPT4oMiniSTTService({
         sttProvider: sttSettings.provider || 'openai',
         openaiSTT: {
@@ -199,7 +139,6 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
         responseFormat: (sttSettings.responseFormat as 'json' | 'verbose_json') || 'verbose_json'
       });
     } else {
-      // Use standard STT service
       sttServiceRef.current = new STTService({
         sttProvider: sttSettings.provider || 'openai',
         openaiSTT: {
@@ -219,18 +158,27 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
 
     return () => {
       if (sttServiceRef.current) {
-        sttServiceRef.current.cleanup();
+        sttServiceRef.current.cleanup?.();
       }
-      setWakeWordActive(false);
     };
   }, [settings?.sttSettings]);
 
   const checkMicrophonePermission = async () => {
     try {
+      // First try to get user media to trigger permission request
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(track => track.stop()); // Close stream immediately
+
       const hasPermission = await STTService.checkMicrophonePermission();
       setMicrophonePermission(hasPermission ? 'granted' : 'denied');
+
+      if (hasPermission) {
+        setError(''); // Clear any permission errors
+      }
     } catch (error) {
+      console.error('Microphone permission error:', error);
       setMicrophonePermission('denied');
+      setError('Mikrofon izni gerekli. Lütfen tarayıcı ayarlarından mikrofon erişimine izin verin.');
     }
   };
 
@@ -269,7 +217,7 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
 
       logger.debug('Stopping voice recording and transcribing', 'VoiceCommandPanel');
 
-      const result = await sttServiceRef.current.stopListening((progress) => {
+      const result = await sttServiceRef.current.stopListening((progress: number) => {
         setProgress(progress * 0.6); // STT takes 60% of progress
       });
 
@@ -308,7 +256,12 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
         });
 
         // Always call the callback - LLM handles all voice inputs appropriately
-        onVoiceCommand(voiceCommand);
+        try {
+          onVoiceCommand(voiceCommand);
+        } catch (callbackError) {
+          console.error('🎵 [Voice Pipeline] Callback error:', callbackError);
+          setError('Voice command processing failed: ' + (callbackError as Error)?.message);
+        }
 
       } else {
         setError('Ses kaydı boş. Lütfen tekrar deneyin.');
@@ -365,38 +318,26 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
           )}
         </div>
 
-        {/* Wake Word Status Indicator */}
-        {settings?.sttSettings?.wakeWordEnabled && (
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <div className={`w-3 h-3 rounded-full ${
-              wakeWordActive ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
-            }`} />
-            <span className="text-sm text-gray-600">
-              {wakeWordActive ? 'Listening for "Hey Elsa"...' : 'Wake word disabled'}
-            </span>
-          </div>
-        )}
-
         {/* Audio Visualizer */}
         <div className="flex justify-center">
           <AudioVisualizer isActive={isListening} />
         </div>
 
-        {/* Control Button */}
+        {/* Control Button - Compact Size */}
         <div className="flex justify-center">
           <Button
-            size="lg"
+            size="default"
             variant={isListening ? "destructive" : "default"}
             disabled={disabled || isProcessing || microphonePermission === 'denied'}
             onClick={isListening ? handleStopListening : handleStartListening}
-            className="w-32 h-32 rounded-full"
+            className="w-16 h-16 rounded-full p-0"
           >
             {isProcessing ? (
-              <Loader2 className="w-8 h-8 animate-spin" />
+              <Loader2 className="w-6 h-6 animate-spin" />
             ) : isListening ? (
-              <MicOff className="w-8 h-8" />
+              <MicOff className="w-6 h-6" />
             ) : (
-              <Mic className="w-8 h-8" />
+              <Mic className="w-6 h-6" />
             )}
           </Button>
         </div>

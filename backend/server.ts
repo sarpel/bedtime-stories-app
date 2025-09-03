@@ -836,9 +836,9 @@ app.post('/api/stories', (req, res) => {
     const { storyText, storyType, customTopic } = req.body;
 
     // Input validation
-    if (!storyText || !storyType) {
+    if (!storyText) {
       logger.warn({ msg: 'POST /api/stories - validation error', storyText: typeof storyText, storyType: typeof storyType })
-      return res.status(400).json({ error: 'Masal metni ve türü gereklidir.' });
+      return res.status(400).json({ error: 'Masal metni gereklidir.' });
     }
 
     if (typeof storyText !== 'string' || storyText.trim().length < 50) {
@@ -849,20 +849,27 @@ app.post('/api/stories', (req, res) => {
       return res.status(400).json({ error: 'Masal metni 10.000 karakterden uzun olamaz.' });
     }
 
-    if (typeof storyType !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(storyType)) {
+    // Default storyType if not provided (for voice-generated stories)
+    const finalStoryType = storyType || 'voice_generated';
+    const finalCustomTopic = customTopic || '';
+
+    if (typeof finalStoryType !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(finalStoryType)) {
       return res.status(400).json({ error: 'Geçersiz masal türü.' });
     }
 
-    if (customTopic && (typeof customTopic !== 'string' || customTopic.length > 200)) {
+    if (finalCustomTopic && (typeof finalCustomTopic !== 'string' || finalCustomTopic.length > 200)) {
       return res.status(400).json({ error: 'Özel konu 200 karakterden uzun olamaz.' });
     }
 
-    logger.info({ msg: 'DB:createStory:begin', storyType })
-    const storyId = storyDb.createStory(storyText.trim(), storyType, customTopic?.trim());
-    logger.info({ msg: 'DB:createStory:done', storyId })
-    const story = storyDb.getStory(storyId);
-    logger.info({ msg: 'DB:getStory:done', storyId, found: !!story })
-
+    logger.info({ msg: 'DB:createStory:begin', storyType: finalStoryType })
+    const story = storyDb.createAndFetchStory(storyText.trim(), finalStoryType, finalCustomTopic?.trim());
+    logger.info({ msg: 'DB:createAndFetch:done', found: !!story, id: story?.id, inconsistent: (story as any)?._inconsistent });
+    if (!story) {
+      return res.status(500).json({ error: 'Story create sonrası okunamadı.' });
+    }
+    if ((story as any)?._inconsistent) {
+      return res.status(202).json(story);
+    }
     res.status(201).json(story);
   } catch (error) {
     logger.error({ msg: 'Masal oluşturma hatası', error: error.message });
@@ -883,8 +890,8 @@ app.put('/api/stories/:id', (req, res) => {
   const { storyText, storyType, customTopic } = req.body;
 
     // Input validation
-    if (!storyText || !storyType) {
-      return res.status(400).json({ error: 'Masal metni ve türü gereklidir.' });
+    if (!storyText) {
+      return res.status(400).json({ error: 'Masal metni gereklidir.' });
     }
 
     if (typeof storyText !== 'string' || storyText.trim().length < 50) {
@@ -895,15 +902,19 @@ app.put('/api/stories/:id', (req, res) => {
       return res.status(400).json({ error: 'Masal metni 10.000 karakterden uzun olamaz.' });
     }
 
-    if (typeof storyType !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(storyType)) {
+    // Default storyType if not provided (for voice-generated stories)
+    const finalStoryType = storyType || 'voice_generated';
+    const finalCustomTopic = customTopic || '';
+
+    if (typeof finalStoryType !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(finalStoryType)) {
       return res.status(400).json({ error: 'Geçersiz masal türü.' });
     }
 
-    if (customTopic && (typeof customTopic !== 'string' || customTopic.length > 200)) {
+    if (finalCustomTopic && (typeof finalCustomTopic !== 'string' || finalCustomTopic.length > 200)) {
       return res.status(400).json({ error: 'Özel konu 200 karakterden uzun olamaz.' });
     }
 
-  const updated = storyDb.updateStory(id, storyText.trim(), storyType, customTopic?.trim());
+  const updated = storyDb.updateStory(id, storyText.trim(), finalStoryType, finalCustomTopic?.trim());
 
     if (!updated) {
       return res.status(404).json({ error: 'Güncellenecek masal bulunamadı.' });
@@ -1034,16 +1045,57 @@ app.post('/api/tts', async (req, res) => {
     provider: req.body.provider,
     voiceId: req.body.voiceId,
     hasRequestBody: !!req.body.requestBody,
-    requestBodyKeys: req.body.requestBody ? Object.keys(req.body.requestBody) : []
+    storyId: req.body.storyId,
+    autoMode: !req.body.requestBody && !!req.body.storyId
   });
 
-  // Frontend'den gelen ayarları ve metni al
-  const { provider, modelId, voiceId, requestBody, storyId, endpoint: clientEndpoint } = req.body;
+  // Frontend veya otomatik çağrıdan gelen parametreler
+  let { provider, modelId, voiceId, requestBody, storyId, endpoint: clientEndpoint } = req.body;
 
-  // Input validation
+  // Varsayılan provider seç (env önceliği: AUTO_TTS_PROVIDER > ELEVENLABS > GEMINI)
+  if (!provider) {
+    if (process.env.AUTO_TTS_PROVIDER) provider = process.env.AUTO_TTS_PROVIDER;
+    else if (process.env.ELEVENLABS_API_KEY) provider = 'elevenlabs';
+    else if (process.env.GEMINI_TTS_API_KEY || process.env.GEMINI_LLM_API_KEY) provider = 'gemini';
+  }
+
+  // Eğer requestBody yok ama storyId varsa hikayeyi DB'den çekip otomatik body üret
+  if (!requestBody && storyId) {
+    try {
+      const sid = parseInt(storyId);
+      if (!isNaN(sid) && sid > 0) {
+        const story = storyDb.getStory(sid);
+        if (!story) {
+          return res.status(404).json({ error: 'TTS için masal bulunamadı.' });
+        }
+        const text = story.story_text;
+        if (provider === 'elevenlabs') {
+          requestBody = { text };
+        } else if (provider === 'gemini') {
+          requestBody = {
+            contents: [ { parts: [ { text } ] } ],
+            generationConfig: {
+              speechConfig: {
+                voiceConfig: { name: voiceId || process.env.GEMINI_TTS_VOICE || 'Turkey-Neutral' }
+              }
+            }
+          };
+        } else {
+          // Generic - en basit text alanı
+            requestBody = { text };
+        }
+        logger.info({ msg: '[Backend TTS] Auto-built requestBody from story', provider, storyId: sid, textLen: text.length });
+      }
+    } catch (e) {
+      logger.error({ msg: '[Backend TTS] Auto-build failed', error: e?.message });
+      return res.status(500).json({ error: 'Otomatik TTS body oluşturulamadı.' });
+    }
+  }
+
+  // Nihai doğrulama
   if (!provider || !requestBody) {
     logger.warn({ msg: '[Backend TTS] Validation failed', provider, hasRequestBody: !!requestBody });
-    return res.status(400).json({ error: 'Provider ve request body gereklidir.' });
+    return res.status(400).json({ error: 'Provider veya request body eksik.' });
   }
   // Provider kısıtlaması kaldırıldı: generic sağlayıcılar için endpoint gereklidir
 
@@ -1244,7 +1296,6 @@ app.post('/api/tts', async (req, res) => {
 });
 
 // --- VOICE ASSISTANT API ENDPOINT ---
-
 // Smart voice assistant for story generation and TTS commands
 app.post('/api/voice-assistant', async (req, res) => {
   const tStart = Date.now();
@@ -1255,37 +1306,40 @@ app.post('/api/voice-assistant', async (req, res) => {
       transcript: req.body.transcript?.substring(0, 100)
     });
 
-    // Input validation
-    if (!req.body.transcript || typeof req.body.transcript !== 'string') {
+    // Basic validation
+    const raw = req.body.transcript;
+    if (typeof raw !== 'string') {
       return res.status(400).json({ error: 'Transcript required' });
     }
-
-    const transcript = req.body.transcript.trim();
-    if (transcript.length === 0) {
+    const transcript = raw.trim();
+    if (!transcript) {
       return res.status(400).json({ error: 'Empty transcript' });
     }
 
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
     if (!OPENAI_API_KEY) {
-      return res.status(500).json({
-        error: 'OpenAI API key missing. Please set OPENAI_API_KEY in backend/.env.'
+      return res.status(500).json({ error: 'OpenAI API key missing. Please set OPENAI_API_KEY in backend/.env.' });
+    }
+
+    // Optional: allow short control intents WITHOUT generating a full story.
+    // Detect very short pure TTS intent phrases (e.g., just asking to read existing story aloud)
+    const ttsControlRegex = /^(ses(lendir|e cevir|li oku)|oku|dinlemek ist(iyorum)?|sese cevir)$/i;
+    if (ttsControlRegex.test(transcript)) {
+      return res.json({
+        response: 'Mevcut masalı sese dönüştürmeye hazırım.',
+        isTtsRequest: true,
+        originalTranscript: transcript
       });
     }
 
-    // System prompt for voice assistant
     const systemPrompt = `Sen bir çocuklar için masal asistanısın. Görevin:
+1. MASAL ÜRETİMİ: Her isteği masal talebi olarak değerlendir ve uygun, eğitici, sevgi dolu, yaşa uygun bir masal üret.
+2. TTS İSTEĞİ: Eğer kullanıcı sadece mevcut masalı seslendirmek istiyorsa (örn: \'seslendir\', \'sesli oku\', \'dinlemek istiyorum\'), yanıtı '__TTS_REQUEST__ Mevcut masalı seslendiriyorum.' şeklinde ver.
+3. EĞER KULLANICI AÇIKÇA YENİ MASAL İSTİYORSA: Tam masalı üret (en az 6-8 cümle, sakin ve uyku öncesi ton). Başına '__TTS_REQUEST__' KOYMA.
+4. SADECE MASAL VEYA TTS İSTEĞİNE CEVAP VER. Başka açıklama, meta yorum, rol tekrarı yapma.
+5. FORMAT: Paragraflar halinde, sade, Türkçe ve 5 yaşındaki bir çocuk için anlaşılır.
+`;
 
-1. MASAL ÜRETİMİ: Gelen her isteği bir şekilde masal talebi olarak değerlendir ve uygun bir masal hazırla. Çocuklara uygun, eğitici ve eğlenceli olsun.
-
-2. SES KOMUTLARI: Eğer metinde sese dönüştürme ile ilgili bir komut varsa (sese çevir, seslendir, sesli oku, dinlemek istiyorum vb.), response'unu şu özel string ile başlat: "__TTS_REQUEST__"
-
-3. YARATICILIK: Gelen isteği tam olarak anlayamazsan, benzer bir tema üzerinden masal uydurmaktan çekinme. Çocuklar için her zaman pozitif sonuçlu masallar yaz.
-
-4. FORMAT: Masallar paragraf halinde, okunaklı formatta olsun. Çocukların anlayabileceği dil kullan.
-
-Başka hiçbir konuda konuşma, sadece masal üret veya TTS komutlarını algıla.`;
-
-    // Call OpenAI ChatCompletion API
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: 'gpt-4o-mini',
       messages: [
@@ -1302,59 +1356,38 @@ Başka hiçbir konuda konuşma, sadece masal üret veya TTS komutlarını algıl
       timeout: 30000
     });
 
-    const aiResponse = response.data.choices[0].message.content.trim();
+    let aiResponse = (response.data.choices?.[0]?.message?.content || '').trim();
 
-    // Check if this is a TTS request
-    const isTtsRequest = aiResponse.startsWith('__TTS_REQUEST__');
-    let finalResponse = aiResponse;
-
-    if (isTtsRequest) {
-      // Remove the TTS marker from response
-      finalResponse = aiResponse.replace('__TTS_REQUEST__', '').trim();
+    // Safety: fallback if empty
+    if (!aiResponse) {
+      aiResponse = 'Küçük bir kahramanın sevgi ve cesaretle dolu macerasını anlatan bir masal hazırlayamıyorum şu an, lütfen tekrar dener misin?';
     }
 
-    // Log successful completion
-    const duration = Date.now() - tStart;
+    const isTtsRequest = aiResponse.startsWith('__TTS_REQUEST__');
+    const finalResponse = isTtsRequest ? aiResponse.replace('__TTS_REQUEST__', '').trim() : aiResponse;
+
     logger.info({
       msg: '[Voice Assistant] Response generated',
-      responseLength: finalResponse.length,
       isTtsRequest,
-      durationMs: duration
+      responsePreview: finalResponse.substring(0, 80),
+      durationMs: Date.now() - tStart
     });
 
-    res.json({
+    return res.json({
       response: finalResponse,
       isTtsRequest,
       originalTranscript: transcript
     });
-
   } catch (error) {
-    const duration = Date.now() - tStart;
-
     logger.error({
       msg: '[Voice Assistant] Request failed',
       error: error.message,
       status: error.response?.status,
-      durationMs: duration
+      durationMs: Date.now() - tStart
     });
-
-    let errorMessage = 'Voice assistant processing failed.';
-    let statusCode = 500;
-
-    if (error.response?.status === 401) {
-      errorMessage = 'OpenAI API key invalid.';
-      statusCode = 401;
-    } else if (error.response?.status === 429) {
-      errorMessage = 'API rate limit exceeded. Please try again later.';
-      statusCode = 429;
-    } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
-      errorMessage = 'Request timeout. Please try again.';
-      statusCode = 408;
-    }
-
-    res.status(statusCode).json({
-      error: errorMessage
-    });
+    let statusCode = error.response?.status || 500;
+    if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') statusCode = 408;
+    return res.status(statusCode).json({ error: 'Voice assistant processing failed.' });
   }
 });
 
@@ -1831,7 +1864,7 @@ app.post('/api/stt', upload.single('audio'), async (req, res) => {
     // Validate transcription result
     if (!transcriptionResult?.text || transcriptionResult.text.length === 0) {
       return res.status(422).json({
-        error: 'Ses dosyasından metin çıkarılamadı. Lütfen daha açık konuşmayı deneyin.'
+        error: 'Ses dosyasıyla metin çıkarılamadı. Lütfen daha açık konuşmayı deneyin.'
       });
     }
 
