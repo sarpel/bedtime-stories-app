@@ -1243,6 +1243,288 @@ app.post('/api/tts', async (req, res) => {
   }
 });
 
+// --- VOICE ASSISTANT API ENDPOINT ---
+
+// Smart voice assistant for story generation and TTS commands
+app.post('/api/voice-assistant', async (req, res) => {
+  const tStart = Date.now();
+
+  try {
+    logger.info({
+      msg: '[Voice Assistant] Request received',
+      transcript: req.body.transcript?.substring(0, 100)
+    });
+
+    // Input validation
+    if (!req.body.transcript || typeof req.body.transcript !== 'string') {
+      return res.status(400).json({ error: 'Transcript required' });
+    }
+
+    const transcript = req.body.transcript.trim();
+    if (transcript.length === 0) {
+      return res.status(400).json({ error: 'Empty transcript' });
+    }
+
+    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+    if (!OPENAI_API_KEY) {
+      return res.status(500).json({
+        error: 'OpenAI API key missing. Please set OPENAI_API_KEY in backend/.env.'
+      });
+    }
+
+    // System prompt for voice assistant
+    const systemPrompt = `Sen bir çocuklar için masal asistanısın. Görevin:
+
+1. MASAL ÜRETİMİ: Gelen her isteği bir şekilde masal talebi olarak değerlendir ve uygun bir masal hazırla. Çocuklara uygun, eğitici ve eğlenceli olsun.
+
+2. SES KOMUTLARI: Eğer metinde sese dönüştürme ile ilgili bir komut varsa (sese çevir, seslendir, sesli oku, dinlemek istiyorum vb.), response'unu şu özel string ile başlat: "__TTS_REQUEST__"
+
+3. YARATICILIK: Gelen isteği tam olarak anlayamazsan, benzer bir tema üzerinden masal uydurmaktan çekinme. Çocuklar için her zaman pozitif sonuçlu masallar yaz.
+
+4. FORMAT: Masallar paragraf halinde, okunaklı formatta olsun. Çocukların anlayabileceği dil kullan.
+
+Başka hiçbir konuda konuşma, sadece masal üret veya TTS komutlarını algıla.`;
+
+    // Call OpenAI ChatCompletion API
+    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: transcript }
+      ],
+      max_tokens: 1500,
+      temperature: 0.7
+    }, {
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+
+    const aiResponse = response.data.choices[0].message.content.trim();
+
+    // Check if this is a TTS request
+    const isTtsRequest = aiResponse.startsWith('__TTS_REQUEST__');
+    let finalResponse = aiResponse;
+
+    if (isTtsRequest) {
+      // Remove the TTS marker from response
+      finalResponse = aiResponse.replace('__TTS_REQUEST__', '').trim();
+    }
+
+    // Log successful completion
+    const duration = Date.now() - tStart;
+    logger.info({
+      msg: '[Voice Assistant] Response generated',
+      responseLength: finalResponse.length,
+      isTtsRequest,
+      durationMs: duration
+    });
+
+    res.json({
+      response: finalResponse,
+      isTtsRequest,
+      originalTranscript: transcript
+    });
+
+  } catch (error) {
+    const duration = Date.now() - tStart;
+
+    logger.error({
+      msg: '[Voice Assistant] Request failed',
+      error: error.message,
+      status: error.response?.status,
+      durationMs: duration
+    });
+
+    let errorMessage = 'Voice assistant processing failed.';
+    let statusCode = 500;
+
+    if (error.response?.status === 401) {
+      errorMessage = 'OpenAI API key invalid.';
+      statusCode = 401;
+    } else if (error.response?.status === 429) {
+      errorMessage = 'API rate limit exceeded. Please try again later.';
+      statusCode = 429;
+    } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+      errorMessage = 'Request timeout. Please try again.';
+      statusCode = 408;
+    }
+
+    res.status(statusCode).json({
+      error: errorMessage
+    });
+  }
+});
+
+// --- RASPBERRY PI AUDIO PLAYBACK ENDPOINT ---
+
+// Endpoint for playing audio on Raspberry Pi with IQAudio Codec Zero
+app.post('/api/raspberry-audio/play', async (req, res) => {
+  const tStart = Date.now();
+
+  try {
+    logger.info({
+      msg: '[Raspberry Audio] Playback request received',
+      audioFile: req.body.audioFile?.substring(0, 100)
+    });
+
+    // Input validation
+    if (!req.body.audioFile || typeof req.body.audioFile !== 'string') {
+      return res.status(400).json({ error: 'Audio file path required' });
+    }
+
+    const audioFilePath = req.body.audioFile;
+    const volume = req.body.volume || 80; // Default volume 80%
+
+    // Check if we're running on Raspberry Pi
+    const { exec } = require('child_process');
+    const os = require('os');
+    const fs = require('fs');
+    const path = require('path');
+
+    // Resolve audio file path
+    let fullAudioPath = audioFilePath;
+
+    // If relative path like "audio/story-123.mp3", resolve to full path
+    if (!path.isAbsolute(audioFilePath)) {
+      fullAudioPath = path.join(__dirname, audioFilePath);
+    }
+
+    // Verify the audio file exists
+    if (!fs.existsSync(fullAudioPath)) {
+      logger.error({
+        msg: '[Raspberry Audio] Audio file not found',
+        originalPath: audioFilePath,
+        resolvedPath: fullAudioPath
+      });
+      return res.status(404).json({
+        error: 'Audio file not found',
+        path: fullAudioPath
+      });
+    }
+
+    // IQAudio Codec Zero configuration for ALSA
+    const alsaDevice = 'hw:1,0'; // IQAudio Codec Zero typically appears as hw:1,0
+    const alsaCommand = `aplay -D ${alsaDevice} -f cd "${fullAudioPath}"`;
+
+    // Alternative: Use omxplayer for better Pi performance
+    const omxCommand = `omxplayer --vol ${(volume - 100) * 60} -o alsa:hw:1,0 "${fullAudioPath}"`;
+
+    // Check if omxplayer exists (Pi-specific), otherwise use aplay
+    const playCommand = fs.existsSync('/usr/bin/omxplayer') ? omxCommand : alsaCommand;
+
+    logger.info({
+      msg: '[Raspberry Audio] Executing audio playback',
+      command: playCommand.substring(0, 100),
+      device: alsaDevice,
+      volume: volume
+    });
+
+    // Execute the audio playback command
+    exec(playCommand, (error, stdout, stderr) => {
+      if (error) {
+        logger.error({
+          msg: '[Raspberry Audio] Playback failed',
+          error: error.message,
+          stderr: stderr
+        });
+        return;
+      }
+
+      logger.info({
+        msg: '[Raspberry Audio] Playback completed successfully',
+        stdout: stdout?.substring(0, 200),
+        durationMs: Date.now() - tStart
+      });
+    });
+
+    // Return immediately (don't wait for playback to complete)
+    res.json({
+      success: true,
+      message: 'Audio playback started on Raspberry Pi',
+      device: alsaDevice,
+      volume: volume,
+      audioFile: fullAudioPath
+    });
+
+  } catch (error) {
+    const duration = Date.now() - tStart;
+
+    logger.error({
+      msg: '[Raspberry Audio] Request failed',
+      error: error.message,
+      durationMs: duration
+    });
+
+    res.status(500).json({
+      error: 'Raspberry Pi audio playback failed',
+      details: error.message
+    });
+  }
+});
+
+// Stop audio playback
+app.post('/api/raspberry-audio/stop', async (req, res) => {
+  try {
+    const { exec } = require('child_process');
+
+    // Kill all audio playback processes
+    exec('pkill -f "aplay|omxplayer"', (error) => {
+      if (error && !error.message.includes('no process found')) {
+        logger.error({
+          msg: '[Raspberry Audio] Stop failed',
+          error: error.message
+        });
+        return res.status(500).json({ error: 'Failed to stop audio playback' });
+      }
+
+      logger.info('[Raspberry Audio] Playback stopped');
+      res.json({ success: true, message: 'Audio playback stopped' });
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to stop audio playback' });
+  }
+});
+
+// Check audio system status
+app.get('/api/raspberry-audio/status', async (req, res) => {
+  try {
+    const { exec } = require('child_process');
+    const os = require('os');
+
+    // Check if we're on Raspberry Pi
+    const isRaspberryPi = os.cpus()[0]?.model.includes('ARM') ||
+                         os.platform() === 'linux' && os.arch() === 'arm';
+
+    // Check for IQAudio Codec Zero
+    exec('aplay -l', (error, stdout, stderr) => {
+      if (error) {
+        return res.json({
+          isRaspberryPi,
+          audioDevice: 'unknown',
+          status: 'error',
+          error: error.message
+        });
+      }
+
+      const hasIQAudio = stdout.includes('IQaudIOCODEC') || stdout.includes('card 1');
+
+      res.json({
+        isRaspberryPi,
+        audioDevice: hasIQAudio ? 'IQAudio Codec Zero' : 'default',
+        alsaDevices: stdout,
+        status: 'ready'
+      });
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to check audio status' });
+  }
+});
+
 // --- STT API ENDPOINT ---
 
 // GPT-4o-mini-transcribe endpoint (new enhanced STT model)

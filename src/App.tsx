@@ -77,7 +77,7 @@ interface SettingsData {
   }
 }
 
-// AppState extends SettingsData with additional app-specific properties  
+// AppState extends SettingsData with additional app-specific properties
 interface AppState extends SettingsData {
   // Additional app-specific properties can be added here if needed
 }
@@ -540,8 +540,8 @@ function App() {
     }
   }
   // Wrapper function for StoryQueuePanel playAudio compatibility
-  const playAudioWrapper = (audioUrl: string, storyId: string | number) => {
-    playAudio(audioUrl, String(storyId))
+  const playAudioWrapper = async (audioUrl: string, storyId: string | number) => {
+    await playAudio(audioUrl, String(storyId))
   }
 
   const generateAudio = async () => {
@@ -554,6 +554,7 @@ function App() {
     const startTime = Date.now()
 
     try {
+      console.log('🎵 [TTS Pipeline] Starting TTS generation...')
       const ttsService = new TTSService(settings)
 
       // Story ID'si ile ses oluştur (veritabanına kaydedilir)
@@ -562,6 +563,7 @@ function App() {
       }, currentStoryId)
 
       setAudioUrl(audioUrl)
+      console.log('🎵 [TTS Pipeline] TTS completed, audio URL:', audioUrl)
 
       // Analytics: Track successful audio generation
       const duration = Date.now() - startTime
@@ -574,10 +576,17 @@ function App() {
         updateStoryAudio(Number(currentStoryId), audioUrl)
       }
 
-      // Ses dosyası eklenmesi favorileri etkilemez, gereksiz refresh yok
+      // AUTO-PLAYBACK: Automatically start playing the generated audio
+      console.log('🎵 [TTS Pipeline] Starting auto-playback...')
+      setTimeout(() => {
+        if (currentStoryId && audioUrl) {
+          playAudio(audioUrl, currentStoryId)
+          console.log('🎵 [TTS Pipeline] Auto-playback started on Raspberry Pi')
+        }
+      }, 500) // Small delay to ensure audio URL is properly set
 
       // Show success toast after successful audio generation
-      toast.success('Ses oluşturma tamamlandı', { description: 'Ses dosyası kaydedildi.' })
+      toast.success('Ses oluşturma tamamlandı', { description: 'Ses dosyası oluşturuldu ve otomatik oynatılıyor.' })
 
     } catch (error) {
       console.error('Audio generation failed:', error)

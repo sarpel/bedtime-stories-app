@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Mic, MicOff, Volume2, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { STTService, GPT4oMiniSTTService } from '@/services/sttService';
 import { EnhancedSTTService } from '@/services/wakeWordDetector';
+import { VoiceAssistantService } from '@/services/voiceAssistantService';
 import { logger } from '@/utils/logger';
 
 export interface VoiceCommand {
@@ -269,45 +270,55 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
       logger.debug('Stopping voice recording and transcribing', 'VoiceCommandPanel');
 
       const result = await sttServiceRef.current.stopListening((progress) => {
-        setProgress(progress);
+        setProgress(progress * 0.6); // STT takes 60% of progress
       });
 
       setTranscription(result.text);
-      setProgress(90);
+      setProgress(70);
 
-      // Process voice command
+      // Process voice command using LLM-based Voice Assistant
       if (result.text && result.text.length > 0) {
-        const command = await sttServiceRef.current.processVoiceCommand(result.text);
+        logger.debug('Processing voice input with LLM', 'VoiceCommandPanel', {
+          text: result.text.substring(0, 100)
+        });
 
+        const voiceAssistant = new VoiceAssistantService();
+        const assistantResponse = await voiceAssistant.processVoiceTranscript(result.text);
+
+        setProgress(90);
+
+        // Create VoiceCommand from LLM response
         const voiceCommand: VoiceCommand = {
-          ...command,
+          intent: assistantResponse.isTtsRequest ? 'generate_audio' : 'story_request',
+          parameters: {
+            storyType: 'custom',
+            customTopic: assistantResponse.response || result.text
+          },
+          confidence: 0.95, // LLM responses are considered high confidence
           originalText: result.text
         };
 
         setLastCommand(voiceCommand);
         setProgress(100);
 
-        logger.debug('Voice command processed', 'VoiceCommandPanel', {
-          intent: command.intent,
-          confidence: command.confidence,
-          text: result.text.substring(0, 50)
+        logger.debug('LLM voice processing completed', 'VoiceCommandPanel', {
+          intent: voiceCommand.intent,
+          isTtsRequest: assistantResponse.isTtsRequest,
+          response: assistantResponse.response?.substring(0, 50)
         });
 
-        // Call the callback with the processed command
-        if (command.confidence >= 0.6) {
-          onVoiceCommand(voiceCommand);
-        } else {
-          setError('Komut anlaşılamadı. Lütfen daha açık konuşun.');
-        }
+        // Always call the callback - LLM handles all voice inputs appropriately
+        onVoiceCommand(voiceCommand);
+
       } else {
         setError('Ses kaydı boş. Lütfen tekrar deneyin.');
       }
 
     } catch (error) {
-      logger.error('Voice command processing failed', 'VoiceCommandPanel', {
+      logger.error('Voice assistant processing failed', 'VoiceCommandPanel', {
         error: (error as Error)?.message
       });
-      setError('Ses tanıma başarısız: ' + (error as Error)?.message);
+      setError('Ses asistanı başarısız: ' + (error as Error)?.message);
     } finally {
       setIsProcessing(false);
       setProgress(0);
@@ -324,6 +335,7 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
       play_story: 'Oynat',
       pause_story: 'Duraklat',
       stop_story: 'Durdur',
+      generate_audio: 'Sese Dönüştür',
       settings: 'Ayarlar',
       help: 'Yardım',
       unknown: 'Bilinmeyen'

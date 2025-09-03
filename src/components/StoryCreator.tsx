@@ -226,60 +226,44 @@ export default function StoryCreator({
     return minutes
   }
 
-  // Voice command handler
+  // Voice command handler - now using LLM-based processing
   const handleVoiceCommand = (command: VoiceCommand) => {
     const { intent, parameters } = command
-    
-    // Handle story request commands
-    if (intent === 'story_request' || intent === 'fairy_tale' || intent === 'adventure' || intent === 'educational' || intent === 'animal') {
-      // Set story type if detected
-      if (parameters.storyType) {
-        const storyTypeMap: { [key: string]: string } = {
-          fairy_tale: 'fairy_tale',
-          adventure: 'adventure', 
-          educational: 'science',
-          animal: 'animal'
-        }
-        const mappedType = storyTypeMap[parameters.storyType]
-        if (mappedType) {
-          onTypeChange(mappedType)
-        }
-      }
-      
-      // Build custom topic from parameters
-      let customTopicParts: string[] = []
-      if (parameters.characterName) {
-        customTopicParts.push(parameters.characterName + ' adında')
-      }
-      if (parameters.age) {
-        customTopicParts.push(parameters.age + ' yaşında')
-      }
+
+    // Handle TTS generation requests (marked by LLM)
+    if (intent === 'generate_audio' && story && !isGeneratingAudio) {
+      // Generate audio from current story
+      onGenerateAudio()
+    }
+
+    // Handle story requests (all other voice input goes to story generation)
+    else if (intent === 'story_request') {
+      // LLM has processed the voice input and provided complete story content
       if (parameters.customTopic) {
-        customTopicParts.push(parameters.customTopic + ' hakkında')
-      }
-      
-      if (customTopicParts.length > 0) {
-        const combinedTopic = customTopicParts.join(' ') + ' bir masal'
-        onCustomTopicChange(combinedTopic)
-        // Clear selected type if custom topic is set
+        // The LLM response contains a complete story, not just a topic
+        // Set it directly as the story content (like generated stories)
+        onStoryChange(parameters.customTopic)
+
+        // Clear custom topic and selected type since we now have a complete story
+        onCustomTopicChange('')
         if (selectedType) {
           onTypeChange('')
         }
-      }
-      
-      // Auto-generate story if we have enough information
-      if (parameters.storyType || customTopicParts.length > 0) {
-        setTimeout(() => {
-          onGenerateStory()
-        }, 500)
+
+        // AUTO-GENERATE AUDIO: After story is set, automatically create TTS and play
+        setTimeout(async () => {
+          console.log('🎵 [Voice Pipeline] Starting auto TTS generation...')
+          // Generate TTS audio automatically
+          onGenerateAudio()
+
+          // Note: Audio will auto-play once TTS completes (handled in App.tsx)
+        }, 1000) // Small delay to ensure story is set properly
       }
     }
-    
-    // Handle audio control commands
-    else if (intent === 'play_story' && audioUrl) {
-      if (!isPlaying) {
-        onPlayAudio()
-      }
+
+    // Handle audio control commands (still supported for convenience)
+    else if (intent === 'play_story' && audioUrl && !isPlaying) {
+      onPlayAudio()
     }
     else if (intent === 'pause_story' && audioUrl && isPlaying) {
       onPauseAudio()
@@ -287,13 +271,7 @@ export default function StoryCreator({
     else if (intent === 'stop_story' && audioUrl) {
       onStopAudio()
     }
-    
-    // Handle help and settings
-    else if (intent === 'help') {
-      // Could show help dialog or tips
-      console.log('Yardım: Sesli komutlarla masal isteyebilir, ses kontrolü yapabilirsiniz.')
-    }
-    
+
     // Close voice panel after command
     setShowVoicePanel(false)
   }
