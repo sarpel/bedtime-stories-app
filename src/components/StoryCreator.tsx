@@ -555,7 +555,7 @@ export default function StoryCreator({
                     size="sm"
                     onClick={onClearStory}
                     className="absolute top-2 right-2 h-6 w-6 sm:h-8 sm:w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
-                    title="Metni temizle"
+                    title="Ana ekrana dön"
                   >
                     <X className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
