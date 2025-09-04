@@ -363,7 +363,7 @@ export default function Settings({ settings, onSettingsChange, onClose }: Settin
                         <Label htmlFor="openai-llm-model" className="text-xs">Model ID</Label>
                         <Input
                           id="openai-llm-model"
-                          placeholder="gpt-5-mini"
+                          placeholder="gpt-4o-mini"
                           value={localSettings.openaiLLM?.modelId || localSettings.llmModelId || ''}
                           onChange={(e) => {
                             updateSetting('openaiLLM.modelId', e.target.value)

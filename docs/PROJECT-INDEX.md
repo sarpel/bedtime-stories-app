@@ -154,7 +154,7 @@ Database Query → Audio File → Remote/Local Playback
 ## 🎯 Key Features
 
 ### 🤖 AI Story Generation
-- **LLM Provider**: OpenAI GPT-5-mini
+- **LLM Provider**: OpenAI GPT-4o-mini
 - **Customization**: Age-appropriate content (3-12 years)
 - **Personalization**: Character names, themes, moral lessons
 - **Types**: Adventure, fairy tale, educational, bedtime

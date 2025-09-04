@@ -52,7 +52,7 @@ sudo nano /opt/storyapp/backend/.env
 ```env
 # OpenAI Configuration (Required)
 OPENAI_API_KEY=your_openai_key_here
-OPENAI_MODEL=gpt-5-mini
+OPENAI_MODEL=gpt-4o-mini
 OPENAI_ENDPOINT=https://api.openai.com/v1/responses
 
 # ElevenLabs Configuration (Required)

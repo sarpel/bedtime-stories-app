@@ -2103,12 +2103,12 @@ app.post('/api/batch/stories', async (req, res) => {
         // OpenAI API çağrısı
         const apiKey = process.env.OPENAI_API_KEY;
         const endpoint = process.env.OPENAI_ENDPOINT || 'https://api.openai.com/v1/responses';
-        const model = process.env.OPENAI_MODEL || 'gpt-5-mini';
+        const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
         const response = await axios.post(endpoint, {
           model,
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 1500,
+          input: prompt,
+          max_output_tokens: 1500,
           temperature: 0.7
         }, {
           headers: {
@@ -2118,7 +2118,24 @@ app.post('/api/batch/stories', async (req, res) => {
           timeout: LLM_REQUEST_TIMEOUT_MS
         });
 
-        const storyText = response.data.choices?.[0]?.message?.content;
+        let storyText = '';
+        const data = response.data;
+        if (data && Array.isArray(data.output)) {
+          for (const item of data.output) {
+            if (item?.type === 'message' && Array.isArray(item.content)) {
+              for (const contentItem of item.content) {
+                if (contentItem?.type === 'output_text' && contentItem?.text) {
+                  storyText = contentItem.text;
+                  break;
+                }
+              }
+              if (storyText) break;
+            }
+          }
+        }
+        if (!storyText && data?.choices?.[0]?.message?.content) {
+          storyText = data.choices[0].message.content;
+        }
 
         if (storyText) {
           // Masalı veritabanına kaydet
