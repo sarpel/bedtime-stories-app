@@ -11,6 +11,7 @@ import StoryQueuePanel from './components/StoryQueuePanel.jsx'
 import SearchPanel from './components/SearchPanel.jsx'
 import { LLMService } from './services/llmService.js'
 import { TTSService } from './services/ttsService.js'
+import optimizedDatabaseService from './services/optimizedDatabaseService.js'
 import { getDefaultSettings } from './services/configService.js'
 import analyticsService from './services/analyticsService.js'
 import useFavorites from './hooks/useFavorites.js'
@@ -161,11 +162,11 @@ function App() {
 
       // localStorage'a kaydetme işlemini setTimeout ile ertele
       setTimeout(() => {
-        const saved = safeLocalStorage.set('bedtime-stories-settings', newSettings)
-        if (saved) {
+        try {
+          safeLocalStorage.set('bedtime-stories-settings', newSettings)
           console.log('✅ Ayarlar localStorage\'a kaydedildi')
-        } else {
-          console.error('❌ localStorage kaydetme hatası')
+        } catch (e) {
+          console.error('❌ localStorage kaydetme hatası', e)
           setError('Ayarlar kaydedilirken bir sorun oluştu, ancak değişiklikler geçerli.')
         }
       }, 0)
@@ -338,25 +339,26 @@ function App() {
       // Wait next paint to ensure state commit
       await new Promise(r => setTimeout(r, 0))
 
-      // Access latest story value via ref to guarantee visibility in save
+      // Access latest story value via direct param (avoid state race)
       const storyToSave = storyContent
       if (!storyToSave || storyToSave.length === 0) {
         console.warn('🎵 [Voice Handler] Story content empty, aborting save.')
         return
       }
 
-      await saveStory(true)
-      console.log('🎵 [Voice Handler] Story saved successfully')
+      // Kaydetme: overrideText ile state'e güvenmeden kaydet
+      const createdId = await saveStory(true, storyToSave)
+      console.log('🎵 [Voice Handler] Story save result id:', createdId, ' currentStoryId state after save:', currentStoryId)
 
-      // Delay TTS slightly to let DB write finish
-      setTimeout(() => {
-        if (storyToSave.length > 0) {
-          generateAudio()
-          console.log('🎵 [Voice Handler] Audio generation started')
-        } else {
-          console.warn('🎵 [Voice Handler] Skipping TTS, story still empty')
-        }
-      }, 400)
+      if (!createdId) {
+        console.warn('🎵 [Voice Handler] Could not obtain story ID after save, skipping TTS.')
+        return
+      }
+
+      // Küçük bir gecikme ile (DB commit / UI) ardından TTS başlat
+      await new Promise(r => setTimeout(r, 120))
+      generateAudioForStory(createdId, storyToSave)
+      console.log('🎵 [Voice Handler] Audio generation started (immediate after save)')
 
     } catch (error) {
       console.error('🎵 [Voice Handler] Failed to process voice-generated story:', error)
@@ -517,11 +519,11 @@ function App() {
 
     const startTime = Date.now()
 
-    try {
+  try {
       const ttsService = new TTSService(settings)
 
       // Story ID'si ile ses oluştur (veritabanına kaydedilir)
-      const audioUrl = await ttsService.generateAudio(storyText, (progressValue) => {
+  const audioUrl = await ttsService.generateAudio(storyText, (progressValue) => {
         setProgress(progressValue)
       }, storyId)
 
@@ -529,9 +531,50 @@ function App() {
       const duration = Date.now() - startTime
       analyticsService.trackAudioGeneration(storyId, settings.voiceId || 'default', true, duration)
 
-      console.log('Audio generated for story:', storyId, audioUrl)
+  console.log('Audio generated for story:', storyId, audioUrl)
 
-      // Hikayeleri yeniden yükle ki yeni audio bilgisi görünsün
+      // Backend zaten DB'ye kaydediyor; UI'da hemen göstermek için optimistik güncelleme
+      if (storyId && audioUrl) {
+        try {
+          // Tek masalı tazeleyip audio meta geldiyse state'e yansıt
+          const fresh = await optimizedDatabaseService.getStory(String(storyId), false)
+          if (fresh?.audio?.file_name) {
+            const dbAudioUrl = optimizedDatabaseService.getAudioUrl(fresh.audio.file_name)
+            if (dbAudioUrl) {
+              setAudioUrl(dbAudioUrl)
+              console.log('🔊 [UI Sync] Audio URL set from DB meta:', dbAudioUrl)
+              try {
+                await playAudio(dbAudioUrl, String(storyId))
+              } catch (e) {
+                console.warn('🔊 [Auto Play] Failed to auto play DB audio URL:', (e as Error)?.message)
+              }
+            }
+          } else {
+            // DB metasını henüz alamadıysak blob URL kullan
+            setAudioUrl(audioUrl)
+            console.log('🔊 [UI Sync] Audio URL set from blob (temp):', audioUrl)
+            try {
+              await playAudio(audioUrl, String(storyId))
+            } catch (e) {
+              console.warn('🔊 [Auto Play] Failed to auto play blob URL:', (e as Error)?.message)
+            }
+          }
+          // currentStoryId boşsa doldur
+          if (!currentStoryId && storyId) {
+            setCurrentStoryId(String(storyId))
+          }
+        } catch (syncErr) {
+          console.warn('🔊 [UI Sync] Fresh story fetch failed, using blob URL only', (syncErr as Error)?.message)
+          setAudioUrl(audioUrl)
+          try {
+            await playAudio(audioUrl, String(storyId))
+          } catch (e) {
+            console.warn('🔊 [Auto Play] Failed to auto play (fallback):', (e as Error)?.message)
+          }
+        }
+      }
+
+      // Listeyi arkadan yenile (cache invalidation sonrası)
       await loadStories()
 
       // Show success toast after successful audio generation
@@ -670,15 +713,16 @@ function App() {
   }
 
   // Save story manually when user clicks save button or auto-save from voice commands
-  const saveStory = async (isAutoSave = false) => {
-    const storySnapshot = story
-    console.log(`🎵 [Save Debug] saveStory called - isAutoSave: ${isAutoSave}, story length: ${storySnapshot?.length || 0}`)
+  const saveStory = async (isAutoSave = false, overrideText?: string): Promise<string | null> => {
+    // overrideText parametresi ile voice-generated race condition engellenir
+    const storySnapshot = overrideText ?? story
+    console.log(`🎵 [Save Debug] saveStory called - isAutoSave: ${isAutoSave}, overrideUsed: ${!!overrideText}, story length: ${storySnapshot?.length || 0}`)
     console.log(`🎵 [Save Debug] story content preview: "${storySnapshot?.substring(0, 100) || 'EMPTY'}"`)
 
     if (!storySnapshot) {
       console.error('🎵 [Save Debug] No story to save!')
       setError('Kaydedilecek masal bulunamadı.')
-      return
+      return null
     }
 
     try {
@@ -688,7 +732,7 @@ function App() {
           clearStory()
           toast.success('Masal zaten kayıtlı')
         }
-        return
+        return String(currentStoryId)
       }
 
       const storyTypeToUse = selectedStoryType || 'voice_generated'
@@ -696,8 +740,9 @@ function App() {
 
       console.log(`🎵 [Save Pipeline] ${isAutoSave ? 'Auto-saving' : 'Manual saving'} story...`)
       const dbStory = await createDbStory(storySnapshot, storyTypeToUse, topicToUse)
-      setCurrentStoryId(String(dbStory.id))
-      console.log(`🎵 [Save Pipeline] ${isAutoSave ? 'Auto-save' : 'Manual save'} completed:`, dbStory.id)
+      const newId = String(dbStory.id)
+      setCurrentStoryId(newId)
+      console.log(`🎵 [Save Pipeline] ${isAutoSave ? 'Auto-save' : 'Manual save'} completed:`, newId)
 
       setError('')
 
@@ -708,12 +753,14 @@ function App() {
         console.log('🎵 [Save Pipeline] Story ready for TTS generation')
       }
 
+      return newId
     } catch (dbError) {
       console.error(`${isAutoSave ? 'Auto-save' : 'Manual save'} error:`, dbError)
       setError('Masal kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.')
       if (!isAutoSave) {
         toast.error('Masal kaydedilemedi', { description: 'Lütfen tekrar deneyin.' })
       }
+      return null
     }
   }
 

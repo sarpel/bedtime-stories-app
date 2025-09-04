@@ -867,10 +867,27 @@ app.post('/api/stories', (req, res) => {
     if (!story) {
       return res.status(500).json({ error: 'Story create sonrası okunamadı.' });
     }
+    const wantAuto = req.query.autoTts === '1' || req.body.autoTts === true;
     if ((story as any)?._inconsistent) {
-      return res.status(202).json(story);
+      // Inconsistent durumda bile kullanıcıya hemen dön; background TTS denemesini ertele
+      res.status(202).json(story);
+      return;
     }
     res.status(201).json(story);
+    if (wantAuto) {
+      // Hemen arka planda TTS isteği
+      const autoProvider = process.env.AUTO_TTS_PROVIDER || undefined;
+      setTimeout(() => {
+        try {
+          const axios = require('axios');
+          axios.post(`http://localhost:${process.env.PORT || 3001}/api/tts`, { storyId: story.id, provider: autoProvider })
+            .then(() => console.log('[AUTO TTS] Başlatıldı', { storyId: story.id, provider: autoProvider }))
+            .catch(e => console.error('[AUTO TTS] Hata', e?.message));
+        } catch (e) {
+          console.error('[AUTO TTS] trigger exception', e?.message);
+        }
+      }, 50);
+    }
   } catch (error) {
     logger.error({ msg: 'Masal oluşturma hatası', error: error.message });
     res.status(500).json({ error: 'Masal oluşturulurken hata oluştu.' });
@@ -1140,67 +1157,70 @@ app.post('/api/tts', async (req, res) => {
   let endpoint;
   let headers = {};
   let response;
+  let attemptsUsed = 0;
 
   try {
-    if (provider === 'elevenlabs') {
-      console.log('🔊 [Backend TTS] Using ElevenLabs provider')
-      if (!ELEVENLABS_API_KEY) {
-        return res.status(500).json({
-          error: 'ElevenLabs API anahtarı eksik. Lütfen backend/.env dosyasında ELEVENLABS_API_KEY\'i ayarlayın.'
-        });
-      }
-      if (!process.env.ELEVENLABS_VOICE_ID && !voiceId) { return res.status(500).json({ error: 'ELEVENLABS_VOICE_ID tanımlı değil.' }); }
-      if (!process.env.ELEVENLABS_ENDPOINT && !clientEndpoint) { return res.status(500).json({ error: 'ELEVENLABS_ENDPOINT tanımlı değil.' }); }
-      const effectiveVoice = voiceId || process.env.ELEVENLABS_VOICE_ID;
-
-      const audioFormat = 'mp3_44100_128';
-      endpoint = clientEndpoint || `${ELEVEN_BASE}/${encodeURIComponent(effectiveVoice)}?output_format=${audioFormat}`;
-      headers = {
-        'xi-api-key': ELEVENLABS_API_KEY,
-        'Content-Type': 'application/json'
-      };
-
-      response = await axios.post(endpoint, requestBody, {
-        headers,
-        responseType: 'stream'
-      });
-    } else if (provider === 'gemini') {
-      if (!GEMINI_TTS_API_KEY) { return res.status(500).json({ error: 'Gemini TTS API anahtarı eksik.' }); }
-      if (!process.env.GEMINI_TTS_MODEL && !process.env.GEMINI_LLM_MODEL && !modelId) { return res.status(500).json({ error: 'GEMINI_TTS_MODEL tanımlı değil.' }); }
-      if (!process.env.GEMINI_TTS_ENDPOINT && !process.env.GEMINI_LLM_ENDPOINT && !clientEndpoint) { return res.status(500).json({ error: 'GEMINI_TTS_ENDPOINT tanımlı değil.' }); }
-      const effectiveModel = modelId || process.env.GEMINI_TTS_MODEL || process.env.GEMINI_LLM_MODEL;
-      const base = GEMINI_BASE || '';
-      if (!base && !clientEndpoint) { return res.status(500).json({ error: 'Gemini base endpoint yok.' }); }
-      endpoint = clientEndpoint || `${base}/${encodeURIComponent(effectiveModel)}:generateContent?key=${encodeURIComponent(GEMINI_TTS_API_KEY)}`;
-      headers = { 'Content-Type': 'application/json' };
-      response = await axios.post(endpoint, requestBody, { headers });
-
-      // Gemini response'dan audio data'yı çıkar
-      if (response.data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
-        const audioData = response.data.candidates[0].content.parts[0].inlineData.data;
-        const audioBuffer = Buffer.from(audioData, 'base64');
-        const { Readable } = require('stream');
-        const audioStream = new Readable();
-        audioStream.push(audioBuffer);
-        audioStream.push(null);
-        response.data = audioStream;
-        response.headers = { 'content-type': 'audio/mpeg' };
-      } else {
+    const execOnce = async () => {
+      if (provider === 'elevenlabs') {
+        console.log('🔊 [Backend TTS] Using ElevenLabs provider')
+        if (!ELEVENLABS_API_KEY) {
+          throw new Error('ElevenLabs API anahtarı eksik');
+        }
+        if (!process.env.ELEVENLABS_VOICE_ID && !voiceId) { throw new Error('ELEVENLABS_VOICE_ID tanımlı değil'); }
+        if (!process.env.ELEVENLABS_ENDPOINT && !clientEndpoint) { throw new Error('ELEVENLABS_ENDPOINT tanımlı değil'); }
+        const effectiveVoice = voiceId || process.env.ELEVENLABS_VOICE_ID;
+        const audioFormat = 'mp3_44100_128';
+        endpoint = clientEndpoint || `${ELEVEN_BASE}/${encodeURIComponent(effectiveVoice)}?output_format=${audioFormat}`;
+        headers = {
+          'xi-api-key': ELEVENLABS_API_KEY,
+          'Content-Type': 'application/json'
+        };
+        return await axios.post(endpoint, requestBody, { headers, responseType: 'stream' });
+      } else if (provider === 'gemini') {
+        if (!GEMINI_TTS_API_KEY) { throw new Error('Gemini TTS API anahtarı eksik'); }
+        if (!process.env.GEMINI_TTS_MODEL && !process.env.GEMINI_LLM_MODEL && !modelId) { throw new Error('GEMINI_TTS_MODEL tanımlı değil'); }
+        if (!process.env.GEMINI_TTS_ENDPOINT && !process.env.GEMINI_LLM_ENDPOINT && !clientEndpoint) { throw new Error('GEMINI_TTS_ENDPOINT tanımlı değil'); }
+        const effectiveModel = modelId || process.env.GEMINI_TTS_MODEL || process.env.GEMINI_LLM_MODEL;
+        const base = GEMINI_BASE || '';
+        if (!base && !clientEndpoint) { throw new Error('Gemini base endpoint yok'); }
+        endpoint = clientEndpoint || `${base}/${encodeURIComponent(effectiveModel)}:generateContent?key=${encodeURIComponent(GEMINI_TTS_API_KEY)}`;
+        headers = { 'Content-Type': 'application/json' };
+        const resp = await axios.post(endpoint, requestBody, { headers });
+        if (resp.data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
+          const audioData = resp.data.candidates[0].content.parts[0].inlineData.data;
+          const audioBuffer = Buffer.from(audioData, 'base64');
+          const { Readable } = require('stream');
+          const audioStream = new Readable();
+            audioStream.push(audioBuffer);
+            audioStream.push(null);
+          resp.data = audioStream;
+          resp.headers = { 'content-type': 'audio/mpeg' };
+          return resp;
+        }
         throw new Error('Gemini API\'den ses verisi alınamadı');
+      } else {
+        if (!clientEndpoint) { throw new Error('Generic provider için endpoint gerekli'); }
+        endpoint = clientEndpoint;
+        headers = { 'Content-Type': 'application/json' };
+        return await axios.post(endpoint, requestBody, { headers, responseType: 'stream' });
       }
-    } else {
-      // Diğer provider'lar: clientEndpoint zorunlu
-      if (!clientEndpoint) {
-        return res.status(400).json({ error: 'Bilinmeyen TTS sağlayıcısı için endpoint belirtin.' });
+    };
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        attemptsUsed = attempt;
+        response = await execOnce();
+        break;
+      } catch (err) {
+        logger.error({ msg: 'TTS attempt failed', attempt, error: err?.message });
+        if (attempt === 2) {
+          return res.status(500).json({ error: 'TTS başarısız (max retry).' });
+        }
       }
-      endpoint = clientEndpoint;
-      headers = { 'Content-Type': 'application/json' };
-      // Çoğu TTS API binary döndürür, stream destekleyelim
-      response = await axios.post(endpoint, requestBody, { headers, responseType: 'stream' });
     }
 
     // Minimal logging, hassas veri yok
-    logger.info({ msg: 'TTS response received', provider, status: response.status });
+  logger.info({ msg: 'TTS response received', provider, status: response.status, attempts: attemptsUsed });
 
     // Eğer storyId varsa, ses dosyasını kaydet
     if (storyId) {
@@ -1209,7 +1229,8 @@ app.post('/api/tts', async (req, res) => {
       if (isNaN(sanitizedStoryId) || sanitizedStoryId <= 0) {
         logger.warn({ msg: 'Invalid storyId format', storyId });
         // Continue without saving file but still stream to client
-        res.setHeader('Content-Type', 'audio/mpeg');
+  res.setHeader('Content-Type', 'audio/mpeg');
+  res.setHeader('x-tts-attempts', String(attemptsUsed));
         response.data.pipe(res);
         return;
       }
@@ -1253,7 +1274,8 @@ app.post('/api/tts', async (req, res) => {
         });
 
         // Aynı zamanda client'a da stream gönder
-        res.setHeader('Content-Type', 'audio/mpeg');
+  res.setHeader('Content-Type', 'audio/mpeg');
+  res.setHeader('x-tts-attempts', String(attemptsUsed));
         pipeline(tee2, res, (err) => {
           if (err) logger.error({ msg: 'Client stream pipeline error', error: err?.message });
         });
@@ -1266,7 +1288,8 @@ app.post('/api/tts', async (req, res) => {
       }
     } else {
       // StoryId yoksa sadece client'a stream gönder
-      res.setHeader('Content-Type', 'audio/mpeg');
+  res.setHeader('Content-Type', 'audio/mpeg');
+  res.setHeader('x-tts-attempts', String(attemptsUsed));
       response.data.pipe(res);
     }
 

@@ -52,7 +52,7 @@ interface StoryCreatorProps {
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onClearStory: () => void;
-  onSaveStory: (isAutoSave?: boolean) => Promise<void>;
+  onSaveStory: (isAutoSave?: boolean) => Promise<string | null>;
   onVoiceGeneratedStory?: (storyContent: string) => Promise<void>; // New prop for voice commands
 }
 

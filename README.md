@@ -8,12 +8,10 @@
 AI-powered bedtime story generator optimized for Raspberry Pi Zero 2W. Creates personalized stories for children with natural voice narration and remote audio playback.
 
 ## ✨ Features
+### TTS Retry
+`/api/tts` endpointi artık ağ veya geçici sağlayıcı hatalarında otomatik olarak 1 kez (toplam 2 deneme) tekrar dener. Başarılı yanıt durumunda `x-tts-attempts` header'ı kaçıncı denemede başarı sağlandığını belirtir. İkinci deneme de başarısız olursa `500 { error: 'TTS başarısız (max retry).' }` döner.
 
-- 🤖 **AI Story Generation**: OpenAI GPT-5 powered creative storytelling
-- 🎵 **Natural Voice Synthesis**: ElevenLabs TTS with multiple voice options
-- 📱 **Mobile Responsive**: Works perfectly on phones, tablets, and desktop
-- 🎨 **Personalization**: Age-appropriate content with character and theme selection
-- 💾 **Local Storage**: SQLite database for fast access and offline capability
+Otomatik tetikleme: `POST /api/stories?autoTts=1` veya body içinde `autoTts:true` gönderildiğinde masal oluşturma tamamlandıktan sonra arka planda `/api/tts` çağrılır. Provider belirtilmediyse `AUTO_TTS_PROVIDER` > ElevenLabs > Gemini sırası denenir.
 - 🔊 **Remote Audio Playback**: Play stories directly on Pi Zero 2W speakers
 - 📊 **Performance Monitoring**: Real-time system health and resource tracking
 - 🐳 **Production Ready**: Docker support with automated deployment
