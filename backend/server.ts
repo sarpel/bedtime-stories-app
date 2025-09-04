@@ -1548,14 +1548,24 @@ app.post('/api/raspberry-audio/stop', async (req, res) => {
 // Check audio system status
 app.get('/api/raspberry-audio/status', async (req, res) => {
   try {
-    const { exec } = require('child_process');
     const os = require('os');
 
     // Check if we're on Raspberry Pi
     const isRaspberryPi = os.cpus()[0]?.model.includes('ARM') ||
                          os.platform() === 'linux' && os.arch() === 'arm';
 
-    // Check for IQAudio Codec Zero
+    // If not on Linux, return not a Pi status immediately
+    if (os.platform() !== 'linux') {
+      return res.json({
+        isRaspberryPi: false,
+        audioDevice: 'not-available',
+        status: 'not-raspberry-pi',
+        error: 'Not running on Linux/Raspberry Pi'
+      });
+    }
+
+    // Only check ALSA devices if we're on Linux
+    const { exec } = require('child_process');
     exec('aplay -l', (error, stdout, stderr) => {
       if (error) {
         return res.json({

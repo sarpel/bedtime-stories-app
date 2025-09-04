@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
 import analyticsService from '../services/analyticsService.js'
-import { raspberryAudioService } from '../services/raspberryAudioService'
 
 export function useAudioPlayer() {
   const [currentAudio, setCurrentAudio] = useState<string | null>(null)
@@ -122,41 +121,9 @@ export function useAudioPlayer() {
     if (!audioUrl) return
 
     try {
-      console.log('🎵 [Audio Player] Starting playback pipeline...', { audioUrl, storyId })
+      console.log('🎵 [Audio Player] Starting web audio playback...', { audioUrl, storyId })
 
-      // First, try Raspberry Pi audio playback
-      try {
-        const audioStatus = await raspberryAudioService.getAudioStatus()
-
-        if (audioStatus.isRaspberryPi && audioStatus.status === 'ready') {
-          console.log('🎵 [Audio Player] Detected Raspberry Pi, using IQAudio Codec Zero')
-
-          // Convert web URL to file path for Pi
-          const audioFilePath = raspberryAudioService.convertAudioUrlToFilePath(audioUrl)
-
-          // Play audio on Raspberry Pi speakers
-          const playbackResult = await raspberryAudioService.playAudio(audioFilePath, Math.round(volume * 100))
-
-          console.log('🎵 [Audio Player] Raspberry Pi playback started:', playbackResult)
-
-          // Update UI state to reflect playback
-          setCurrentAudio(audioUrl)
-          setCurrentStoryId(storyId)
-          setIsPlaying(true)
-          setIsPaused(false)
-
-          // Analytics: Track Pi audio playback
-          if (storyId) {
-            analyticsService.trackAudioPlayback(storyId, 'start', 0)
-          }
-
-          return // Exit early - using Pi audio
-        }
-      } catch (piError) {
-        console.warn('🎵 [Audio Player] Raspberry Pi playback failed, falling back to web audio:', piError)
-      }
-
-      // Fallback to standard web audio player
+      // Use standard web audio player only
       console.log('🎵 [Audio Player] Using web audio player')
 
       const audio = audioRef.current
