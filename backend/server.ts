@@ -488,33 +488,35 @@ app.post('/api/llm', async (req, res) => {
       endpoint = process.env.OPENAI_ENDPOINT;
     }
 
-    // Gelen endpoint'in chat/completions içerip içermediğini kontrol et ve hata fırlat
-    if (endpoint.includes('chat/completions')) {
-        return res.status(400).json({
-            error: 'The chat/completions endpoint is no longer supported. Please use the /responses endpoint.'
-        });
-    }
-
     const effectiveModel = modelId || process.env.OPENAI_MODEL;
     headers.Authorization = `Bearer ${OPENAI_API_KEY}`;
 
-    // Sadece Responses API formatı desteklenir
+    // Responses, chat/completions veya legacy completion formatlarını destekle
     const defaultSystemPrompt = '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.';
     const systemPrompt = (process.env.SYSTEM_PROMPT_TURKISH || defaultSystemPrompt).trim();
     const fullPrompt = `${systemPrompt}
 
 ${prompt}`;
-
-    body = {
-      model: effectiveModel,
-      input: fullPrompt
-    };
-    logger.info({
-      msg: '[API /api/llm] provider:openai (responses) payload',
-      endpoint,
-      model: body.model,
-      inputLen: body.input?.length
-    });
+    if (endpoint.includes('/responses')) {
+      body = { model: effectiveModel, input: fullPrompt };
+      logger.info({ msg: '[API /api/llm] provider:openai responses payload', endpoint, model: body.model, inputLen: fullPrompt.length });
+    } else if (endpoint.includes('chat/completions')) {
+      body = {
+        model: effectiveModel,
+        messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: prompt } ],
+        temperature: Number.isFinite(temperature) ? temperature : 0.9,
+        max_tokens: maxTokens && Number.isFinite(maxTokens) ? maxTokens : undefined
+      };
+      logger.info({ msg: '[API /api/llm] provider:openai chat/completions payload', endpoint, model: body.model, messagesLen: body.messages?.length });
+    } else {
+      body = {
+        model: effectiveModel,
+        prompt: fullPrompt,
+        temperature: Number.isFinite(temperature) ? temperature : 0.9,
+        max_tokens: maxTokens && Number.isFinite(maxTokens) ? maxTokens : undefined
+      };
+      logger.info({ msg: '[API /api/llm] provider:openai completions payload', endpoint, model: body.model, promptLen: fullPrompt.length });
+    }
   } else if (provider === 'gemini') {
     if (!GEMINI_LLM_API_KEY) { return res.status(500).json({ error: 'Gemini LLM API anahtarı eksik.' }); }
     if (!process.env.GEMINI_LLM_MODEL) { return res.status(500).json({ error: 'GEMINI_LLM_MODEL tanımlı değil.' }); }

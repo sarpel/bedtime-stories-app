@@ -7,7 +7,7 @@ export const config = {
   // OpenAI Configuration - Production'da backend proxy kullan
   openai: {
     apiKey: isProduction ? '' : (import.meta.env.VITE_OPENAI_API_KEY || ''),
-    model: import.meta.env.VITE_OPENAI_MODEL || 'gpt-4o-mini',
+    model: import.meta.env.VITE_OPENAI_MODEL || 'gpt-5-nano',
     endpoint: isProduction ? '/api/llm' : (import.meta.env.VITE_OPENAI_ENDPOINT || '/api/llm')
   },
 
@@ -128,7 +128,7 @@ export const getDefaultSettings = () => ({
   },
   sttSettings: {
     provider: 'openai',
-    model: 'gpt-4o-mini-transcribe',
+    model: 'whisper-1',
     wakeWordEnabled: false,
     wakeWordModel: './hey-elsa.ppn',
     wakeWordSensitivity: 'medium',

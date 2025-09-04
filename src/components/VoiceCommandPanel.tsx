@@ -121,10 +121,10 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
   // Initialize STT service (manual mode only)
   useEffect(() => {
     const sttSettings = settings?.sttSettings || {};
-    const modelId = sttSettings.model || 'gpt-4o-mini-transcribe';
+  const modelId = sttSettings.model || 'whisper-1';
 
     // Choose service based on model
-    if (modelId === 'gpt-4o-mini-transcribe') {
+  if (modelId === 'gpt-4o-mini-transcribe') { // legacy enhanced model branch retained for backward compatibility
       sttServiceRef.current = new GPT4oMiniSTTService({
         sttProvider: sttSettings.provider || 'openai',
         openaiSTT: {
@@ -449,13 +449,13 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
         )}
 
         {/* Model Information */}
-        {(settings?.sttSettings?.model === 'gpt-4o-mini-transcribe') && (
+  {(settings?.sttSettings?.model === 'gpt-4o-mini-transcribe') && (
           <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-md">
             <h4 className="text-sm font-medium text-green-700 dark:text-green-300 mb-2">
               ✓ Enhanced STT Active
             </h4>
             <div className="text-xs text-green-600 dark:text-green-400 space-y-1">
-              <div>• GPT-4o-mini-transcribe model</div>
+              <div>• Gelişmiş Transcribe model (legacy)</div>
               <div>• Superior Turkish language support</div>
               <div>• Word-level timing information</div>
               {settings?.sttSettings?.wakeWordEnabled && (
