@@ -1,13 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent } from '@/components/ui/card.jsx'
 import { Moon, Settings, Heart, AlertCircle, BookOpen, BarChart3, Play, Square, ListMusic, X, Search } from 'lucide-react'
 import SettingsPanel from './components/Settings.jsx'
 import StoryCreator from './components/StoryCreator.jsx'
 import FavoritesPanel from './components/FavoritesPanel.jsx'
-import StoryManagementPanel from './components/StoryManagementPanel.jsx'
-import AnalyticsDashboard from './components/AnalyticsDashboard.jsx'
-import StoryQueuePanel from './components/StoryQueuePanel.jsx'
 import SearchPanel from './components/SearchPanel.jsx'
 import { LLMService } from './services/llmService.js'
 import { TTSService } from './services/ttsService.js'
@@ -27,6 +24,11 @@ import './App.css'
 import { Toaster } from '@/components/ui/sonner.jsx'
 import { toast } from 'sonner'
 import { Story } from './utils/storyTypes'
+
+// Lazy load heavy components for code splitting
+const StoryManagementPanel = lazy(() => import('./components/StoryManagementPanel.jsx'))
+const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard.jsx'))
+const StoryQueuePanel = lazy(() => import('./components/StoryQueuePanel.jsx'))
 
 // Import SettingsData from Settings component
 interface SettingsData {
@@ -899,7 +901,8 @@ function App() {
 
         {/* Story Management Panel */}
         {showStoryManagement && (
-          <StoryManagementPanel
+          <Suspense fallback={<div className="flex items-center justify-center p-4">Loading...</div>}>
+            <StoryManagementPanel
             isOpen={showStoryManagement}
             history={dbStories.length > 0 ? dbStories.map(dbStory => ({
               id: dbStory.id,
@@ -935,6 +938,7 @@ function App() {
             seekTo={seekTo}
             getDbAudioUrl={(fileName: string) => getDbAudioUrl(fileName) || ''}
           />
+          </Suspense>
         )}
 
         {/* Settings Panel */}
@@ -981,7 +985,9 @@ function App() {
 
         {/* Analytics Dashboard */}
         {showAnalytics && (
-          <AnalyticsDashboard onClose={() => setShowAnalytics(false)} />
+          <Suspense fallback={<div className="flex items-center justify-center p-4">Loading analytics...</div>}>
+            <AnalyticsDashboard onClose={() => setShowAnalytics(false)} />
+          </Suspense>
         )}
 
         {/* Search Panel */}
@@ -1010,7 +1016,8 @@ function App() {
 
         {/* Story Queue Panel - Replace old story list */}
         {(dbStories.length > 0 || history.length > 0) && (
-          <StoryQueuePanel
+          <Suspense fallback={<div className="flex items-center justify-center p-4">Loading stories...</div>}>
+            <StoryQueuePanel
             stories={dbStories.length > 0 ? dbStories.map(dbStory => ({
               id: dbStory.id,
               story: dbStory.story_text || '',
@@ -1080,6 +1087,7 @@ function App() {
               }
             }}
           />
+          </Suspense>
         )}
       </main>
 

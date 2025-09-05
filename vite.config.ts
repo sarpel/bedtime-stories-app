@@ -104,10 +104,16 @@ export default defineConfig(({ mode }) => {
               './src/utils/voiceOptions',
               './src/utils/logger',
               './src/utils/safeLocalStorage',
-              './src/utils/share'
-            ],
-            'app-monitoring': [
+              './src/utils/share',
               './src/utils/stabilityMonitor'
+            ],
+            'app-components': [
+              './src/components/StoryCard',
+              './src/components/StoryCreator',
+              './src/components/StoryManagementPanel',
+              './src/components/FavoritesPanel',
+              './src/components/SearchPanel',
+              './src/components/Settings'
             ]
           },
           // Optimize chunk naming for production
@@ -128,7 +134,7 @@ export default defineConfig(({ mode }) => {
       },
 
       // Optimize chunk sizes for better loading
-      chunkSizeWarningLimit: isProd ? 500 : 600,
+      chunkSizeWarningLimit: isProd ? 1000 : 600,
 
       // Source maps only in development
       sourcemap: isDev,
