@@ -81,7 +81,7 @@ const upload = multer({
   },
   fileFilter: (req, file, cb) => {
     // Accept audio files
-    if (file.mimetype.startsWith('audio/') || 
+    if (file.mimetype.startsWith('audio/') ||
         file.originalname.match(/\.(webm|wav|mp3|m4a|ogg|flac)$/i)) {
       cb(null, true);
     } else {
@@ -481,40 +481,42 @@ app.post('/api/llm', async (req, res) => {
     }
     if (!process.env.OPENAI_MODEL) { return res.status(500).json({ error: 'OPENAI_MODEL tanımlı değil.' }); }
     if (!process.env.OPENAI_ENDPOINT) { return res.status(500).json({ error: 'OPENAI_ENDPOINT tanımlı değil.' }); }
-    
+
     if (clientEndpoint && typeof clientEndpoint === 'string' && clientEndpoint.startsWith('http')) {
       endpoint = clientEndpoint;
     } else {
       endpoint = process.env.OPENAI_ENDPOINT;
     }
 
-    // Gelen endpoint'in chat/completions içerip içermediğini kontrol et ve hata fırlat
-    if (endpoint.includes('chat/completions')) {
-        return res.status(400).json({
-            error: 'The chat/completions endpoint is no longer supported. Please use the /responses endpoint.'
-        });
-    }
-
     const effectiveModel = modelId || process.env.OPENAI_MODEL;
     headers.Authorization = `Bearer ${OPENAI_API_KEY}`;
-    
-    // Sadece Responses API formatı desteklenir
+
+    // Responses, chat/completions veya legacy completion formatlarını destekle
     const defaultSystemPrompt = '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.';
     const systemPrompt = (process.env.SYSTEM_PROMPT_TURKISH || defaultSystemPrompt).trim();
     const fullPrompt = `${systemPrompt}
 
 ${prompt}`;
-
-    body = {
-      model: effectiveModel,
-      input: fullPrompt
-    };
-    logger.info({
-      msg: '[API /api/llm] provider:openai (responses) payload',
-      endpoint,
-      model: body.model,
-      inputLen: body.input?.length
-    });
+    if (endpoint.includes('/responses')) {
+      body = { model: effectiveModel, input: fullPrompt };
+      logger.info({ msg: '[API /api/llm] provider:openai responses payload', endpoint, model: body.model, inputLen: fullPrompt.length });
+    } else if (endpoint.includes('chat/completions')) {
+      body = {
+        model: effectiveModel,
+        messages: [ { role: 'system', content: systemPrompt }, { role: 'user', content: prompt } ],
+        temperature: Number.isFinite(temperature) ? temperature : 0.9,
+        max_tokens: maxTokens && Number.isFinite(maxTokens) ? maxTokens : undefined
+      };
+      logger.info({ msg: '[API /api/llm] provider:openai chat/completions payload', endpoint, model: body.model, messagesLen: body.messages?.length });
+    } else {
+      body = {
+        model: effectiveModel,
+        prompt: fullPrompt,
+        temperature: Number.isFinite(temperature) ? temperature : 0.9,
+        max_tokens: maxTokens && Number.isFinite(maxTokens) ? maxTokens : undefined
+      };
+      logger.info({ msg: '[API /api/llm] provider:openai completions payload', endpoint, model: body.model, promptLen: fullPrompt.length });
+    }
   } else if (provider === 'gemini') {
     if (!GEMINI_LLM_API_KEY) { return res.status(500).json({ error: 'Gemini LLM API anahtarı eksik.' }); }
     if (!process.env.GEMINI_LLM_MODEL) { return res.status(500).json({ error: 'GEMINI_LLM_MODEL tanımlı değil.' }); }
@@ -836,9 +838,9 @@ app.post('/api/stories', (req, res) => {
     const { storyText, storyType, customTopic } = req.body;
 
     // Input validation
-    if (!storyText || !storyType) {
+    if (!storyText) {
       logger.warn({ msg: 'POST /api/stories - validation error', storyText: typeof storyText, storyType: typeof storyType })
-      return res.status(400).json({ error: 'Masal metni ve türü gereklidir.' });
+      return res.status(400).json({ error: 'Masal metni gereklidir.' });
     }
 
     if (typeof storyText !== 'string' || storyText.trim().length < 50) {
@@ -849,21 +851,45 @@ app.post('/api/stories', (req, res) => {
       return res.status(400).json({ error: 'Masal metni 10.000 karakterden uzun olamaz.' });
     }
 
-    if (typeof storyType !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(storyType)) {
+    // Default storyType if not provided (for voice-generated stories)
+    const finalStoryType = storyType || 'voice_generated';
+    const finalCustomTopic = customTopic || '';
+
+    if (typeof finalStoryType !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(finalStoryType)) {
       return res.status(400).json({ error: 'Geçersiz masal türü.' });
     }
 
-    if (customTopic && (typeof customTopic !== 'string' || customTopic.length > 200)) {
+    if (finalCustomTopic && (typeof finalCustomTopic !== 'string' || finalCustomTopic.length > 200)) {
       return res.status(400).json({ error: 'Özel konu 200 karakterden uzun olamaz.' });
     }
 
-    logger.info({ msg: 'DB:createStory:begin', storyType })
-    const storyId = storyDb.createStory(storyText.trim(), storyType, customTopic?.trim());
-    logger.info({ msg: 'DB:createStory:done', storyId })
-    const story = storyDb.getStory(storyId);
-    logger.info({ msg: 'DB:getStory:done', storyId, found: !!story })
-
+    logger.info({ msg: 'DB:createStory:begin', storyType: finalStoryType })
+    const story = storyDb.createAndFetchStory(storyText.trim(), finalStoryType, finalCustomTopic?.trim());
+    logger.info({ msg: 'DB:createAndFetch:done', found: !!story, id: story?.id, inconsistent: (story as any)?._inconsistent });
+    if (!story) {
+      return res.status(500).json({ error: 'Story create sonrası okunamadı.' });
+    }
+    const wantAuto = req.query.autoTts === '1' || req.body.autoTts === true;
+    if ((story as any)?._inconsistent) {
+      // Inconsistent durumda bile kullanıcıya hemen dön; background TTS denemesini ertele
+      res.status(202).json(story);
+      return;
+    }
     res.status(201).json(story);
+    if (wantAuto) {
+      // Hemen arka planda TTS isteği
+      const autoProvider = process.env.AUTO_TTS_PROVIDER || undefined;
+      setTimeout(() => {
+        try {
+          const axios = require('axios');
+          axios.post(`http://localhost:${process.env.PORT || 3001}/api/tts`, { storyId: story.id, provider: autoProvider })
+            .then(() => console.log('[AUTO TTS] Başlatıldı', { storyId: story.id, provider: autoProvider }))
+            .catch(e => console.error('[AUTO TTS] Hata', e?.message));
+        } catch (e) {
+          console.error('[AUTO TTS] trigger exception', e?.message);
+        }
+      }, 50);
+    }
   } catch (error) {
     logger.error({ msg: 'Masal oluşturma hatası', error: error.message });
     res.status(500).json({ error: 'Masal oluşturulurken hata oluştu.' });
@@ -883,8 +909,8 @@ app.put('/api/stories/:id', (req, res) => {
   const { storyText, storyType, customTopic } = req.body;
 
     // Input validation
-    if (!storyText || !storyType) {
-      return res.status(400).json({ error: 'Masal metni ve türü gereklidir.' });
+    if (!storyText) {
+      return res.status(400).json({ error: 'Masal metni gereklidir.' });
     }
 
     if (typeof storyText !== 'string' || storyText.trim().length < 50) {
@@ -895,15 +921,19 @@ app.put('/api/stories/:id', (req, res) => {
       return res.status(400).json({ error: 'Masal metni 10.000 karakterden uzun olamaz.' });
     }
 
-    if (typeof storyType !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(storyType)) {
+    // Default storyType if not provided (for voice-generated stories)
+    const finalStoryType = storyType || 'voice_generated';
+    const finalCustomTopic = customTopic || '';
+
+    if (typeof finalStoryType !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(finalStoryType)) {
       return res.status(400).json({ error: 'Geçersiz masal türü.' });
     }
 
-    if (customTopic && (typeof customTopic !== 'string' || customTopic.length > 200)) {
+    if (finalCustomTopic && (typeof finalCustomTopic !== 'string' || finalCustomTopic.length > 200)) {
       return res.status(400).json({ error: 'Özel konu 200 karakterden uzun olamaz.' });
     }
 
-  const updated = storyDb.updateStory(id, storyText.trim(), storyType, customTopic?.trim());
+  const updated = storyDb.updateStory(id, storyText.trim(), finalStoryType, finalCustomTopic?.trim());
 
     if (!updated) {
       return res.status(404).json({ error: 'Güncellenecek masal bulunamadı.' });
@@ -1034,16 +1064,57 @@ app.post('/api/tts', async (req, res) => {
     provider: req.body.provider,
     voiceId: req.body.voiceId,
     hasRequestBody: !!req.body.requestBody,
-    requestBodyKeys: req.body.requestBody ? Object.keys(req.body.requestBody) : []
+    storyId: req.body.storyId,
+    autoMode: !req.body.requestBody && !!req.body.storyId
   });
 
-  // Frontend'den gelen ayarları ve metni al
-  const { provider, modelId, voiceId, requestBody, storyId, endpoint: clientEndpoint } = req.body;
+  // Frontend veya otomatik çağrıdan gelen parametreler
+  let { provider, modelId, voiceId, requestBody, storyId, endpoint: clientEndpoint } = req.body;
 
-  // Input validation
+  // Varsayılan provider seç (env önceliği: AUTO_TTS_PROVIDER > ELEVENLABS > GEMINI)
+  if (!provider) {
+    if (process.env.AUTO_TTS_PROVIDER) provider = process.env.AUTO_TTS_PROVIDER;
+    else if (process.env.ELEVENLABS_API_KEY) provider = 'elevenlabs';
+    else if (process.env.GEMINI_TTS_API_KEY || process.env.GEMINI_LLM_API_KEY) provider = 'gemini';
+  }
+
+  // Eğer requestBody yok ama storyId varsa hikayeyi DB'den çekip otomatik body üret
+  if (!requestBody && storyId) {
+    try {
+      const sid = parseInt(storyId);
+      if (!isNaN(sid) && sid > 0) {
+        const story = storyDb.getStory(sid);
+        if (!story) {
+          return res.status(404).json({ error: 'TTS için masal bulunamadı.' });
+        }
+        const text = story.story_text;
+        if (provider === 'elevenlabs') {
+          requestBody = { text };
+        } else if (provider === 'gemini') {
+          requestBody = {
+            contents: [ { parts: [ { text } ] } ],
+            generationConfig: {
+              speechConfig: {
+                voiceConfig: { name: voiceId || process.env.GEMINI_TTS_VOICE || 'Turkey-Neutral' }
+              }
+            }
+          };
+        } else {
+          // Generic - en basit text alanı
+            requestBody = { text };
+        }
+        logger.info({ msg: '[Backend TTS] Auto-built requestBody from story', provider, storyId: sid, textLen: text.length });
+      }
+    } catch (e) {
+      logger.error({ msg: '[Backend TTS] Auto-build failed', error: e?.message });
+      return res.status(500).json({ error: 'Otomatik TTS body oluşturulamadı.' });
+    }
+  }
+
+  // Nihai doğrulama
   if (!provider || !requestBody) {
     logger.warn({ msg: '[Backend TTS] Validation failed', provider, hasRequestBody: !!requestBody });
-    return res.status(400).json({ error: 'Provider ve request body gereklidir.' });
+    return res.status(400).json({ error: 'Provider veya request body eksik.' });
   }
   // Provider kısıtlaması kaldırıldı: generic sağlayıcılar için endpoint gereklidir
 
@@ -1088,67 +1159,70 @@ app.post('/api/tts', async (req, res) => {
   let endpoint;
   let headers = {};
   let response;
+  let attemptsUsed = 0;
 
   try {
-    if (provider === 'elevenlabs') {
-      console.log('🔊 [Backend TTS] Using ElevenLabs provider')
-      if (!ELEVENLABS_API_KEY) {
-        return res.status(500).json({
-          error: 'ElevenLabs API anahtarı eksik. Lütfen backend/.env dosyasında ELEVENLABS_API_KEY\'i ayarlayın.'
-        });
-      }
-      if (!process.env.ELEVENLABS_VOICE_ID && !voiceId) { return res.status(500).json({ error: 'ELEVENLABS_VOICE_ID tanımlı değil.' }); }
-      if (!process.env.ELEVENLABS_ENDPOINT && !clientEndpoint) { return res.status(500).json({ error: 'ELEVENLABS_ENDPOINT tanımlı değil.' }); }
-      const effectiveVoice = voiceId || process.env.ELEVENLABS_VOICE_ID;
-
-      const audioFormat = 'mp3_44100_128';
-      endpoint = clientEndpoint || `${ELEVEN_BASE}/${encodeURIComponent(effectiveVoice)}?output_format=${audioFormat}`;
-      headers = {
-        'xi-api-key': ELEVENLABS_API_KEY,
-        'Content-Type': 'application/json'
-      };
-
-      response = await axios.post(endpoint, requestBody, {
-        headers,
-        responseType: 'stream'
-      });
-    } else if (provider === 'gemini') {
-      if (!GEMINI_TTS_API_KEY) { return res.status(500).json({ error: 'Gemini TTS API anahtarı eksik.' }); }
-      if (!process.env.GEMINI_TTS_MODEL && !process.env.GEMINI_LLM_MODEL && !modelId) { return res.status(500).json({ error: 'GEMINI_TTS_MODEL tanımlı değil.' }); }
-      if (!process.env.GEMINI_TTS_ENDPOINT && !process.env.GEMINI_LLM_ENDPOINT && !clientEndpoint) { return res.status(500).json({ error: 'GEMINI_TTS_ENDPOINT tanımlı değil.' }); }
-      const effectiveModel = modelId || process.env.GEMINI_TTS_MODEL || process.env.GEMINI_LLM_MODEL;
-      const base = GEMINI_BASE || '';
-      if (!base && !clientEndpoint) { return res.status(500).json({ error: 'Gemini base endpoint yok.' }); }
-      endpoint = clientEndpoint || `${base}/${encodeURIComponent(effectiveModel)}:generateContent?key=${encodeURIComponent(GEMINI_TTS_API_KEY)}`;
-      headers = { 'Content-Type': 'application/json' };
-      response = await axios.post(endpoint, requestBody, { headers });
-
-      // Gemini response'dan audio data'yı çıkar
-      if (response.data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
-        const audioData = response.data.candidates[0].content.parts[0].inlineData.data;
-        const audioBuffer = Buffer.from(audioData, 'base64');
-        const { Readable } = require('stream');
-        const audioStream = new Readable();
-        audioStream.push(audioBuffer);
-        audioStream.push(null);
-        response.data = audioStream;
-        response.headers = { 'content-type': 'audio/mpeg' };
-      } else {
+    const execOnce = async () => {
+      if (provider === 'elevenlabs') {
+        console.log('🔊 [Backend TTS] Using ElevenLabs provider')
+        if (!ELEVENLABS_API_KEY) {
+          throw new Error('ElevenLabs API anahtarı eksik');
+        }
+        if (!process.env.ELEVENLABS_VOICE_ID && !voiceId) { throw new Error('ELEVENLABS_VOICE_ID tanımlı değil'); }
+        if (!process.env.ELEVENLABS_ENDPOINT && !clientEndpoint) { throw new Error('ELEVENLABS_ENDPOINT tanımlı değil'); }
+        const effectiveVoice = voiceId || process.env.ELEVENLABS_VOICE_ID;
+        const audioFormat = 'mp3_44100_128';
+        endpoint = clientEndpoint || `${ELEVEN_BASE}/${encodeURIComponent(effectiveVoice)}?output_format=${audioFormat}`;
+        headers = {
+          'xi-api-key': ELEVENLABS_API_KEY,
+          'Content-Type': 'application/json'
+        };
+        return await axios.post(endpoint, requestBody, { headers, responseType: 'stream' });
+      } else if (provider === 'gemini') {
+        if (!GEMINI_TTS_API_KEY) { throw new Error('Gemini TTS API anahtarı eksik'); }
+        if (!process.env.GEMINI_TTS_MODEL && !process.env.GEMINI_LLM_MODEL && !modelId) { throw new Error('GEMINI_TTS_MODEL tanımlı değil'); }
+        if (!process.env.GEMINI_TTS_ENDPOINT && !process.env.GEMINI_LLM_ENDPOINT && !clientEndpoint) { throw new Error('GEMINI_TTS_ENDPOINT tanımlı değil'); }
+        const effectiveModel = modelId || process.env.GEMINI_TTS_MODEL || process.env.GEMINI_LLM_MODEL;
+        const base = GEMINI_BASE || '';
+        if (!base && !clientEndpoint) { throw new Error('Gemini base endpoint yok'); }
+        endpoint = clientEndpoint || `${base}/${encodeURIComponent(effectiveModel)}:generateContent?key=${encodeURIComponent(GEMINI_TTS_API_KEY)}`;
+        headers = { 'Content-Type': 'application/json' };
+        const resp = await axios.post(endpoint, requestBody, { headers });
+        if (resp.data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
+          const audioData = resp.data.candidates[0].content.parts[0].inlineData.data;
+          const audioBuffer = Buffer.from(audioData, 'base64');
+          const { Readable } = require('stream');
+          const audioStream = new Readable();
+            audioStream.push(audioBuffer);
+            audioStream.push(null);
+          resp.data = audioStream;
+          resp.headers = { 'content-type': 'audio/mpeg' };
+          return resp;
+        }
         throw new Error('Gemini API\'den ses verisi alınamadı');
+      } else {
+        if (!clientEndpoint) { throw new Error('Generic provider için endpoint gerekli'); }
+        endpoint = clientEndpoint;
+        headers = { 'Content-Type': 'application/json' };
+        return await axios.post(endpoint, requestBody, { headers, responseType: 'stream' });
       }
-    } else {
-      // Diğer provider'lar: clientEndpoint zorunlu
-      if (!clientEndpoint) {
-        return res.status(400).json({ error: 'Bilinmeyen TTS sağlayıcısı için endpoint belirtin.' });
+    };
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        attemptsUsed = attempt;
+        response = await execOnce();
+        break;
+      } catch (err) {
+        logger.error({ msg: 'TTS attempt failed', attempt, error: err?.message });
+        if (attempt === 2) {
+          return res.status(500).json({ error: 'TTS başarısız (max retry).' });
+        }
       }
-      endpoint = clientEndpoint;
-      headers = { 'Content-Type': 'application/json' };
-      // Çoğu TTS API binary döndürür, stream destekleyelim
-      response = await axios.post(endpoint, requestBody, { headers, responseType: 'stream' });
     }
 
     // Minimal logging, hassas veri yok
-    logger.info({ msg: 'TTS response received', provider, status: response.status });
+  logger.info({ msg: 'TTS response received', provider, status: response.status, attempts: attemptsUsed });
 
     // Eğer storyId varsa, ses dosyasını kaydet
     if (storyId) {
@@ -1157,7 +1231,8 @@ app.post('/api/tts', async (req, res) => {
       if (isNaN(sanitizedStoryId) || sanitizedStoryId <= 0) {
         logger.warn({ msg: 'Invalid storyId format', storyId });
         // Continue without saving file but still stream to client
-        res.setHeader('Content-Type', 'audio/mpeg');
+  res.setHeader('Content-Type', 'audio/mpeg');
+  res.setHeader('x-tts-attempts', String(attemptsUsed));
         response.data.pipe(res);
         return;
       }
@@ -1201,7 +1276,8 @@ app.post('/api/tts', async (req, res) => {
         });
 
         // Aynı zamanda client'a da stream gönder
-        res.setHeader('Content-Type', 'audio/mpeg');
+  res.setHeader('Content-Type', 'audio/mpeg');
+  res.setHeader('x-tts-attempts', String(attemptsUsed));
         pipeline(tee2, res, (err) => {
           if (err) logger.error({ msg: 'Client stream pipeline error', error: err?.message });
         });
@@ -1214,7 +1290,8 @@ app.post('/api/tts', async (req, res) => {
       }
     } else {
       // StoryId yoksa sadece client'a stream gönder
-      res.setHeader('Content-Type', 'audio/mpeg');
+  res.setHeader('Content-Type', 'audio/mpeg');
+  res.setHeader('x-tts-attempts', String(attemptsUsed));
       response.data.pipe(res);
     }
 
@@ -1243,12 +1320,446 @@ app.post('/api/tts', async (req, res) => {
   }
 });
 
+// --- VOICE ASSISTANT API ENDPOINT ---
+// Smart voice assistant for story generation and TTS commands
+app.post('/api/voice-assistant', async (req, res) => {
+  const tStart = Date.now();
+
+  try {
+    logger.info({
+      msg: '[Voice Assistant] Request received',
+      transcript: req.body.transcript?.substring(0, 100)
+    });
+
+    // Basic validation
+    const raw = req.body.transcript;
+    if (typeof raw !== 'string') {
+      return res.status(400).json({ error: 'Transcript required' });
+    }
+    const transcript = raw.trim();
+    if (!transcript) {
+      return res.status(400).json({ error: 'Empty transcript' });
+    }
+
+    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+    if (!OPENAI_API_KEY) {
+      return res.status(500).json({ error: 'OpenAI API key missing. Please set OPENAI_API_KEY in backend/.env.' });
+    }
+
+    // Optional: allow short control intents WITHOUT generating a full story.
+    // Detect very short pure TTS intent phrases (e.g., just asking to read existing story aloud)
+    const ttsControlRegex = /^(ses(lendir|e cevir|li oku)|oku|dinlemek ist(iyorum)?|sese cevir)$/i;
+    if (ttsControlRegex.test(transcript)) {
+      return res.json({
+        response: 'Mevcut masalı sese dönüştürmeye hazırım.',
+        isTtsRequest: true,
+        originalTranscript: transcript
+      });
+    }
+
+    const systemPrompt = `Sen bir çocuklar için masal asistanısın. Görevin:
+1. MASAL ÜRETİMİ: Her isteği masal talebi olarak değerlendir ve uygun, eğitici, sevgi dolu, yaşa uygun bir masal üret.
+2. TTS İSTEĞİ: Eğer kullanıcı sadece mevcut masalı seslendirmek istiyorsa (örn: \'seslendir\', \'sesli oku\', \'dinlemek istiyorum\'), yanıtı '__TTS_REQUEST__ Mevcut masalı seslendiriyorum.' şeklinde ver.
+3. EĞER KULLANICI AÇIKÇA YENİ MASAL İSTİYORSA: Tam masalı üret (en az 6-8 cümle, sakin ve uyku öncesi ton). Başına '__TTS_REQUEST__' KOYMA.
+4. SADECE MASAL VEYA TTS İSTEĞİNE CEVAP VER. Başka açıklama, meta yorum, rol tekrarı yapma.
+5. FORMAT: Paragraflar halinde, sade, Türkçe ve 5 yaşındaki bir çocuk için anlaşılır.
+`;
+
+    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: transcript }
+      ],
+      max_tokens: 1500,
+      temperature: 0.7
+    }, {
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+
+    let aiResponse = (response.data.choices?.[0]?.message?.content || '').trim();
+
+    // Safety: fallback if empty
+    if (!aiResponse) {
+      aiResponse = 'Küçük bir kahramanın sevgi ve cesaretle dolu macerasını anlatan bir masal hazırlayamıyorum şu an, lütfen tekrar dener misin?';
+    }
+
+    const isTtsRequest = aiResponse.startsWith('__TTS_REQUEST__');
+    const finalResponse = isTtsRequest ? aiResponse.replace('__TTS_REQUEST__', '').trim() : aiResponse;
+
+    logger.info({
+      msg: '[Voice Assistant] Response generated',
+      isTtsRequest,
+      responsePreview: finalResponse.substring(0, 80),
+      durationMs: Date.now() - tStart
+    });
+
+    return res.json({
+      response: finalResponse,
+      isTtsRequest,
+      originalTranscript: transcript
+    });
+  } catch (error) {
+    logger.error({
+      msg: '[Voice Assistant] Request failed',
+      error: error.message,
+      status: error.response?.status,
+      durationMs: Date.now() - tStart
+    });
+    let statusCode = error.response?.status || 500;
+    if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') statusCode = 408;
+    return res.status(statusCode).json({ error: 'Voice assistant processing failed.' });
+  }
+});
+
+// --- RASPBERRY PI AUDIO PLAYBACK ENDPOINT ---
+
+// Endpoint for playing audio on Raspberry Pi with IQAudio Codec Zero
+app.post('/api/raspberry-audio/play', async (req, res) => {
+  const tStart = Date.now();
+
+  try {
+    logger.info({
+      msg: '[Raspberry Audio] Playback request received',
+      audioFile: req.body.audioFile?.substring(0, 100)
+    });
+
+    // Input validation
+    if (!req.body.audioFile || typeof req.body.audioFile !== 'string') {
+      return res.status(400).json({ error: 'Audio file path required' });
+    }
+
+    const audioFilePath = req.body.audioFile;
+    const volume = req.body.volume || 80; // Default volume 80%
+
+    // Check if we're running on Raspberry Pi
+    const { exec } = require('child_process');
+    const os = require('os');
+    const fs = require('fs');
+    const path = require('path');
+
+    // Resolve audio file path
+    let fullAudioPath = audioFilePath;
+
+    // If relative path like "audio/story-123.mp3", resolve to full path
+    if (!path.isAbsolute(audioFilePath)) {
+      fullAudioPath = path.join(__dirname, audioFilePath);
+    }
+
+    // Verify the audio file exists
+    if (!fs.existsSync(fullAudioPath)) {
+      logger.error({
+        msg: '[Raspberry Audio] Audio file not found',
+        originalPath: audioFilePath,
+        resolvedPath: fullAudioPath
+      });
+      return res.status(404).json({
+        error: 'Audio file not found',
+        path: fullAudioPath
+      });
+    }
+
+    // IQAudio Codec Zero configuration for ALSA
+    const alsaDevice = 'hw:1,0'; // IQAudio Codec Zero typically appears as hw:1,0
+    const alsaCommand = `aplay -D ${alsaDevice} -f cd "${fullAudioPath}"`;
+
+    // Alternative: Use omxplayer for better Pi performance
+    const omxCommand = `omxplayer --vol ${(volume - 100) * 60} -o alsa:hw:1,0 "${fullAudioPath}"`;
+
+    // Check if omxplayer exists (Pi-specific), otherwise use aplay
+    const playCommand = fs.existsSync('/usr/bin/omxplayer') ? omxCommand : alsaCommand;
+
+    logger.info({
+      msg: '[Raspberry Audio] Executing audio playback',
+      command: playCommand.substring(0, 100),
+      device: alsaDevice,
+      volume: volume
+    });
+
+    // Execute the audio playback command
+    exec(playCommand, (error, stdout, stderr) => {
+      if (error) {
+        logger.error({
+          msg: '[Raspberry Audio] Playback failed',
+          error: error.message,
+          stderr: stderr
+        });
+        return;
+      }
+
+      logger.info({
+        msg: '[Raspberry Audio] Playback completed successfully',
+        stdout: stdout?.substring(0, 200),
+        durationMs: Date.now() - tStart
+      });
+    });
+
+    // Return immediately (don't wait for playback to complete)
+    res.json({
+      success: true,
+      message: 'Audio playback started on Raspberry Pi',
+      device: alsaDevice,
+      volume: volume,
+      audioFile: fullAudioPath
+    });
+
+  } catch (error) {
+    const duration = Date.now() - tStart;
+
+    logger.error({
+      msg: '[Raspberry Audio] Request failed',
+      error: error.message,
+      durationMs: duration
+    });
+
+    res.status(500).json({
+      error: 'Raspberry Pi audio playback failed',
+      details: error.message
+    });
+  }
+});
+
+// Stop audio playback
+app.post('/api/raspberry-audio/stop', async (req, res) => {
+  try {
+    const { exec } = require('child_process');
+
+    // Kill all audio playback processes
+    exec('pkill -f "aplay|omxplayer"', (error) => {
+      if (error && !error.message.includes('no process found')) {
+        logger.error({
+          msg: '[Raspberry Audio] Stop failed',
+          error: error.message
+        });
+        return res.status(500).json({ error: 'Failed to stop audio playback' });
+      }
+
+      logger.info('[Raspberry Audio] Playback stopped');
+      res.json({ success: true, message: 'Audio playback stopped' });
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to stop audio playback' });
+  }
+});
+
+// Check audio system status
+app.get('/api/raspberry-audio/status', async (req, res) => {
+  try {
+    const os = require('os');
+
+    // Check if we're on Raspberry Pi
+    const isRaspberryPi = os.cpus()[0]?.model.includes('ARM') ||
+                         os.platform() === 'linux' && os.arch() === 'arm';
+
+    // If not on Linux, return not a Pi status immediately
+    if (os.platform() !== 'linux') {
+      return res.json({
+        isRaspberryPi: false,
+        audioDevice: 'not-available',
+        status: 'not-raspberry-pi',
+        error: 'Not running on Linux/Raspberry Pi'
+      });
+    }
+
+    // Only check ALSA devices if we're on Linux
+    const { exec } = require('child_process');
+    exec('aplay -l', (error, stdout, stderr) => {
+      if (error) {
+        return res.json({
+          isRaspberryPi,
+          audioDevice: 'unknown',
+          status: 'error',
+          error: error.message
+        });
+      }
+
+      const hasIQAudio = stdout.includes('IQaudIOCODEC') || stdout.includes('card 1');
+
+      res.json({
+        isRaspberryPi,
+        audioDevice: hasIQAudio ? 'IQAudio Codec Zero' : 'default',
+        alsaDevices: stdout,
+        status: 'ready'
+      });
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to check audio status' });
+  }
+});
+
 // --- STT API ENDPOINT ---
 
-// Speech-to-Text API endpoint with OpenAI Whisper and Deepgram support
+// GPT-4o-mini-transcribe endpoint (new enhanced STT model)
+app.post('/api/stt/transcribe', upload.single('audio'), async (req, res) => {
+  const tStart = Date.now();
+
+  try {
+    logger.info({
+      msg: '[STT GPT-4o-mini-transcribe] Request received',
+      language: req.body.language,
+      hasAudioFile: !!req.file,
+      audioSize: req.file?.size,
+      audioType: req.file?.mimetype
+    });
+
+    // Input validation
+    if (!req.file) {
+      return res.status(400).json({ error: 'Audio file required' });
+    }
+
+    const { language = 'tr', response_format = 'json' } = req.body;
+
+    // Audio file validation
+    const audioBuffer = req.file.buffer;
+    if (!audioBuffer || audioBuffer.length === 0) {
+      return res.status(400).json({ error: 'Invalid audio file.' });
+    }
+
+    // File size check
+    if (audioBuffer.length < 1000) {
+      return res.status(400).json({ error: 'Audio file too short. Please record longer.' });
+    }
+
+    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+    if (!OPENAI_API_KEY) {
+      return res.status(500).json({
+        error: 'OpenAI API key missing. Please set OPENAI_API_KEY in backend/.env.'
+      });
+    }
+
+    // Helper function to get file extension from MIME type
+    const getFileExtension = (mimeType: string): string => {
+      switch (mimeType) {
+        case 'audio/wav': return '.wav';
+        case 'audio/mp4': return '.mp4';
+        case 'audio/mpeg': return '.mp3';
+        case 'audio/mp3': return '.mp3';
+        case 'audio/webm': return '.webm';
+        case 'audio/webm;codecs=opus': return '.webm';
+        case 'audio/ogg': return '.ogg';
+        case 'audio/m4a': return '.m4a';
+        default: return '.wav'; // Default to WAV for compatibility
+      }
+    };
+
+    // Create form data for GPT-4o-mini-transcribe
+    const formData = new FormData();
+    const mimeType = req.file.mimetype || 'audio/wav';
+    const fileExtension = getFileExtension(mimeType);
+
+    formData.append('file', audioBuffer, {
+      filename: `audio${fileExtension}`,
+      contentType: mimeType
+    });
+    formData.append('model', 'gpt-4o-mini-transcribe');
+    formData.append('language', language);
+    formData.append('response_format', response_format);
+
+    logger.debug({
+      msg: '[STT GPT-4o-mini-transcribe] Sending to OpenAI',
+      model: 'gpt-4o-mini-transcribe',
+      language,
+      audioSize: audioBuffer.length,
+      mimeType,
+      fileExtension,
+      responseFormat: response_format,
+      filename: `audio${fileExtension}`
+    });
+
+    // Call OpenAI GPT-4o-mini-transcribe API
+    const response = await axios.post('https://api.openai.com/v1/audio/transcriptions', formData, {
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        ...formData.getHeaders()
+      },
+      timeout: Number(process.env.STT_TIMEOUT_MS || 15000),
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity
+    });
+
+    // Extract transcription with enhanced metadata
+    const transcriptionResult = {
+      text: response.data.text?.trim() || '',
+      language: response.data.language,
+      duration: response.data.duration,
+      segments: response.data.segments || [], // Word-level timing
+      model: 'gpt-4o-mini-transcribe'
+    };
+
+    // Validate transcription result
+    if (!transcriptionResult.text || transcriptionResult.text.length === 0) {
+      return res.status(422).json({
+        error: 'No text extracted from audio. Please speak more clearly.'
+      });
+    }
+
+    // Log successful transcription
+    const duration = Date.now() - tStart;
+    logger.info({
+      msg: '[STT GPT-4o-mini-transcribe] Transcription successful',
+      textLength: transcriptionResult.text.length,
+      durationMs: duration,
+      hasSegments: transcriptionResult.segments.length > 0
+    });
+
+    res.json(transcriptionResult);
+
+  } catch (error) {
+    const duration = Date.now() - tStart;
+
+    // Log detailed error information
+    logger.error({
+      msg: '[STT GPT-4o-mini-transcribe] Transcription failed',
+      error: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      durationMs: duration,
+      mimeType: req.file?.mimetype,
+      audioSize: req.file?.size
+    });
+
+    let errorMessage = 'GPT-4o-mini-transcribe processing failed.';
+    let statusCode = 500;
+
+    if (error.response?.status === 401) {
+      errorMessage = 'OpenAI API key invalid.';
+      statusCode = 401;
+    } else if (error.response?.status === 400) {
+      // Get more specific error from OpenAI
+      const openaiError = error.response?.data?.error || {};
+      errorMessage = `Audio file format invalid or unsupported. ${openaiError.message || ''}`.trim();
+      statusCode = 400;
+    } else if (error.response?.status === 429) {
+      errorMessage = 'API rate limit exceeded. Please try again later.';
+      statusCode = 429;
+    } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+      errorMessage = 'STT API timeout. Please try again.';
+      statusCode = 408;
+    }
+
+    res.status(statusCode).json({
+      error: errorMessage,
+      model: 'gpt-4o-mini-transcribe'
+    });
+  }
+});
+
+// Test route to verify server updates
+app.get('/api/test/stt-transcribe', (req, res) => {
+  res.json({ message: 'STT transcribe endpoint test - server updated successfully', timestamp: new Date().toISOString() });
+});
+
+// Speech-to-Text API endpoint with OpenAI Whisper and Deepgram support (legacy)
 app.post('/api/stt', upload.single('audio'), async (req, res) => {
   const tStart = Date.now();
-  
+
   try {
     logger.info({
       msg: '[STT API] Request received',
@@ -1289,10 +1800,10 @@ app.post('/api/stt', upload.single('audio'), async (req, res) => {
     if (provider === 'openai') {
       // OpenAI Whisper API
       const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-      
+
       if (!OPENAI_API_KEY) {
-        return res.status(500).json({ 
-          error: 'OpenAI API anahtarı eksik. Lütfen backend/.env dosyasında OPENAI_API_KEY\'i ayarlayın.' 
+        return res.status(500).json({
+          error: 'OpenAI API anahtarı eksik. Lütfen backend/.env dosyasında OPENAI_API_KEY\'i ayarlayın.'
         });
       }
 
@@ -1305,7 +1816,7 @@ app.post('/api/stt', upload.single('audio'), async (req, res) => {
       formData.append('model', model || 'whisper-1');
       formData.append('language', language);
       formData.append('response_format', response_format || 'json');
-      
+
       if (temperature) {
         formData.append('temperature', temperature.toString());
       }
@@ -1337,10 +1848,10 @@ app.post('/api/stt', upload.single('audio'), async (req, res) => {
     } else if (provider === 'deepgram') {
       // Deepgram API
       const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY;
-      
+
       if (!DEEPGRAM_API_KEY) {
-        return res.status(500).json({ 
-          error: 'Deepgram API anahtarı eksik. Lütfen backend/.env dosyasında DEEPGRAM_API_KEY\'i ayarlayın.' 
+        return res.status(500).json({
+          error: 'Deepgram API anahtarı eksik. Lütfen backend/.env dosyasında DEEPGRAM_API_KEY\'i ayarlayın.'
         });
       }
 
@@ -1387,8 +1898,8 @@ app.post('/api/stt', upload.single('audio'), async (req, res) => {
 
     // Validate transcription result
     if (!transcriptionResult?.text || transcriptionResult.text.length === 0) {
-      return res.status(422).json({ 
-        error: 'Ses dosyasından metin çıkarılamadı. Lütfen daha açık konuşmayı deneyin.' 
+      return res.status(422).json({
+        error: 'Ses dosyasıyla metin çıkarılamadı. Lütfen daha açık konuşmayı deneyin.'
       });
     }
 
@@ -1414,7 +1925,7 @@ app.post('/api/stt', upload.single('audio'), async (req, res) => {
 
   } catch (error) {
     const duration = Date.now() - tStart;
-    
+
     logger.error({
       msg: '[STT API] Transcription failed',
       provider: req.body.provider,
@@ -1444,7 +1955,7 @@ app.post('/api/stt', upload.single('audio'), async (req, res) => {
       statusCode = 413;
     }
 
-    res.status(statusCode).json({ 
+    res.status(statusCode).json({
       error: errorMessage,
       provider: req.body.provider || 'unknown'
     });
@@ -1550,6 +2061,292 @@ app.get('/api/shared', (req, res) => {
   } catch (error) {
     logger.error({ msg: 'Paylaşılan masalları listeleme hatası', error: error?.message });
     res.status(500).json({ error: 'Paylaşılan masallar listelenirken hata oluştu.' });
+  }
+});
+
+// Toplu Masal Oluşturma Endpoint
+app.post('/api/batch/stories', async (req, res) => {
+  try {
+    const { count, storyTypes, settings } = req.body;
+
+    if (!count || count < 1 || count > 10) {
+      return res.status(400).json({ error: 'Masal sayısı 1-10 arasında olmalıdır.' });
+    }
+
+    if (!Array.isArray(storyTypes) || storyTypes.length === 0) {
+      return res.status(400).json({ error: 'En az bir masal türü seçilmelidir.' });
+    }
+
+    logger.info({ msg: 'Toplu masal oluşturma başlatıldı', count, storyTypes });
+
+    const results = [];
+    const errors = [];
+
+    // Her masal için LLM isteği gönder
+    for (let i = 0; i < count; i++) {
+      try {
+        const selectedType = storyTypes[Math.floor(Math.random() * storyTypes.length)];
+
+        // Aynı LLM logic'ini kullan (server.ts'teki /api/llm endpoint'inden)
+        const systemPrompt = process.env.SYSTEM_PROMPT_TURKISH ||
+          '5 yaşındaki bir türk kız çocuğu için uyku vaktinde okunmak üzere, uyku getirici ve kazanması istenen temel erdemleri de ders niteliğinde hikayelere iliştirecek şekilde masal yaz. Masal eğitici, sevgi dolu ve rahatlatıcı olsun.';
+
+        const storyTypeMap = {
+          'princess': 'prenses masalı',
+          'unicorn': 'unicorn masalı',
+          'fairy': 'peri masalı',
+          'butterfly': 'kelebek masalı',
+          'mermaid': 'deniz kızı masalı',
+          'rainbow': 'gökkuşağı masalı'
+        };
+
+        const prompt = `${systemPrompt}\n\nMasal türü: ${storyTypeMap[selectedType] || selectedType}`;
+
+        // OpenAI API çağrısı
+        const apiKey = process.env.OPENAI_API_KEY;
+        const endpoint = process.env.OPENAI_ENDPOINT || 'https://api.openai.com/v1/responses';
+        const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+
+        const response = await axios.post(endpoint, {
+          model,
+          input: prompt,
+          max_output_tokens: 1500,
+          temperature: 0.7
+        }, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: LLM_REQUEST_TIMEOUT_MS
+        });
+
+        let storyText = '';
+        const data = response.data;
+        if (data && Array.isArray(data.output)) {
+          for (const item of data.output) {
+            if (item?.type === 'message' && Array.isArray(item.content)) {
+              for (const contentItem of item.content) {
+                if (contentItem?.type === 'output_text' && contentItem?.text) {
+                  storyText = contentItem.text;
+                  break;
+                }
+              }
+              if (storyText) break;
+            }
+          }
+        }
+        if (!storyText && data?.choices?.[0]?.message?.content) {
+          storyText = data.choices[0].message.content;
+        }
+
+        if (storyText) {
+          // Masalı veritabanına kaydet
+          const story = storyDb.createStory({
+            story_text: storyText,
+            story_type: selectedType,
+            custom_topic: '',
+            voice_settings: settings?.voiceSettings
+          });
+
+          results.push({
+            id: story.id,
+            type: selectedType,
+            title: storyText.slice(0, 50) + '...',
+            success: true
+          });
+
+          logger.info({ msg: 'Toplu masal oluşturuldu', index: i + 1, storyId: story.id, type: selectedType });
+        } else {
+          errors.push({ index: i + 1, type: selectedType, error: 'Masal metni alınamadı' });
+        }
+
+        // Rate limiting için kısa bekleme
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+      } catch (error) {
+        logger.error({ msg: 'Toplu masal oluşturma hatası', index: i + 1, error: error?.message });
+        errors.push({ index: i + 1, error: error?.message || 'Bilinmeyen hata' });
+      }
+    }
+
+    res.json({
+      success: true,
+      total: count,
+      created: results.length,
+      failed: errors.length,
+      results,
+      errors
+    });
+
+  } catch (error) {
+    logger.error({ msg: 'Toplu masal oluşturma genel hatası', error: error?.message });
+    res.status(500).json({ error: 'Toplu masal oluşturma sırasında hata oluştu.' });
+  }
+});
+
+// Toplu Ses Dönüştürme Endpoint
+app.post('/api/batch/audio', async (req, res) => {
+  try {
+    const { priority, autoGenerate = true, provider = 'elevenlabs' } = req.body;
+
+    logger.info({ msg: 'Toplu ses dönüştürme başlatıldı', priority, provider });
+
+    // Ses dosyası olmayan masalları getir
+    let stories = [];
+
+    if (priority === 'favorites') {
+      // Favori masalları getir (ses olmayan)
+      stories = storyDb.getFavoriteStoriesWithoutAudio();
+    } else if (priority === 'recent') {
+      // En yeni masalları getir (ses olmayan)
+      stories = storyDb.getRecentStoriesWithoutAudio(10);
+    } else {
+      // Tüm ses olmayan masalları getir
+      stories = storyDb.getAllStoriesWithoutAudio();
+    }
+
+    if (stories.length === 0) {
+      return res.json({
+        success: true,
+        message: 'Ses dönüştürülecek masal bulunamadı.',
+        total: 0,
+        converted: 0,
+        failed: 0,
+        results: [],
+        errors: []
+      });
+    }
+
+    const results = [];
+    const errors = [];
+
+    // Her masal için TTS isteği gönder
+    for (const story of stories.slice(0, 5)) { // Maksimum 5 masal
+      try {
+        // TTS API çağrısı (aynı logic /api/tts endpoint'inden)
+        const apiKey = provider === 'elevenlabs' ? process.env.ELEVENLABS_API_KEY : process.env.GEMINI_TTS_API_KEY;
+        const endpoint = provider === 'elevenlabs' ?
+          (process.env.ELEVENLABS_ENDPOINT || 'https://api.elevenlabs.io/v1/text-to-speech') :
+          (process.env.GEMINI_TTS_ENDPOINT || 'https://generativelanguage.googleapis.com/v1beta/models');
+        const voiceId = provider === 'elevenlabs' ?
+          (process.env.ELEVENLABS_VOICE_ID || 'xsGHrtxT5AdDzYXTQT0d') :
+          (process.env.GEMINI_TTS_VOICE_ID || 'Puck');
+
+        if (!apiKey) {
+          errors.push({ storyId: story.id, error: `${provider} API anahtarı eksik` });
+          continue;
+        }
+
+        let audioResponse;
+
+        if (provider === 'elevenlabs') {
+          const fullUrl = `${endpoint}/${voiceId}`;
+          audioResponse = await axios.post(fullUrl, {
+            text: story.story_text,
+            model_id: process.env.ELEVENLABS_MODEL || 'eleven_turbo_v2_5',
+            language_code: 'tr',
+            voice_settings: {
+              similarity_boost: 0.75,
+              use_speaker_boost: false,
+              stability: 0.75,
+              style: 0.0,
+              speed: 0.9
+            }
+          }, {
+            headers: {
+              'xi-api-key': apiKey,
+              'Content-Type': 'application/json'
+            },
+            responseType: 'arraybuffer',
+            timeout: 60000
+          });
+        } else {
+          // Gemini TTS implementation
+          const fullUrl = `${endpoint}/${process.env.GEMINI_TTS_MODEL || 'gemini-2.0-flash-preview-tts'}:generateContent`;
+          audioResponse = await axios.post(fullUrl, {
+            contents: [{
+              parts: [{
+                text: story.story_text
+              }]
+            }],
+            generationConfig: {
+              speechConfig: {
+                voiceConfig: {
+                  name: voiceId,
+                  languageCode: 'tr-TR'
+                }
+              }
+            }
+          }, {
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            params: {
+              key: apiKey
+            },
+            timeout: 60000
+          });
+        }
+
+        if (audioResponse.status === 200) {
+          // Ses dosyasını kaydet
+          const audioBuffer = provider === 'elevenlabs' ?
+            audioResponse.data :
+            Buffer.from(audioResponse.data.audioContent || '', 'base64');
+
+          const audioId = storyDb.saveAudio(story.id, audioBuffer, 'mp3');
+
+          results.push({
+            storyId: story.id,
+            audioId,
+            title: story.story_text.slice(0, 50) + '...',
+            success: true
+          });
+
+          logger.info({ msg: 'Toplu ses oluşturuldu', storyId: story.id, audioId });
+        } else {
+          errors.push({ storyId: story.id, error: 'Ses dosyası oluşturulamadı' });
+        }
+
+        // Rate limiting için bekleme
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+      } catch (error) {
+        logger.error({ msg: 'Toplu ses dönüştürme hatası', storyId: story.id, error: error?.message });
+        errors.push({ storyId: story.id, error: error?.message || 'Bilinmeyen hata' });
+      }
+    }
+
+    res.json({
+      success: true,
+      total: stories.length,
+      converted: results.length,
+      failed: errors.length,
+      results,
+      errors
+    });
+
+  } catch (error) {
+    logger.error({ msg: 'Toplu ses dönüştürme genel hatası', error: error?.message });
+    res.status(500).json({ error: 'Toplu ses dönüştürme sırasında hata oluştu.' });
+  }
+});
+
+// Toplu işlem durumu endpoint'i
+app.get('/api/batch/status', (req, res) => {
+  try {
+    // Ses dosyası olmayan masalları getir
+    const storiesWithoutAudio = storyDb.getStoriesWithoutAudio();
+    const allStories = storyDb.getAllStories();
+
+    res.json({
+      storiesWithoutAudio: storiesWithoutAudio.length,
+      totalStories: allStories.length,
+      storiesWithAudio: allStories.length - storiesWithoutAudio.length
+    });
+  } catch (error) {
+    logger.error({ msg: 'Toplu işlem durumu getirme hatası', error: error?.message });
+    res.status(500).json({ error: 'Durum bilgisi getirilemedi.' });
   }
 });
 

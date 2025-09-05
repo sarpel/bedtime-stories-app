@@ -117,27 +117,29 @@ export function useAudioPlayer() {
     }
   }, [playbackRate])
 
-  const playAudio = (audioUrl: string, storyId: string): void => {
+  const playAudio = async (audioUrl: string, storyId: string): Promise<void> => {
     if (!audioUrl) return
 
-    const audio = audioRef.current
-    if (!audio) return
-
     try {
+      console.log('🎵 [Audio Player] Starting web audio playback...', { audioUrl, storyId })
+
+      // Use standard web audio player only
+      console.log('🎵 [Audio Player] Using web audio player')
+
+      const audio = audioRef.current
+      if (!audio) return
+
       // Eğer aynı ses çalıyorsa, sadece pause/resume yap
       if (currentStoryId === storyId && currentAudio === audioUrl) {
         if (isPlaying) {
           audio.pause()
         } else {
-          audio.play().catch((error: unknown) => {
-            console.error('Audio resume error:', error instanceof Error ? error.message : String(error))
-            setIsPlaying(false)
-          })
+          await audio.play()
         }
         return
       }
 
-      // Farklı bir ses çalacaksa, önce çalanı duraklat (sıfırlama yok)
+      // Farklı bir ses çalacaksa, önce çalanı duraklat
       if (isPlaying || isPaused) {
         audio.pause()
       }
@@ -147,17 +149,13 @@ export function useAudioPlayer() {
       setCurrentStoryId(storyId)
       audio.src = audioUrl
       audio.volume = isMuted ? 0 : volume
-      // Önceki bir duraklatmadan dönülürken aynı kaynaksa kaldığı yerden devam edecek;
-      // farklı kaynak yüklendiğinde tarayıcı currentTime'ı zaten 0'a alır.
 
-      audio.play().catch((error: unknown) => {
-        console.error('Audio play error:', error instanceof Error ? error.message : String(error))
-        setIsPlaying(false)
-        setCurrentStoryId(null)
-        setCurrentAudio(null)
-      })
+      await audio.play()
+
+      console.log('🎵 [Audio Player] Web audio playback started successfully')
+
     } catch (error: unknown) {
-      console.error('playAudio function error:', error instanceof Error ? error.message : String(error))
+      console.error('🎵 [Audio Player] Playback failed:', error instanceof Error ? error.message : String(error))
       setIsPlaying(false)
       setCurrentStoryId(null)
       setCurrentAudio(null)

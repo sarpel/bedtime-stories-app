@@ -4,7 +4,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Mic, MicOff, Volume2, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
-import { STTService } from '@/services/sttService';
+import { STTService, GPT4oMiniSTTService } from '@/services/sttService';
+import { VoiceAssistantService } from '@/services/voiceAssistantService';
 import { logger } from '@/utils/logger';
 
 export interface VoiceCommand {
@@ -23,6 +24,17 @@ interface VoiceCommandPanelProps {
   onVoiceCommand: (command: VoiceCommand) => void;
   disabled?: boolean;
   className?: string;
+  settings?: {
+    sttSettings?: {
+      provider?: string;
+      model?: string;
+      wakeWordEnabled?: boolean;
+      wakeWordSensitivity?: string;
+      continuousListening?: boolean;
+      responseFormat?: string;
+      language?: string;
+    };
+  };
 }
 
 interface AudioVisualizerProps {
@@ -35,7 +47,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ isActive }) => {
 
   useEffect(() => {
     if (!canvasRef.current) return;
-    
+
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -44,17 +56,17 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ isActive }) => {
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
+
       if (isActive) {
         // Draw animated sound waves
         const centerY = canvas.height / 2;
         const amplitude = 20;
         const frequency = 0.02;
-        
+
         ctx.strokeStyle = '#3b82f6';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        
+
         for (let x = 0; x < canvas.width; x += 2) {
           const y = centerY + Math.sin(x * frequency + animationTime) * amplitude * (0.5 + Math.random() * 0.5);
           if (x === 0) {
@@ -63,11 +75,11 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ isActive }) => {
             ctx.lineTo(x, y);
           }
         }
-        
+
         ctx.stroke();
         animationTime += 0.1;
       }
-      
+
       animationRef.current = requestAnimationFrame(draw);
     };
 
@@ -93,7 +105,8 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ isActive }) => {
 export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
   onVoiceCommand,
   disabled = false,
-  className = ''
+  className = '',
+  settings
 }) => {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -103,36 +116,69 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
   const [error, setError] = useState<string>('');
   const [microphonePermission, setMicrophonePermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
 
-  const sttServiceRef = useRef<STTService | null>(null);
+  const sttServiceRef = useRef<STTService | GPT4oMiniSTTService | null>(null);
 
-  // Initialize STT service
+  // Initialize STT service (manual mode only)
   useEffect(() => {
-    sttServiceRef.current = new STTService({
-      sttProvider: 'openai',
-      audioSettings: {
-        sampleRate: 16000,
-        channels: 1,
-        bitDepth: 16,
-        format: 'webm'
-      }
-    });
+    const sttSettings = settings?.sttSettings || {};
+  const modelId = sttSettings.model || 'whisper-1';
+
+    // Choose service based on model
+  if (modelId === 'gpt-4o-mini-transcribe') { // legacy enhanced model branch retained for backward compatibility
+      sttServiceRef.current = new GPT4oMiniSTTService({
+        sttProvider: sttSettings.provider || 'openai',
+        openaiSTT: {
+          modelId: modelId
+        },
+        audioSettings: {
+          sampleRate: 16000,
+          channels: 1,
+          bitDepth: 16,
+          format: 'webm'
+        },
+        responseFormat: (sttSettings.responseFormat as 'json' | 'verbose_json') || 'verbose_json'
+      });
+    } else {
+      sttServiceRef.current = new STTService({
+        sttProvider: sttSettings.provider || 'openai',
+        openaiSTT: {
+          modelId: modelId
+        },
+        audioSettings: {
+          sampleRate: 16000,
+          channels: 1,
+          bitDepth: 16,
+          format: 'webm'
+        }
+      });
+    }
 
     // Check microphone permission
     checkMicrophonePermission();
 
     return () => {
       if (sttServiceRef.current) {
-        sttServiceRef.current.cleanup();
+        sttServiceRef.current.cleanup?.();
       }
     };
-  }, []);
+  }, [settings?.sttSettings]);
 
   const checkMicrophonePermission = async () => {
     try {
+      // First try to get user media to trigger permission request
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(track => track.stop()); // Close stream immediately
+
       const hasPermission = await STTService.checkMicrophonePermission();
       setMicrophonePermission(hasPermission ? 'granted' : 'denied');
+
+      if (hasPermission) {
+        setError(''); // Clear any permission errors
+      }
     } catch (error) {
+      console.error('Microphone permission error:', error);
       setMicrophonePermission('denied');
+      setError('Mikrofon izni gerekli. Lütfen tarayıcı ayarlarından mikrofon erişimine izin verin.');
     }
   };
 
@@ -150,8 +196,8 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
       setMicrophonePermission('granted');
 
     } catch (error) {
-      logger.error('Failed to start listening', 'VoiceCommandPanel', { 
-        error: (error as Error)?.message 
+      logger.error('Failed to start listening', 'VoiceCommandPanel', {
+        error: (error as Error)?.message
       });
       setError('Mikrofon erişimi başarısız. Lütfen izin verin.');
       setIsListening(false);
@@ -171,46 +217,61 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
 
       logger.debug('Stopping voice recording and transcribing', 'VoiceCommandPanel');
 
-      const result = await sttServiceRef.current.stopListening((progress) => {
-        setProgress(progress);
+      const result = await sttServiceRef.current.stopListening((progress: number) => {
+        setProgress(progress * 0.6); // STT takes 60% of progress
       });
 
       setTranscription(result.text);
-      setProgress(90);
+      setProgress(70);
 
-      // Process voice command
+      // Process voice command using LLM-based Voice Assistant
       if (result.text && result.text.length > 0) {
-        const command = await sttServiceRef.current.processVoiceCommand(result.text);
-        
+        logger.debug('Processing voice input with LLM', 'VoiceCommandPanel', {
+          text: result.text.substring(0, 100)
+        });
+
+        const voiceAssistant = new VoiceAssistantService();
+        const assistantResponse = await voiceAssistant.processVoiceTranscript(result.text);
+
+        setProgress(90);
+
+        // Create VoiceCommand from LLM response
         const voiceCommand: VoiceCommand = {
-          ...command,
+          intent: assistantResponse.isTtsRequest ? 'generate_audio' : 'story_request',
+          parameters: {
+            storyType: 'custom',
+            customTopic: assistantResponse.response || result.text
+          },
+          confidence: 0.95, // LLM responses are considered high confidence
           originalText: result.text
         };
 
         setLastCommand(voiceCommand);
         setProgress(100);
 
-        logger.debug('Voice command processed', 'VoiceCommandPanel', {
-          intent: command.intent,
-          confidence: command.confidence,
-          text: result.text.substring(0, 50)
+        logger.debug('LLM voice processing completed', 'VoiceCommandPanel', {
+          intent: voiceCommand.intent,
+          isTtsRequest: assistantResponse.isTtsRequest,
+          response: assistantResponse.response?.substring(0, 50)
         });
 
-        // Call the callback with the processed command
-        if (command.confidence >= 0.6) {
+        // Always call the callback - LLM handles all voice inputs appropriately
+        try {
           onVoiceCommand(voiceCommand);
-        } else {
-          setError('Komut anlaşılamadı. Lütfen daha açık konuşun.');
+        } catch (callbackError) {
+          console.error('🎵 [Voice Pipeline] Callback error:', callbackError);
+          setError('Voice command processing failed: ' + (callbackError as Error)?.message);
         }
+
       } else {
         setError('Ses kaydı boş. Lütfen tekrar deneyin.');
       }
 
     } catch (error) {
-      logger.error('Voice command processing failed', 'VoiceCommandPanel', { 
-        error: (error as Error)?.message 
+      logger.error('Voice assistant processing failed', 'VoiceCommandPanel', {
+        error: (error as Error)?.message
       });
-      setError('Ses tanıma başarısız: ' + (error as Error)?.message);
+      setError('Ses asistanı başarısız: ' + (error as Error)?.message);
     } finally {
       setIsProcessing(false);
       setProgress(0);
@@ -227,6 +288,7 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
       play_story: 'Oynat',
       pause_story: 'Duraklat',
       stop_story: 'Durdur',
+      generate_audio: 'Sese Dönüştür',
       settings: 'Ayarlar',
       help: 'Yardım',
       unknown: 'Bilinmeyen'
@@ -261,21 +323,21 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
           <AudioVisualizer isActive={isListening} />
         </div>
 
-        {/* Control Button */}
+        {/* Control Button - Compact Size */}
         <div className="flex justify-center">
           <Button
-            size="lg"
+            size="default"
             variant={isListening ? "destructive" : "default"}
             disabled={disabled || isProcessing || microphonePermission === 'denied'}
             onClick={isListening ? handleStopListening : handleStartListening}
-            className="w-32 h-32 rounded-full"
+            className="w-16 h-16 rounded-full p-0"
           >
             {isProcessing ? (
-              <Loader2 className="w-8 h-8 animate-spin" />
+              <Loader2 className="w-6 h-6 animate-spin" />
             ) : isListening ? (
-              <MicOff className="w-8 h-8" />
+              <MicOff className="w-6 h-6" />
             ) : (
-              <Mic className="w-8 h-8" />
+              <Mic className="w-6 h-6" />
             )}
           </Button>
         </div>
@@ -302,7 +364,7 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
           <div className="space-y-2">
             <Progress value={progress} className="w-full" />
             <p className="text-xs text-center text-gray-500">
-              {progress < 50 ? 'Ses tanınıyor...' : 
+              {progress < 50 ? 'Ses tanınıyor...' :
                progress < 90 ? 'Komut işleniyor...' : 'Tamamlanıyor...'}
             </p>
           </div>
@@ -345,7 +407,7 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
                 </span>
               </div>
             </div>
-            
+
             {/* Parameters */}
             {Object.keys(lastCommand.parameters).length > 0 && (
               <div className="space-y-1">
@@ -386,16 +448,45 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
           </div>
         )}
 
+        {/* Model Information */}
+  {(settings?.sttSettings?.model === 'gpt-4o-mini-transcribe') && (
+          <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-md">
+            <h4 className="text-sm font-medium text-green-700 dark:text-green-300 mb-2">
+              ✓ Enhanced STT Active
+            </h4>
+            <div className="text-xs text-green-600 dark:text-green-400 space-y-1">
+              <div>• Gelişmiş Transcribe model (legacy)</div>
+              <div>• Superior Turkish language support</div>
+              <div>• Word-level timing information</div>
+              {settings?.sttSettings?.wakeWordEnabled && (
+                <div>• Wake word "Hey Elsa" detection enabled</div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Usage Examples */}
         <div className="mt-6 p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
           <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Örnek Komutlar:
           </h4>
           <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-            <li>• "Elif için peri masalı anlat"</li>
-            <li>• "5 yaşında macera hikayesi istiyorum"</li>
-            <li>• "Hayvanlar hakkında eğitici bir hikaye"</li>
-            <li>• "Masalı oynat / durdur / duraklat"</li>
+            {settings?.sttSettings?.wakeWordEnabled ? (
+              <>
+                <li>• Say "Hey Elsa" to activate, then:</li>
+                <li>• "Elif için peri masalı anlat"</li>
+                <li>• "5 yaşında macera hikayesi istiyorum"</li>
+                <li>• "Hayvanlar hakkında eğitici bir hikaye"</li>
+                <li>• "Masalı oynat / durdur / duraklat"</li>
+              </>
+            ) : (
+              <>
+                <li>• "Elif için peri masalı anlat"</li>
+                <li>• "5 yaşında macera hikayesi istiyorum"</li>
+                <li>• "Hayvanlar hakkında eğitici bir hikaye"</li>
+                <li>• "Masalı oynat / durdur / duraklat"</li>
+              </>
+            )}
           </ul>
         </div>
       </CardContent>

@@ -80,7 +80,7 @@ export async function generateTitleWithLLM(storyText: string, fetcher: (url: str
     const res = await fetcher('/api/llm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ provider: 'openai', modelId: 'gpt-5-mini', prompt, max_tokens: 24 })
+            body: JSON.stringify({ provider: 'openai', modelId: 'gpt-5-nano', prompt, max_tokens: 24 })
     })
     if (!res.ok) return ''
     const data = await res.json()

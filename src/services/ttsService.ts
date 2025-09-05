@@ -118,13 +118,23 @@ export class TTSService {
 
   // Generate audio from text using custom TTS endpoint
   async generateAudio(text: string, onProgress?: ProgressCallback, storyId?: string | null): Promise<string> {
+    console.log(`🎵 [TTSService Debug] generateAudio called`)
+    console.log(`🎵 [TTSService Debug] - provider: ${this.provider}`)
+    console.log(`🎵 [TTSService Debug] - modelId: ${this.modelId}`)
+    console.log(`🎵 [TTSService Debug] - voiceId: ${this.voiceId}`)
+    console.log(`🎵 [TTSService Debug] - text length: ${text?.length || 0}`)
+    console.log(`🎵 [TTSService Debug] - storyId: ${storyId}`)
+    console.log(`🎵 [TTSService Debug] - text preview: "${text?.substring(0, 100) || 'EMPTY'}"`)
+
     try {
       // Model kontrolü
       if (!this.modelId || !this.voiceId) {
+        console.error(`🎵 [TTSService Debug] Missing settings - modelId: ${this.modelId}, voiceId: ${this.voiceId}`)
         throw new Error(`${this.provider} ayarları eksik. Lütfen model ve ses bilgilerini kontrol edin.`)
       }
 
       if (!text || text.trim().length === 0) {
+        console.error(`🎵 [TTSService Debug] No text provided for TTS`)
         throw new Error('Seslendirilecek metin bulunamadı.')
       }
 

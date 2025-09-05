@@ -412,29 +412,30 @@ export default function StoryQueuePanel({
 
   useEffect(() => {
     let id: number | null = null;
-    
+
     const start = () => {
       refreshRemote();
-      id = window.setInterval(refreshRemote, 5000);
+      // Reduce polling frequency to avoid console spam - 15 second intervals
+      id = window.setInterval(refreshRemote, 15000);
     };
-    
-    const stop = () => { 
+
+    const stop = () => {
       if (id) {
         clearInterval(id);
         id = null;
       }
     };
-    
+
     const onVis = () => (document.hidden ? stop() : start());
-    
+
     onVis();
     document.addEventListener('visibilitychange', onVis);
-    
-    return () => { 
-      stop(); 
-      document.removeEventListener('visibilitychange', onVis); 
+
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVis);
     };
-  }, [refreshRemote]) // Now refreshRemote is stable
+  }, [refreshRemote]); // refreshRemote is stable with useCallback
 
   // onRemoteStatusChange değiştiğinde sadece bu effect çalışsın
   useEffect(() => {

@@ -35,7 +35,7 @@ export const turkishIntents: { [key: string]: Intent } = {
     ],
     confidence: 0.9
   },
-  
+
   // Story types
   fairy_tale: {
     name: 'fairy_tale',
@@ -47,7 +47,7 @@ export const turkishIntents: { [key: string]: Intent } = {
     ],
     confidence: 0.85
   },
-  
+
   adventure: {
     name: 'adventure',
     patterns: [
@@ -58,7 +58,7 @@ export const turkishIntents: { [key: string]: Intent } = {
     ],
     confidence: 0.8
   },
-  
+
   educational: {
     name: 'educational',
     patterns: [
@@ -69,7 +69,7 @@ export const turkishIntents: { [key: string]: Intent } = {
     ],
     confidence: 0.8
   },
-  
+
   animal: {
     name: 'animal',
     patterns: [
@@ -80,7 +80,7 @@ export const turkishIntents: { [key: string]: Intent } = {
     ],
     confidence: 0.8
   },
-  
+
   // Audio controls
   play_story: {
     name: 'play_story',
@@ -90,7 +90,7 @@ export const turkishIntents: { [key: string]: Intent } = {
     ],
     confidence: 0.9
   },
-  
+
   pause_story: {
     name: 'pause_story',
     patterns: [
@@ -99,7 +99,7 @@ export const turkishIntents: { [key: string]: Intent } = {
     ],
     confidence: 0.9
   },
-  
+
   stop_story: {
     name: 'stop_story',
     patterns: [
@@ -108,7 +108,19 @@ export const turkishIntents: { [key: string]: Intent } = {
     ],
     confidence: 0.9
   },
-  
+
+  // Generate audio/TTS
+  generate_audio: {
+    name: 'generate_audio',
+    patterns: [
+      'sese dönüştür', 'seslendir', 'sesli yap', 'oku', 'sesle',
+      'masalı sese dönüştür', 'hikayeyi seslendir', 'sesli oku',
+      'ses oluştur', 'sesli ver', 'oku bunu', 'sesini dinle',
+      'sesli hale getir', 'ses kaydı yap', 'dinlemek istiyorum'
+    ],
+    confidence: 0.9
+  },
+
   // Settings and help
   settings: {
     name: 'settings',
@@ -118,7 +130,7 @@ export const turkishIntents: { [key: string]: Intent } = {
     ],
     confidence: 0.8
   },
-  
+
   help: {
     name: 'help',
     patterns: [
@@ -153,7 +165,7 @@ export const extractAge = (text: string): number | undefined => {
       }
     }
   }
-  
+
   return undefined;
 };
 
@@ -180,14 +192,14 @@ export const extractCharacterName = (text: string): string | undefined => {
         'masal', 'hikaye', 'için', 'hakkında', 'ile', 've',
         'yaş', 'yaşında', 'kahraman', 'karakter'
       ];
-      
+
       if (!stopWords.includes(name.toLowerCase()) && name.length >= 2) {
         // Capitalize first letter
         return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
       }
     }
   }
-  
+
   return undefined;
 };
 
@@ -213,7 +225,7 @@ export const extractCustomTopic = (text: string): string | undefined => {
       }
     }
   }
-  
+
   return undefined;
 };
 
@@ -231,18 +243,18 @@ export const detectIntent = (text: string): { intent: string; confidence: number
       if (normalizedText.includes(pattern)) {
         // Calculate confidence based on pattern match quality
         let confidence = intentData.confidence;
-        
+
         // Boost confidence for exact matches
         if (normalizedText === pattern) {
           confidence += 0.1;
         }
-        
+
         // Boost confidence for word boundaries
         const regex = new RegExp(`\\b${pattern}\\b`, 'gi');
         if (regex.test(normalizedText)) {
           confidence += 0.05;
         }
-        
+
         if (confidence > bestConfidence) {
           bestIntent = intentName;
           bestConfidence = Math.min(confidence, 1.0);
@@ -259,10 +271,10 @@ export const detectIntent = (text: string): { intent: string; confidence: number
  */
 export const extractStoryType = (text: string): string | undefined => {
   const normalizedText = text.toLowerCase();
-  
+
   // Check for story type patterns
   const storyTypes = ['fairy_tale', 'adventure', 'educational', 'animal'];
-  
+
   for (const storyType of storyTypes) {
     const patterns = turkishIntents[storyType]?.patterns || [];
     for (const pattern of patterns) {
@@ -271,7 +283,7 @@ export const extractStoryType = (text: string): string | undefined => {
       }
     }
   }
-  
+
   return undefined;
 };
 
@@ -280,37 +292,37 @@ export const extractStoryType = (text: string): string | undefined => {
  */
 export const processTurkishVoiceCommand = (text: string): IntentResult => {
   const normalizedText = text.toLowerCase().trim();
-  
+
   // Detect primary intent
   const { intent, confidence } = detectIntent(normalizedText);
-  
+
   // Extract parameters
   const parameters: ExtractedParameters = {};
-  
+
   // Extract character name
   const characterName = extractCharacterName(text);
   if (characterName) {
     parameters.characterName = characterName;
   }
-  
+
   // Extract age
   const age = extractAge(text);
   if (age) {
     parameters.age = age;
   }
-  
+
   // Extract story type
   const storyType = extractStoryType(text);
   if (storyType) {
     parameters.storyType = storyType;
   }
-  
+
   // Extract custom topic
   const customTopic = extractCustomTopic(text);
   if (customTopic) {
     parameters.customTopic = customTopic;
   }
-  
+
   // Special handling for story requests
   if (intent === 'story_request' || Object.keys(parameters).length > 0) {
     // If we have story parameters but no explicit story request, assume it's a story request
@@ -322,7 +334,7 @@ export const processTurkishVoiceCommand = (text: string): IntentResult => {
       };
     }
   }
-  
+
   // Boost confidence if we have multiple parameters
   let finalConfidence = confidence;
   const paramCount = Object.keys(parameters).length;
@@ -330,7 +342,7 @@ export const processTurkishVoiceCommand = (text: string): IntentResult => {
     finalConfidence += paramCount * 0.05;
     finalConfidence = Math.min(finalConfidence, 1.0);
   }
-  
+
   return {
     intent,
     parameters,
@@ -344,9 +356,10 @@ export const processTurkishVoiceCommand = (text: string): IntentResult => {
 export const getSuggestedCommands = (): string[] => {
   return [
     "Elif için peri masalı anlat",
-    "5 yaşında macera hikayesi istiyorum", 
+    "5 yaşında macera hikayesi istiyorum",
     "Hayvanlar hakkında eğitici bir hikaye",
     "Ahmet adında kahraman olan bir masal",
+    "Masalı sese dönüştür",
     "Masalı oynat",
     "Masalı durdur",
     "Ayarları aç",
@@ -367,20 +380,20 @@ export const validateCommandConfidence = (result: IntentResult): {
       feedback: "Komut anlaşılamadı. Lütfen daha açık konuşun."
     };
   }
-  
+
   if (result.confidence < 0.6) {
     return {
       isValid: false,
       feedback: "Komut belirsiz. Lütfen tekrar deneyin veya farklı kelimeler kullanın."
     };
   }
-  
+
   if (result.intent === 'unknown') {
     return {
       isValid: false,
       feedback: "Bu komut desteklenmiyor. 'Yardım' diyerek mevcut komutları öğrenebilirsiniz."
     };
   }
-  
+
   return { isValid: true };
 };

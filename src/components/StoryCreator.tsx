@@ -37,6 +37,7 @@ interface StoryCreatorProps {
   isGenerating: boolean;
   isGeneratingAudio: boolean;
   story: string | null;
+  settings?: any; // App settings including STT configuration
   onStoryChange: (story: string) => void;
   progress: number;
   audioUrl: string | null;
@@ -51,9 +52,29 @@ interface StoryCreatorProps {
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onClearStory: () => void;
-  onSaveStory: () => void;
+  onSaveStory: (isAutoSave?: boolean) => Promise<string | null>;
+  onVoiceGeneratedStory?: (storyContent: string) => Promise<void>; // New prop for voice commands
 }
 
+/**
+ * Masal oluşturma, seslendirme, paylaşma ve indirme işlevlerini içeren bir React bileşeni.
+ *
+ * Bu bileşen kullanıcıdan masal türü veya özel konu alır, masal oluşturma ve ses üretme işlemlerini tetikler,
+ * oluşturulan masalı oynatma/durdurma/susturma kontrolleri sağlar, paylaşma/indirme/kopyalama iş akışlarını yönetir
+ * ve isteğe bağlı olarak sesli komut paneli ile sesli komutları işler. İçeride kısmi UI durumları (paylaşma menüsü,
+ * kopyalandı durumu, paylaşılan link URL'si, sesli komut paneli görünürlüğü vb.) ve dış tıklama (share menüsü için)
+ * dinleyicisi gibi yan etkiler yönetilir. Paylaşma başarısız olduğunda bir yedek paylaşma yöntemi kullanılır.
+ *
+ * Önemli davranışlar:
+ * - selectedType / customTopic ile girişleri kontrol eder; tür seçildiğinde özel konu temizlenir, özel konu yazılırsa tür temizlenir.
+ * - onGenerateStory / onGenerateAudio gibi callback'leri çağırarak oluşturma işlevlerini başlatır.
+ * - audioUrl, isPlaying, audioProgress, audioDuration gibi oynatma durumlarına göre oynatma kontrolleri sağlar.
+ * - handleShare içinde storyId varsa sunucu tabanlı paylaşım (sharingService), başarısızlıkta eski shareStory fallback'i kullanılır.
+ * - VoiceCommandPanel'den gelen komutları handleVoiceCommand ile işler (masal isteği, tür atama, konu oluşturma, oynatma kontrolleri, yardım).
+ *
+ * @remarks
+ * - settings prop'u sesli komut paneline iletilir.
+ */
 export default function StoryCreator({
   selectedType,
   customTopic,
@@ -65,6 +86,7 @@ export default function StoryCreator({
   isGenerating,
   isGeneratingAudio,
   story,
+  settings,
   onStoryChange,
   progress,
   audioUrl,
@@ -79,7 +101,8 @@ export default function StoryCreator({
   isFavorite,
   onToggleFavorite,
   onClearStory,
-  onSaveStory
+  onSaveStory,
+  onVoiceGeneratedStory
 }: StoryCreatorProps) {
   const [copied, setCopied] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
@@ -205,76 +228,29 @@ export default function StoryCreator({
     return minutes
   }
 
-  // Voice command handler
+  // Voice command handler - now using LLM-based processing
   const handleVoiceCommand = (command: VoiceCommand) => {
     const { intent, parameters } = command
-    
-    // Handle story request commands
-    if (intent === 'story_request' || intent === 'fairy_tale' || intent === 'adventure' || intent === 'educational' || intent === 'animal') {
-      // Set story type if detected
-      if (parameters.storyType) {
-        const storyTypeMap: { [key: string]: string } = {
-          fairy_tale: 'fairy_tale',
-          adventure: 'adventure', 
-          educational: 'science',
-          animal: 'animal'
-        }
-        const mappedType = storyTypeMap[parameters.storyType]
-        if (mappedType) {
-          onTypeChange(mappedType)
-        }
+
+    if (intent === 'generate_audio') {
+      if (story && story.length > 0 && !isGeneratingAudio) {
+        onGenerateAudio()
+      } else {
+        console.warn('🎵 [Voice Pipeline] generate_audio intent but story empty')
       }
-      
-      // Build custom topic from parameters
-      let customTopicParts: string[] = []
-      if (parameters.characterName) {
-        customTopicParts.push(parameters.characterName + ' adında')
-      }
-      if (parameters.age) {
-        customTopicParts.push(parameters.age + ' yaşında')
-      }
-      if (parameters.customTopic) {
-        customTopicParts.push(parameters.customTopic + ' hakkında')
-      }
-      
-      if (customTopicParts.length > 0) {
-        const combinedTopic = customTopicParts.join(' ') + ' bir masal'
-        onCustomTopicChange(combinedTopic)
-        // Clear selected type if custom topic is set
-        if (selectedType) {
-          onTypeChange('')
-        }
-      }
-      
-      // Auto-generate story if we have enough information
-      if (parameters.storyType || customTopicParts.length > 0) {
-        setTimeout(() => {
-          onGenerateStory()
-        }, 500)
+      return
+    }
+
+    if (intent === 'story_request' && parameters.customTopic) {
+      const storyContent = parameters.customTopic
+      if (onVoiceGeneratedStory) {
+        onVoiceGeneratedStory(storyContent)
+      } else {
+        onTypeChange('voice_generated')
+        onCustomTopicChange('Voice Generated Story')
+        onStoryChange(storyContent)
       }
     }
-    
-    // Handle audio control commands
-    else if (intent === 'play_story' && audioUrl) {
-      if (!isPlaying) {
-        onPlayAudio()
-      }
-    }
-    else if (intent === 'pause_story' && audioUrl && isPlaying) {
-      onPauseAudio()
-    }
-    else if (intent === 'stop_story' && audioUrl) {
-      onStopAudio()
-    }
-    
-    // Handle help and settings
-    else if (intent === 'help') {
-      // Could show help dialog or tips
-      console.log('Yardım: Sesli komutlarla masal isteyebilir, ses kontrolü yapabilirsiniz.')
-    }
-    
-    // Close voice panel after command
-    setShowVoicePanel(false)
   }
 
   const displayText = story || customTopic
@@ -333,7 +309,13 @@ export default function StoryCreator({
               <Button
                 variant="default"
                 size="sm"
-                onClick={onSaveStory}
+                onClick={async () => {
+                  try {
+                    await onSaveStory(false) // Manual save
+                  } catch (error) {
+                    console.error('Manual save error:', error)
+                  }
+                }} // Manual save
                 className="flex-1 sm:flex-none"
               >
                 <CheckCircle className="h-4 w-4 sm:mr-2" />
@@ -491,6 +473,7 @@ export default function StoryCreator({
             <VoiceCommandPanel
               onVoiceCommand={handleVoiceCommand}
               disabled={isGenerating}
+              settings={settings}
             />
           </div>
         )}
@@ -572,7 +555,7 @@ export default function StoryCreator({
                     size="sm"
                     onClick={onClearStory}
                     className="absolute top-2 right-2 h-6 w-6 sm:h-8 sm:w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
-                    title="Metni temizle"
+                    title="Ana ekrana dön"
                   >
                     <X className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>

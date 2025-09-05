@@ -204,40 +204,13 @@ export class LLMService {
 
   // Prepare request body for different LLM providers
   prepareRequestBody(prompt: string) {
-    // OpenAI Responses API format (güncellendi)
-    if (this.endpoint.includes('responses') || this.endpoint.includes('/api/llm')) {
-      return {
-        model: this.modelId,
-        input: prompt,
-        max_output_tokens: this.getMaxTokens(),
-        temperature: this.temperature
-      }
-    }
-
-    
-
-    // Claude/Anthropic format
-    if (this.endpoint.includes('anthropic') || this.endpoint.includes('claude')) {
-      return {
-        model: this.modelId,
-        max_completion_tokens: this.getMaxTokens(),
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.9
-      }
-    }
-
-    // Generic/Custom format
+    // Only support OpenAI proxy (responses) and Gemini proxy through unified /api/llm endpoint.
+    // Backend tarafı provider'a göre uygun formata dönüştürecek; burada minimal payload gönderiyoruz.
     return {
       model: this.modelId,
-      prompt: prompt,
-      max_completion_tokens: this.getMaxTokens(),
-      temperature: 0.9,
-      top_p: 0.9
+      input: prompt,
+      max_output_tokens: this.getMaxTokens(),
+      temperature: this.temperature
     }
   }
 
@@ -248,90 +221,39 @@ export class LLMService {
 
   // Extract story from different response formats
   extractStoryFromResponse(data: any) {
-    // OpenAI Responses API format (yeni) - output bir array olabilir
-    if (data?.output) {
-      if (Array.isArray(data.output) && data.output.length > 0) {
-        // output array'inde message içindeki content'i ara
-        const messageItem = data.output.find((item: any) => item?.type === 'message');
-        if (messageItem && Array.isArray(messageItem.content)) {
-          // content array'inde output_text tipinde text ara
-          const textContent = messageItem.content.find((content: any) => 
-            content?.type === 'output_text' && content?.text
-          );
-          if (textContent && textContent.text) {
-            return textContent.text.toString().trim();
-          }
-          // Fallback: content array'inde ilk text değerini al
-          const fallbackContent = messageItem.content.find((content: any) => content?.text);
-          if (fallbackContent && fallbackContent.text) {
-            return fallbackContent.text.toString().trim();
-          }
-        }
-        // Eski format uyumluluğu için fallback
-        const textContent = data.output.find((item: any) =>
-          item?.type === 'text' || typeof item === 'string' || item?.content
-        );
-        if (textContent) {
-          return (textContent.content || textContent.text || textContent || '').toString().trim();
-        }
-        // Son fallback: ilk elemanı string olarak al
-        return (data.output[0]?.content || data.output[0]?.text || data.output[0] || '').toString().trim();
-      } else if (typeof data.output === 'string') {
-        return data.output.trim();
+    // Supported formats:
+    // 1) Normalized backend: { text: string }
+    if (typeof data?.text === 'string' && data.text.trim()) return data.text.trim()
+
+    // 2) OpenAI Responses API passthrough: { output: [...] }
+    if (Array.isArray(data?.output)) {
+      const messageItem = data.output.find((i: any) => i?.type === 'message')
+      if (messageItem && Array.isArray(messageItem.content)) {
+        const textContent = messageItem.content.find((c: any) => c?.type === 'output_text' && c?.text) ||
+          messageItem.content.find((c: any) => c?.text)
+        if (textContent?.text) return textContent.text.toString().trim()
       }
+      const fallback = data.output.find((i: any) => i?.text || i?.content || typeof i === 'string')
+      if (fallback) return (fallback.text || fallback.content || fallback).toString().trim()
     }
 
-    // Gemini format (candidates[].content.parts[].text)
-    if (data && Array.isArray(data.candidates) && data.candidates.length > 0) {
+    if (typeof data?.output === 'string' && data.output.trim()) return data.output.trim()
+
+    // 3) Gemini format
+    if (Array.isArray(data?.candidates) && data.candidates.length) {
       const first = data.candidates[0]
-      // Some SDKs expose output_text directly
-      if (typeof first.output_text === 'string' && first.output_text.trim()) {
-        return first.output_text.trim()
-      }
-      const parts = first.content && Array.isArray(first.content.parts) ? first.content.parts : []
-      if (parts.length) {
-        const joined = parts
-          .map((p: any) => (typeof p === 'string' ? p : (p?.text || '')))
-          .join('')
-          .trim()
+      if (typeof first?.output_text === 'string' && first.output_text.trim()) return first.output_text.trim()
+      const parts = first?.content?.parts
+      if (Array.isArray(parts) && parts.length) {
+        const joined = parts.map((p: any) => (typeof p === 'string' ? p : p?.text || '')).join('').trim()
         if (joined) return joined
       }
     }
 
-    // Legacy OpenAI Chat format
-    if (data?.choices?.[0]?.message) {
-      return data.choices[0].message.content.trim()
-    }
+    // Last resort direct string
+    if (typeof data === 'string' && data.trim()) return data.trim()
 
-    // Claude format
-    if (data?.content?.[0]?.text) {
-      return data.content[0].text.trim()
-    }
-
-    // Generic completion format
-    if (data?.choices?.[0]?.text) {
-      return data.choices[0].text.trim()
-    }
-
-    // Direct text response
-    if (typeof data === 'string') {
-      return data.trim()
-    }
-
-    // Custom response format
-    if (data.response) {
-      return data.response.trim()
-    }
-
-    if (data.text) {
-      return data.text.trim()
-    }
-
-    if (data.output) {
-      return data.output.trim()
-    }
-
-    throw new Error('LLM yanıtından masal metni çıkarılamadı. API yanıt formatını kontrol edin.')
+    throw new Error('LLM yanıtından metin çıkarılamadı (desteklenmeyen format).')
   }
 
   // Generate a fallback story if API fails
