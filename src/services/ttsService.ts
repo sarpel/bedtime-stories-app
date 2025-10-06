@@ -50,10 +50,12 @@ interface GeminiRequest {
     }>
   }>
   generationConfig: {
+    responseModalities: string[]
     speechConfig: {
       voiceConfig: {
-        name: string
-        languageCode: string
+        prebuiltVoiceConfig: {
+          voiceName: string
+        }
       }
     }
   }
@@ -242,10 +244,12 @@ export class TTSService {
           }]
         }],
         generationConfig: {
+          responseModalities: ["AUDIO"],
           speechConfig: {
             voiceConfig: {
-              name: this.voiceId || 'Puck',
-              languageCode: 'tr-TR'
+              prebuiltVoiceConfig: {
+                voiceName: this.voiceId || 'Zephyr'
+              }
             }
           }
         }

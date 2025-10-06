@@ -257,7 +257,7 @@ GEMINI_LLM_ENDPOINT=https://generativelanguage.googleapis.com/v1beta/models
 
 GEMINI_TTS_API_KEY=
 GEMINI_TTS_MODEL=gemini-2.0-flash-exp
-GEMINI_TTS_VOICE_ID=Aoede
+GEMINI_TTS_VOICE=Aoede
 GEMINI_TTS_ENDPOINT=https://generativelanguage.googleapis.com/v1beta/models
 
 # Server Configuration

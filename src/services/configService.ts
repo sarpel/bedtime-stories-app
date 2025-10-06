@@ -30,7 +30,7 @@ export const config = {
   geminiTTS: {
     apiKey: isProduction ? '' : (import.meta.env.VITE_GEMINI_TTS_API_KEY || ''),
     model: import.meta.env.VITE_GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts',
-    voiceId: import.meta.env.VITE_GEMINI_TTS_VOICE_ID || 'Despina',
+    voiceId: import.meta.env.VITE_GEMINI_TTS_VOICE || 'Zephyr',
     endpoint: isProduction ? '/api/tts' : (import.meta.env.VITE_GEMINI_TTS_ENDPOINT || '/api/tts')
   },
 

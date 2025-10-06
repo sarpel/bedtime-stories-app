@@ -102,6 +102,40 @@ try {
   });
 } catch { /* initial presence log skipped */ }
 
+// Utility: Convert raw PCM to WAV format
+// Gemini TTS returns PCM: 16-bit, 24kHz, mono
+function pcmToWav(pcmBuffer: Buffer): Buffer {
+  const numChannels = 1;
+  const sampleRate = 24000;
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+  const blockAlign = numChannels * (bitsPerSample / 8);
+  const dataSize = pcmBuffer.length;
+
+  const wavHeader = Buffer.alloc(44);
+
+  // "RIFF" chunk descriptor
+  wavHeader.write('RIFF', 0);
+  wavHeader.writeUInt32LE(36 + dataSize, 4); // File size - 8
+  wavHeader.write('WAVE', 8);
+
+  // "fmt " sub-chunk
+  wavHeader.write('fmt ', 12);
+  wavHeader.writeUInt32LE(16, 16); // Subchunk1Size (16 for PCM)
+  wavHeader.writeUInt16LE(1, 20); // AudioFormat (1 = PCM)
+  wavHeader.writeUInt16LE(numChannels, 22);
+  wavHeader.writeUInt32LE(sampleRate, 24);
+  wavHeader.writeUInt32LE(byteRate, 28);
+  wavHeader.writeUInt16LE(blockAlign, 32);
+  wavHeader.writeUInt16LE(bitsPerSample, 34);
+
+  // "data" sub-chunk
+  wavHeader.write('data', 36);
+  wavHeader.writeUInt32LE(dataSize, 40);
+
+  return Buffer.concat([wavHeader, pcmBuffer]);
+}
+
 // Express uygulamasını oluştur
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
@@ -571,13 +605,20 @@ ${prompt}`;
     const duration = Date.now() - t0;
     const data = response.data;
 
-    // Debug logging for Responses API (can be removed in production)
+    // Debug logging for API responses
     if (provider === 'openai') {
       logger.info({
         msg: '[API /api/llm] OpenAI response received',
         status: response.status,
         hasOutput: !!data.output,
         hasChoices: !!data.choices
+      });
+    } else if (provider === 'gemini') {
+      logger.info({
+        msg: '[API /api/llm] Gemini response received',
+        status: response.status,
+        hasCandidates: !!data.candidates,
+        candidatesCount: data.candidates?.length || 0
       });
     }
 
@@ -625,6 +666,41 @@ ${prompt}`;
         model: data.model,
         id: data.id
       };
+    }
+    // Gemini API format
+    else if (provider === 'gemini' && data.candidates && data.candidates[0]) {
+      const candidate = data.candidates[0];
+      let storyContent = '';
+
+      // Extract text from parts
+      if (candidate.content && candidate.content.parts && Array.isArray(candidate.content.parts)) {
+        for (const part of candidate.content.parts) {
+          if (part.text) {
+            storyContent += part.text;
+          }
+        }
+      }
+
+      if (!storyContent) {
+        logger.error({
+          msg: '[API /api/llm] No text found in Gemini response',
+          candidate: JSON.stringify(candidate).substring(0, 500)
+        });
+        throw new Error('Gemini API\'den metin alınamadı');
+      }
+
+      transformedData = {
+        text: storyContent,
+        usage: data.usageMetadata,
+        model: data.modelVersion,
+        finishReason: candidate.finishReason
+      };
+
+      logger.info({
+        msg: '[API /api/llm] Gemini response transformed',
+        textLength: storyContent.length,
+        finishReason: candidate.finishReason
+      });
     }
 
     // Validate story response more robustly
@@ -1094,8 +1170,13 @@ app.post('/api/tts', async (req, res) => {
           requestBody = {
             contents: [ { parts: [ { text } ] } ],
             generationConfig: {
+              responseModalities: ["AUDIO"],
               speechConfig: {
-                voiceConfig: { name: voiceId || process.env.GEMINI_TTS_VOICE || 'Turkey-Neutral' }
+                voiceConfig: {
+                  prebuiltVoiceConfig: {
+                    voiceName: voiceId || process.env.GEMINI_TTS_VOICE || 'Zephyr'
+                  }
+                }
               }
             }
           };
@@ -1187,18 +1268,24 @@ app.post('/api/tts', async (req, res) => {
         if (!base && !clientEndpoint) { throw new Error('Gemini base endpoint yok'); }
         endpoint = clientEndpoint || `${base}/${encodeURIComponent(effectiveModel)}:generateContent?key=${encodeURIComponent(GEMINI_TTS_API_KEY)}`;
         headers = { 'Content-Type': 'application/json' };
+        logger.info({ msg: '[Gemini TTS] Request', endpoint, requestBody: JSON.stringify(requestBody).substring(0, 500) });
         const resp = await axios.post(endpoint, requestBody, { headers });
+        logger.info({ msg: '[Gemini TTS] Response', status: resp.status, hasAudio: !!resp.data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data });
         if (resp.data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
           const audioData = resp.data.candidates[0].content.parts[0].inlineData.data;
-          const audioBuffer = Buffer.from(audioData, 'base64');
+          const pcmBuffer = Buffer.from(audioData, 'base64');
+          // Convert PCM to WAV (Gemini returns raw PCM: 16-bit, 24kHz, mono)
+          const wavBuffer = pcmToWav(pcmBuffer);
+          logger.info({ msg: '[Gemini TTS] Converted PCM to WAV', pcmSize: pcmBuffer.length, wavSize: wavBuffer.length });
           const { Readable } = require('stream');
           const audioStream = new Readable();
-            audioStream.push(audioBuffer);
+            audioStream.push(wavBuffer);
             audioStream.push(null);
           resp.data = audioStream;
-          resp.headers = { 'content-type': 'audio/mpeg' };
+          resp.headers = { 'content-type': 'audio/wav' };
           return resp;
         }
+        logger.error({ msg: '[Gemini TTS] No audio data in response', response: JSON.stringify(resp.data).substring(0, 1000) });
         throw new Error('Gemini API\'den ses verisi alınamadı');
       } else {
         if (!clientEndpoint) { throw new Error('Generic provider için endpoint gerekli'); }
@@ -1214,7 +1301,14 @@ app.post('/api/tts', async (req, res) => {
         response = await execOnce();
         break;
       } catch (err) {
-        logger.error({ msg: 'TTS attempt failed', attempt, error: err?.message });
+        logger.error({
+          msg: 'TTS attempt failed',
+          attempt,
+          provider,
+          error: err?.message,
+          response: err?.response?.data ? JSON.stringify(err.response.data).substring(0, 500) : undefined,
+          status: err?.response?.status
+        });
         if (attempt === 2) {
           return res.status(500).json({ error: 'TTS başarısız (max retry).' });
         }
@@ -1231,7 +1325,8 @@ app.post('/api/tts', async (req, res) => {
       if (isNaN(sanitizedStoryId) || sanitizedStoryId <= 0) {
         logger.warn({ msg: 'Invalid storyId format', storyId });
         // Continue without saving file but still stream to client
-  res.setHeader('Content-Type', 'audio/mpeg');
+        const contentType = provider === 'gemini' ? 'audio/wav' : 'audio/mpeg';
+  res.setHeader('Content-Type', contentType);
   res.setHeader('x-tts-attempts', String(attemptsUsed));
         response.data.pipe(res);
         return;
@@ -1239,7 +1334,9 @@ app.post('/api/tts', async (req, res) => {
 
       try {
         // Security: Use sanitized storyId for filename
-        const fileName = `story-${sanitizedStoryId}-${Date.now()}.mp3`;
+        // Use .wav for Gemini (PCM converted to WAV), .mp3 for others
+        const fileExtension = provider === 'gemini' ? 'wav' : 'mp3';
+        const fileName = `story-${sanitizedStoryId}-${Date.now()}.${fileExtension}`;
         const filePath = path.join(storyDb.getAudioDir(), fileName);
 
         // Use PassThrough streams to tee the incoming stream
@@ -1264,7 +1361,7 @@ app.post('/api/tts', async (req, res) => {
               if (provider === 'elevenlabs') {
                 usedVoiceId = voiceId || 'unknown';
               } else if (provider === 'gemini') {
-                usedVoiceId = requestBody.generationConfig?.speechConfig?.voiceConfig?.name || 'unknown';
+                usedVoiceId = requestBody.generationConfig?.speechConfig?.voiceConfig?.prebuiltVoiceConfig?.voiceName || 'unknown';
               }
 
               storyDb.saveAudio(sanitizedStoryId, fileName, filePath, usedVoiceId, requestBody);
@@ -1276,7 +1373,8 @@ app.post('/api/tts', async (req, res) => {
         });
 
         // Aynı zamanda client'a da stream gönder
-  res.setHeader('Content-Type', 'audio/mpeg');
+        const contentType = provider === 'gemini' ? 'audio/wav' : 'audio/mpeg';
+  res.setHeader('Content-Type', contentType);
   res.setHeader('x-tts-attempts', String(attemptsUsed));
         pipeline(tee2, res, (err) => {
           if (err) logger.error({ msg: 'Client stream pipeline error', error: err?.message });
@@ -1285,12 +1383,14 @@ app.post('/api/tts', async (req, res) => {
       } catch (fileError) {
         logger.error({ msg: 'File handling error', error: fileError?.message });
         // Dosya hatası olsa bile client'a stream gönder
-        res.setHeader('Content-Type', 'audio/mpeg');
+        const contentType = provider === 'gemini' ? 'audio/wav' : 'audio/mpeg';
+        res.setHeader('Content-Type', contentType);
         response.data.pipe(res);
       }
     } else {
       // StoryId yoksa sadece client'a stream gönder
-  res.setHeader('Content-Type', 'audio/mpeg');
+      const contentType = provider === 'gemini' ? 'audio/wav' : 'audio/mpeg';
+  res.setHeader('Content-Type', contentType);
   res.setHeader('x-tts-attempts', String(attemptsUsed));
       response.data.pipe(res);
     }
@@ -2230,7 +2330,7 @@ app.post('/api/batch/audio', async (req, res) => {
           (process.env.GEMINI_TTS_ENDPOINT || 'https://generativelanguage.googleapis.com/v1beta/models');
         const voiceId = provider === 'elevenlabs' ?
           (process.env.ELEVENLABS_VOICE_ID || 'xsGHrtxT5AdDzYXTQT0d') :
-          (process.env.GEMINI_TTS_VOICE_ID || 'Puck');
+          (process.env.GEMINI_TTS_VOICE || 'Puck');
 
         if (!apiKey) {
           errors.push({ storyId: story.id, error: `${provider} API anahtarı eksik` });

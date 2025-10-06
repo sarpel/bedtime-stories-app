@@ -8,10 +8,13 @@
 AI-powered bedtime story generator optimized for Raspberry Pi Zero 2W. Creates personalized stories for children with natural voice narration and remote audio playback.
 
 ## ✨ Features
+
 ### TTS Retry
+
 `/api/tts` endpointi artık ağ veya geçici sağlayıcı hatalarında otomatik olarak 1 kez (toplam 2 deneme) tekrar dener. Başarılı yanıt durumunda `x-tts-attempts` header'ı kaçıncı denemede başarı sağlandığını belirtir. İkinci deneme de başarısız olursa `500 { error: 'TTS başarısız (max retry).' }` döner.
 
 Otomatik tetikleme: `POST /api/stories?autoTts=1` veya body içinde `autoTts:true` gönderildiğinde masal oluşturma tamamlandıktan sonra arka planda `/api/tts` çağrılır. Provider belirtilmediyse `AUTO_TTS_PROVIDER` > ElevenLabs > Gemini sırası denenir.
+
 - 🔊 **Remote Audio Playback**: Play stories directly on Pi Zero 2W speakers
 - 📊 **Performance Monitoring**: Real-time system health and resource tracking
 - 🐳 **Production Ready**: Docker support with automated deployment
@@ -29,6 +32,7 @@ sudo bash setup.sh
 ```
 
 **What this does:**
+
 - ✅ Installs all dependencies (Node.js, SQLite, audio tools)
 - ✅ Clones repository to `/opt/storyapp`
 - ✅ Builds optimized production assets (686KB)
@@ -39,22 +43,26 @@ sudo bash setup.sh
 ### Post-Installation Setup
 
 1. **Configure API Keys** (Required)
+
    ```bash
    sudo nano /opt/storyapp/backend/.env
    ```
 
    Add your API keys:
+
    ```env
    OPENAI_API_KEY=your_openai_key_here
    ELEVENLABS_API_KEY=your_elevenlabs_key_here
    ```
 
 2. **Restart Service**
+
    ```bash
    sudo systemctl restart storyapp
    ```
 
 3. **Verify Installation**
+
    ```bash
    cd /opt/storyapp && bash check-setup.sh
    ```
@@ -67,6 +75,7 @@ sudo bash setup.sh
 ## 📋 System Requirements
 
 ### Hardware Requirements
+
 - **Raspberry Pi Zero 2W** (512MB RAM minimum)
 - **16GB+ SD Card** (Class 10 recommended)
 - **Audio Output** (3.5mm jack, USB speaker, or Bluetooth)
@@ -74,12 +83,14 @@ sudo bash setup.sh
 - **Power Supply** (5V 2.5A recommended)
 
 ### Software Requirements
+
 - **Raspberry Pi OS** (32-bit or 64-bit)
 - **Node.js 20+** (automatically installed)
 - **SQLite3** (automatically installed)
 - **ALSA Audio** (automatically configured)
 
 ### API Requirements
+
 - **OpenAI API Key** ([Get here](https://platform.openai.com/api-keys))
 - **ElevenLabs API Key** ([Get here](https://elevenlabs.io/))
 - Optional: **Gemini API Keys** (backup providers)
@@ -89,11 +100,13 @@ sudo bash setup.sh
 ### Creating Your First Story
 
 1. **Open the App**
+
    ```
    http://YOUR_PI_IP:3001
    ```
 
 2. **Fill Story Details**
+
    - **Child's Name**: Enter the child's name for personalization
    - **Age**: Select appropriate age (3-12 years)
    - **Story Type**: Choose from adventure, fairy tale, educational, etc.
@@ -101,11 +114,13 @@ sudo bash setup.sh
    - **Special Requests**: Any specific elements to include
 
 3. **Generate Story**
+
    - Click "Generate Story" button
    - Wait 10-20 seconds for AI generation
    - Story appears with full text
 
 4. **Generate Audio**
+
    - Click "Generate Audio" button
    - Wait 8-12 seconds for voice synthesis
    - Audio controls appear
@@ -222,6 +237,7 @@ curl http://localhost:3001/health
 ### Common Issues
 
 #### Service Won't Start
+
 ```bash
 # Check logs for errors
 sudo journalctl -u storyapp -n 50
@@ -232,6 +248,7 @@ sudo systemctl restart storyapp       # Restart service
 ```
 
 #### High Memory Usage
+
 ```bash
 # Check memory
 free -h
@@ -245,6 +262,7 @@ sudo dphys-swapfile swapon
 ```
 
 #### Audio Not Working
+
 ```bash
 # Test audio output
 aplay /usr/share/sounds/alsa/Front_Center.wav
@@ -257,6 +275,7 @@ sudo raspi-config
 ```
 
 #### Frontend Not Loading
+
 ```bash
 # Check if assets exist
 ls -la /opt/storyapp/assets/
@@ -277,6 +296,7 @@ sudo systemctl restart storyapp
 ## 🔄 Updates & Maintenance
 
 ### Update Application
+
 ```bash
 cd /opt/storyapp
 sudo git pull origin main
@@ -285,6 +305,7 @@ sudo systemctl restart storyapp
 ```
 
 ### Backup Data
+
 ```bash
 # Backup database
 sudo cp /opt/storyapp/backend/database/stories.db /home/pi/stories-backup-$(date +%Y%m%d).db
@@ -294,6 +315,7 @@ sudo tar -czf /home/pi/audio-backup-$(date +%Y%m%d).tar.gz /opt/storyapp/backend
 ```
 
 ### System Updates
+
 ```bash
 # Update system packages
 sudo apt update && sudo apt upgrade -y
@@ -352,12 +374,14 @@ npm run build:production
 ## 📚 API Documentation
 
 ### Health Check
+
 ```bash
 GET /health
 # Returns system health status
 ```
 
 ### Story Management
+
 ```bash
 POST /api/stories
 # Create new story
@@ -373,6 +397,7 @@ DELETE /api/stories/:id
 ```
 
 ### Audio Playback
+
 ```bash
 POST /api/play/:id
 # Play story on Pi speakers

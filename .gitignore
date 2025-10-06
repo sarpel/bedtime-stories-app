@@ -11,7 +11,7 @@ pnpm-debug.log*
 
 # Claude AI files
 .claude/
-
+backend/audio/
 # IDE files
 .vscode/
 .idea/
