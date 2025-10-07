@@ -5,17 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently --names \"FRONTEND,BACKEND\" --prefix-colors \"cyan,magenta\" \"vite\" \"cd backend && npm run dev\"",
-    "dev:network": "concurrently --names \"FRONTEND,BACKEND\" --prefix-colors \"cyan,magenta\" \"vite --host 0.0.0.0\" \"cd backend && npm run dev\"",
-    "dev:frontend": "vite",
-    "dev:backend": "cd backend && npm run dev",
+    "dev:share": "concurrently --names \"FRONTEND,BACKEND\" --prefix-colors \"cyan,magenta\" \"vite --host 0.0.0.0\" \"cd backend && npm run dev\"",
     "build": "tsc && vite build --mode production",
-    "start": "cd backend && npm start",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx --max-warnings=10",
-    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
+    "serve": "concurrently --names \"FRONTEND,BACKEND\" --prefix-colors \"cyan,magenta\" \"vite preview\" \"cd backend && npm start\"",
+    "serve:network": "concurrently --names \"FRONTEND,BACKEND\" --prefix-colors \"cyan,magenta\" \"vite preview --host 0.0.0.0\" \"cd backend && npm start\"",
+    "preview": "vite preview",
+    "preview:network": "vite preview --host 0.0.0.0",
+    "lint": "eslint . --ext .ts,.tsx --max-warnings=10",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "type-check": "tsc --noEmit",
     "check": "npm run type-check && npm run lint",
-    "test": "jest --runInBand",
-    "preview": "vite preview"
+    "test": "jest --runInBand"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

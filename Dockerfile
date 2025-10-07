@@ -15,7 +15,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 # Copy manifest files first for better cache
-COPY package.json package-lock.json .npmrc .nvmrc ./
+COPY package.json package-lock.json ./
 COPY backend/package.json backend/package.json
 
 # Install workspace deps (clean, reproducible)
@@ -25,7 +25,7 @@ RUN npm ci
 COPY . .
 
 # Build frontend (generates dist)
-RUN npm run build:production
+RUN npm run build
 
 # Stage 2: Runtime
 FROM node:20.16.0-bookworm-slim AS runtime
@@ -41,7 +41,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 # Copy manifests for prod install
-COPY package.json package-lock.json .npmrc .nvmrc ./
+COPY package.json package-lock.json ./
 COPY backend/package.json backend/package.json
 
 # Install only production deps (workspace aware)
@@ -58,4 +58,4 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://localhost:3001/health').then(r=>{if(r.ok)process.exit(0);process.exit(1)}).catch(()=>process.exit(1))" || exit 1
 
-CMD ["dumb-init","node","backend/server.js"]
+CMD ["dumb-init","node","backend/dist/server.js"]
