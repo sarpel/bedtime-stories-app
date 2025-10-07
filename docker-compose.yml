@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 services:
   app:
     build: .
@@ -10,13 +10,19 @@ services:
       NODE_ENV: production
       LOG_LEVEL: warn
       OPENAI_ENDPOINT: ${OPENAI_ENDPOINT:-https://api.openai.com/v1/responses}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5-nano}
       GEMINI_LLM_ENDPOINT: ${GEMINI_LLM_ENDPOINT:-https://generativelanguage.googleapis.com/v1/models}
-      GEMINI_LLM_MODEL: ${GEMINI_LLM_MODEL:-gemini-pro}
+      GEMINI_LLM_MODEL: ${GEMINI_LLM_MODEL:-gemini-2.5-flash-lite}
     volumes:
       - audio_data:/app/backend/audio
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3001/health').then(r=>{if(r.ok)process.exit(0);process.exit(1)}).catch(()=>process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3001/health').then(r=>{if(r.ok)process.exit(0);process.exit(1)}).catch(()=>process.exit(1))",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3

@@ -93,22 +93,49 @@ export default function ApiKeyHelp({ onClose }: ApiKeyHelpProps) {
                   <li>
                     4. API anahtarını kopyalayın (xi-api-key-... formatında)
                   </li>
-                  <li>5. .env dosyalarına ekleyin</li>
+                  <li>5. Backend .env dosyasına ekleyin (GÜVENLİ)</li>
                 </ol>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h5 className="font-medium mb-2">Frontend (.env)</h5>
-                  <code className="text-xs bg-muted p-2 rounded block">
-                    VITE_ELEVENLABS_API_KEY=xi-api-key-your-key-here
-                  </code>
+              <div className="space-y-4">
+                <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                  <div className="flex items-start gap-2">
+                    <Key className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h5 className="font-medium text-green-800 dark:text-green-200 mb-1">
+                        ✅ GÜVENLİ: Backend .env (ÖNERİLEN)
+                      </h5>
+                      <p className="text-xs text-green-700 dark:text-green-300 mb-2">
+                        API anahtarları sunucuda kalır, asla browser'a
+                        gönderilmez
+                      </p>
+                      <code className="text-xs bg-green-100 dark:bg-green-900/30 p-2 rounded block">
+                        backend/.env dosyasına ekleyin:
+                        <br />
+                        ELEVENLABS_API_KEY=xi-api-key-your-key-here
+                      </code>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h5 className="font-medium mb-2">Backend (.env)</h5>
-                  <code className="text-xs bg-muted p-2 rounded block">
-                    ELEVENLABS_API_KEY=xi-api-key-your-key-here
-                  </code>
+
+                <div className="p-4 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h5 className="font-medium text-red-800 dark:text-red-200 mb-1">
+                        ❌ GÜVENSİZ: Frontend .env (KULLANMAYIN)
+                      </h5>
+                      <p className="text-xs text-red-700 dark:text-red-300 mb-2">
+                        API anahtarları JavaScript bundle'a gömülür, herkes
+                        görebilir!
+                      </p>
+                      <code className="text-xs bg-red-100 dark:bg-red-900/30 p-2 rounded block line-through opacity-50">
+                        .env dosyasına EKLEMEYIN:
+                        <br />
+                        VITE_ELEVENLABS_API_KEY=... (GÜVENLİK RİSKİ!)
+                      </code>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -146,22 +173,49 @@ export default function ApiKeyHelp({ onClose }: ApiKeyHelpProps) {
                     <li>2. Hesap oluşturun veya giriş yapın</li>
                     <li>3. API Keys → Create new secret key</li>
                     <li>4. API anahtarını kopyalayın (sk-... formatında)</li>
-                    <li>5. .env dosyalarına ekleyin</li>
+                    <li>5. Backend .env dosyasına ekleyin (GÜVENLİ)</li>
                   </ol>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <h5 className="font-medium mb-2">Frontend (.env)</h5>
-                    <code className="text-xs bg-muted p-2 rounded block">
-                      VITE_OPENAI_API_KEY=sk-your-key-here
-                    </code>
+                <div className="space-y-4">
+                  <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                    <div className="flex items-start gap-2">
+                      <Key className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h5 className="font-medium text-green-800 dark:text-green-200 mb-1">
+                          ✅ GÜVENLİ: Backend .env (ÖNERİLEN)
+                        </h5>
+                        <p className="text-xs text-green-700 dark:text-green-300 mb-2">
+                          API anahtarları sunucuda kalır, asla browser'a
+                          gönderilmez
+                        </p>
+                        <code className="text-xs bg-green-100 dark:bg-green-900/30 p-2 rounded block">
+                          backend/.env dosyasına ekleyin:
+                          <br />
+                          OPENAI_API_KEY=sk-your-key-here
+                        </code>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h5 className="font-medium mb-2">Backend (.env)</h5>
-                    <code className="text-xs bg-muted p-2 rounded block">
-                      OPENAI_API_KEY=sk-your-key-here
-                    </code>
+
+                  <div className="p-4 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h5 className="font-medium text-red-800 dark:text-red-200 mb-1">
+                          ❌ GÜVENSİZ: Frontend .env (KULLANMAYIN)
+                        </h5>
+                        <p className="text-xs text-red-700 dark:text-red-300 mb-2">
+                          API anahtarları JavaScript bundle'a gömülür, herkes
+                          görebilir!
+                        </p>
+                        <code className="text-xs bg-red-100 dark:bg-red-900/30 p-2 rounded block line-through opacity-50">
+                          .env dosyasına EKLEMEYIN:
+                          <br />
+                          VITE_OPENAI_API_KEY=... (GÜVENLİK RİSKİ!)
+                        </code>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -170,11 +224,25 @@ export default function ApiKeyHelp({ onClose }: ApiKeyHelpProps) {
 
           {/* Önemli Notlar */}
           <div className="border-t pt-6">
-            <h3 className="text-lg font-semibold mb-3">Önemli Notlar</h3>
+            <h3 className="text-lg font-semibold mb-3">
+              🔒 Güvenlik ve Önemli Notlar
+            </h3>
             <div className="space-y-2 text-sm text-muted-foreground">
               <div className="flex items-start gap-2">
                 <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
-                <span>API anahtarlarınızı asla GitHub'a yüklemeyin</span>
+                <span>
+                  <strong>
+                    SADECE backend/.env dosyasına API anahtarı ekleyin!
+                  </strong>{" "}
+                  Frontend .env dosyası güvenli değildir.
+                </span>
+              </div>
+              <div className="flex items-start gap-2">
+                <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
+                <span>
+                  API anahtarlarınızı asla GitHub'a yüklemeyin (.gitignore ile
+                  korunmuş olmalı)
+                </span>
               </div>
               <div className="flex items-start gap-2">
                 <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
@@ -190,7 +258,15 @@ export default function ApiKeyHelp({ onClose }: ApiKeyHelpProps) {
               <div className="flex items-start gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
                 <span>
-                  API anahtarlarını ekledikten sonra uygulamayı yeniden başlatın
+                  API anahtarlarını backend/.env dosyasına ekledikten sonra
+                  backend'i yeniden başlatın
+                </span>
+              </div>
+              <div className="flex items-start gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                <span>
+                  Frontend'i yeniden build etmenize gerek yok - backend çalışma
+                  zamanında .env dosyasını okur
                 </span>
               </div>
             </div>

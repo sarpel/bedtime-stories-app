@@ -64,54 +64,73 @@ export default defineConfig(({ mode }) => {
       assetsDir: "assets",
       rollupOptions: {
         output: {
-          manualChunks: {
+          manualChunks: (id) => {
             // Core vendor chunks
-            "vendor-react": ["react", "react-dom", "react-router-dom"],
-            "vendor-ui": [
-              "lucide-react",
-              "clsx",
-              "tailwind-merge",
-              "class-variance-authority",
-            ],
-            "vendor-radix": [
-              "@radix-ui/react-alert-dialog",
-              "@radix-ui/react-dialog",
-              "@radix-ui/react-label",
-              "@radix-ui/react-progress",
-              "@radix-ui/react-radio-group",
-              "@radix-ui/react-select",
-              "@radix-ui/react-separator",
-              "@radix-ui/react-slider",
-              "@radix-ui/react-slot",
-              "@radix-ui/react-tabs",
-              "@radix-ui/react-toggle",
-              "@radix-ui/react-toggle-group",
-              "@radix-ui/react-tooltip",
-            ],
+            if (id.includes("node_modules")) {
+              // React ecosystem
+              if (
+                id.includes("react") ||
+                id.includes("react-dom") ||
+                id.includes("react-router")
+              ) {
+                return "vendor-react";
+              }
 
-            // Application chunks
-            "app-services": [
-              "./src/services/analyticsService",
-              "./src/services/configService",
-              "./src/services/llmService",
-              "./src/services/ttsService",
-              "./src/services/optimizedDatabaseService",
-              "./src/services/queueService",
-              "./src/services/sharingService",
-              "./src/services/titleService",
-            ],
-            "app-audio": [
-              "./src/hooks/useAudioPlayer",
-              "./src/hooks/useAudioPreloader",
-            ],
-            "app-utils": [
-              "./src/utils/cache",
-              "./src/utils/storyTypes",
-              "./src/utils/voiceOptions",
-              "./src/utils/logger",
-              "./src/utils/safeLocalStorage",
-              "./src/utils/share",
-            ],
+              // Radix UI components
+              if (id.includes("@radix-ui")) {
+                return "vendor-radix";
+              }
+
+              // UI utilities
+              if (
+                id.includes("lucide-react") ||
+                id.includes("clsx") ||
+                id.includes("tailwind-merge") ||
+                id.includes("class-variance-authority")
+              ) {
+                return "vendor-ui";
+              }
+
+              // DnD Kit
+              if (id.includes("@dnd-kit")) {
+                return "vendor-dnd";
+              }
+
+              // Remaining node_modules
+              return "vendor-misc";
+            }
+
+            // Application chunks - only split large modules
+            if (id.includes("/src/components/")) {
+              // Heavy components get their own chunks
+              if (id.includes("AnalyticsDashboard")) return "app-analytics";
+              if (id.includes("StoryCreator")) return "app-creator";
+              if (id.includes("StoryManagement")) return "app-management";
+              if (id.includes("FavoritesPanel")) return "app-favorites";
+              if (id.includes("SearchPanel")) return "app-search";
+              if (id.includes("StoryQueuePanel")) return "app-queue";
+              if (id.includes("Settings")) return "app-settings";
+
+              // UI components stay in main chunk or group together
+              if (id.includes("/ui/")) return "app-ui-components";
+            }
+
+            // Services
+            if (id.includes("/src/services/")) {
+              return "app-services";
+            }
+
+            // Hooks
+            if (id.includes("/src/hooks/")) {
+              return "app-hooks";
+            }
+
+            // Utils
+            if (id.includes("/src/utils/")) {
+              return "app-utils";
+            }
+
+            // Everything else stays in main chunk
           },
           // Optimize chunk naming for production
           chunkFileNames: isProd ? "assets/[name].[hash].js" : "[name].js",
@@ -133,7 +152,7 @@ export default defineConfig(({ mode }) => {
       },
 
       // Optimize chunk sizes for better loading
-      chunkSizeWarningLimit: isProd ? 500 : 600,
+      chunkSizeWarningLimit: isProd ? 800 : 1000, // Increased from 500/600
 
       // Source maps only in development
       sourcemap: isDev,

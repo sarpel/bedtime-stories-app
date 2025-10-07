@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -13,14 +13,23 @@ import {
   ListMusic,
   X,
   Search,
+  Loader2,
 } from "lucide-react";
-import SettingsPanel from "./components/Settings";
-import StoryCreator from "./components/StoryCreator";
-import FavoritesPanel from "./components/FavoritesPanel";
-import StoryManagementPanel from "./components/StoryManagementPanel";
-import AnalyticsDashboard from "./components/AnalyticsDashboard";
-import StoryQueuePanel from "./components/StoryQueuePanel";
-import SearchPanel from "./components/SearchPanel";
+// Lazy load heavy components
+const SettingsPanel = lazy(() => import("./components/Settings"));
+const StoryCreator = lazy(() => import("./components/StoryCreator"));
+const FavoritesPanel = lazy(() => import("./components/FavoritesPanel"));
+const StoryManagementPanel = lazy(
+  () => import("./components/StoryManagementPanel")
+);
+const AnalyticsDashboard = lazy(
+  () => import("./components/AnalyticsDashboard")
+);
+const StoryQueuePanel = lazy(() => import("./components/StoryQueuePanel"));
+const SearchPanel = lazy(() => import("./components/SearchPanel"));
+const ApiKeyHelp = lazy(() => import("./components/ApiKeyHelp"));
+
+// Keep essential services as synchronous imports
 import { LLMService } from "./services/llmService";
 import { TTSService } from "./services/ttsService";
 import optimizedDatabaseService from "./services/optimizedDatabaseService";
@@ -31,7 +40,6 @@ import { useStoryHistory } from "./hooks/useStoryHistory";
 import { useStoryDatabase } from "./hooks/useStoryDatabase";
 import { useAudioPlayer } from "./hooks/useAudioPlayer";
 import { useIsMobile } from "./hooks/use-mobile";
-import ApiKeyHelp from "./components/ApiKeyHelp";
 import safeLocalStorage from "./utils/safeLocalStorage";
 // Pi Zero optimizations
 import { logger } from "./utils/logger";
@@ -39,6 +47,14 @@ import "./App.css";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { Story } from "./utils/storyTypes";
+
+// Loading component for Suspense fallback
+const LoadingFallback = ({ message = "Loading..." }: { message?: string }) => (
+  <div className="flex items-center justify-center p-8">
+    <Loader2 className="w-6 h-6 animate-spin mr-2" />
+    <span className="text-muted-foreground">{message}</span>
+  </div>
+);
 
 // Import SettingsData from Settings component
 interface SettingsData {
@@ -1111,48 +1127,56 @@ function App() {
 
       <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-4xl">
         {/* Story Creator - Birleşik bileşen */}
-        <StoryCreator
-          selectedType={selectedStoryType}
-          customTopic={customTopic}
-          storyId={currentStoryId ?? undefined}
-          onTypeChange={setSelectedStoryType}
-          onCustomTopicChange={setCustomTopic}
-          onGenerateStory={generateStory}
-          onGenerateAudio={generateAudio}
-          isGenerating={isGenerating}
-          isGeneratingAudio={isGeneratingAudio}
-          story={story}
-          settings={settings}
-          onStoryChange={handleStoryChange}
-          progress={progress}
-          audioUrl={audioUrl}
-          isPlaying={audioIsPlaying}
-          audioProgress={audioProgress}
-          audioDuration={audioDuration}
-          onPlayAudio={() =>
-            currentStoryId && playAudio(audioUrl, currentStoryId)
+        <Suspense
+          fallback={
+            <LoadingFallback message="Masal oluşturucu yükleniyor..." />
           }
-          onPauseAudio={pauseAudio}
-          onStopAudio={stopAudio}
-          onToggleMute={audioToggleMute}
-          isMuted={audioIsMuted}
-          isFavorite={
-            story ? isFavorite({ story, storyType: selectedStoryType }) : false
-          }
-          onToggleFavorite={async () => {
-            if (story) {
-              await handleToggleFavorite({
-                story,
-                storyType: selectedStoryType,
-                customTopic,
-                audioUrl,
-              });
+        >
+          <StoryCreator
+            selectedType={selectedStoryType}
+            customTopic={customTopic}
+            storyId={currentStoryId ?? undefined}
+            onTypeChange={setSelectedStoryType}
+            onCustomTopicChange={setCustomTopic}
+            onGenerateStory={generateStory}
+            onGenerateAudio={generateAudio}
+            isGenerating={isGenerating}
+            isGeneratingAudio={isGeneratingAudio}
+            story={story}
+            settings={settings}
+            onStoryChange={handleStoryChange}
+            progress={progress}
+            audioUrl={audioUrl}
+            isPlaying={audioIsPlaying}
+            audioProgress={audioProgress}
+            audioDuration={audioDuration}
+            onPlayAudio={() =>
+              currentStoryId && playAudio(audioUrl, currentStoryId)
             }
-          }}
-          onClearStory={clearStory}
-          onSaveStory={saveStory}
-          onVoiceGeneratedStory={handleVoiceGeneratedStory}
-        />
+            onPauseAudio={pauseAudio}
+            onStopAudio={stopAudio}
+            onToggleMute={audioToggleMute}
+            isMuted={audioIsMuted}
+            isFavorite={
+              story
+                ? isFavorite({ story, storyType: selectedStoryType })
+                : false
+            }
+            onToggleFavorite={async () => {
+              if (story) {
+                await handleToggleFavorite({
+                  story,
+                  storyType: selectedStoryType,
+                  customTopic,
+                  audioUrl,
+                });
+              }
+            }}
+            onClearStory={clearStory}
+            onSaveStory={saveStory}
+            onVoiceGeneratedStory={handleVoiceGeneratedStory}
+          />
+        </Suspense>
 
         {/* Error Display */}
         {error && (
@@ -1181,203 +1205,239 @@ function App() {
 
         {/* Story Management Panel */}
         {showStoryManagement && (
-          <StoryManagementPanel
-            isOpen={showStoryManagement}
-            history={
-              dbStories.length > 0
-                ? dbStories.map((dbStory) => ({
-                    id: dbStory.id,
-                    story: dbStory.story_text,
-                    storyType: dbStory.story_type,
-                    customTopic: dbStory.custom_topic,
-                    createdAt: dbStory.created_at,
-                    audioUrl: dbStory.audio
-                      ? getDbAudioUrl(dbStory.audio.file_name)
-                      : null,
-                    audioGenerated: !!dbStory.audio,
-                  }))
-                : history
+          <Suspense
+            fallback={
+              <LoadingFallback message="Masal yönetimi yükleniyor..." />
             }
-            onUpdateStory={hybridUpdateStory}
-            onDeleteStory={hybridDeleteStory}
-            onClearHistory={clearHistory}
-            onClose={() => setShowStoryManagement(false)}
-            onToggleFavorite={handleToggleFavorite}
-            isFavorite={isFavorite}
-            onGenerateAudio={generateAudioForStoryWrapper}
-            isGeneratingAudio={isGeneratingAudio}
-            // Audio control props
-            audioIsPlaying={audioIsPlaying}
-            audioIsPaused={audioIsPaused}
-            audioProgress={audioProgress}
-            audioDuration={audioDuration}
-            audioVolume={audioVolume}
-            audioIsMuted={audioIsMuted}
-            audioPlaybackRate={audioPlaybackRate}
-            audioCurrentStoryId={audioCurrentStoryId || ""}
-            playAudio={playAudio}
-            stopAudio={stopAudio}
-            audioToggleMute={audioToggleMute}
-            setVolumeLevel={setVolumeLevel}
-            setPlaybackSpeed={setPlaybackSpeed}
-            seekTo={seekTo}
-            getDbAudioUrl={(fileName: string) => getDbAudioUrl(fileName) || ""}
-          />
+          >
+            <StoryManagementPanel
+              isOpen={showStoryManagement}
+              history={
+                dbStories.length > 0
+                  ? dbStories.map((dbStory) => ({
+                      id: dbStory.id,
+                      story: dbStory.story_text,
+                      storyType: dbStory.story_type,
+                      customTopic: dbStory.custom_topic,
+                      createdAt: dbStory.created_at,
+                      audioUrl: dbStory.audio
+                        ? getDbAudioUrl(dbStory.audio.file_name)
+                        : null,
+                      audioGenerated: !!dbStory.audio,
+                    }))
+                  : history
+              }
+              onUpdateStory={hybridUpdateStory}
+              onDeleteStory={hybridDeleteStory}
+              onClearHistory={clearHistory}
+              onClose={() => setShowStoryManagement(false)}
+              onToggleFavorite={handleToggleFavorite}
+              isFavorite={isFavorite}
+              onGenerateAudio={generateAudioForStoryWrapper}
+              isGeneratingAudio={isGeneratingAudio}
+              // Audio control props
+              audioIsPlaying={audioIsPlaying}
+              audioIsPaused={audioIsPaused}
+              audioProgress={audioProgress}
+              audioDuration={audioDuration}
+              audioVolume={audioVolume}
+              audioIsMuted={audioIsMuted}
+              audioPlaybackRate={audioPlaybackRate}
+              audioCurrentStoryId={audioCurrentStoryId || ""}
+              playAudio={playAudio}
+              stopAudio={stopAudio}
+              audioToggleMute={audioToggleMute}
+              setVolumeLevel={setVolumeLevel}
+              setPlaybackSpeed={setPlaybackSpeed}
+              seekTo={seekTo}
+              getDbAudioUrl={(fileName: string) =>
+                getDbAudioUrl(fileName) || ""
+              }
+            />
+          </Suspense>
         )}
 
         {/* Settings Panel */}
         {showSettings && (
-          <SettingsPanel
-            settings={settings}
-            onSettingsChange={updateSettings}
-            onClose={() => setShowSettings(false)}
-          />
+          <Suspense
+            fallback={<LoadingFallback message="Ayarlar yükleniyor..." />}
+          >
+            <SettingsPanel
+              settings={settings}
+              onSettingsChange={updateSettings}
+              onClose={() => setShowSettings(false)}
+            />
+          </Suspense>
         )}
 
         {/* Favorites Panel */}
         {showFavorites && (
-          <FavoritesPanel
-            favorites={favorites}
-            onRemove={async (id) => {
-              removeFavorite(id);
-              await refreshFavorites();
-            }}
-            onClose={() => setShowFavorites(false)}
-            // Audio control props
-            audioIsPlaying={audioIsPlaying}
-            audioIsPaused={audioIsPaused}
-            audioProgress={audioProgress}
-            audioDuration={audioDuration}
-            audioVolume={audioVolume}
-            audioIsMuted={audioIsMuted}
-            audioPlaybackRate={audioPlaybackRate}
-            audioCurrentStoryId={audioCurrentStoryId || ""}
-            playAudio={playAudio}
-            stopAudio={stopAudio}
-            audioToggleMute={audioToggleMute}
-            setVolumeLevel={setVolumeLevel}
-            setPlaybackSpeed={setPlaybackSpeed}
-            seekTo={seekTo}
-            // onDownload, onBookmark kaldırıldı - çalışmayan özellikler
-          />
+          <Suspense
+            fallback={<LoadingFallback message="Favoriler yükleniyor..." />}
+          >
+            <FavoritesPanel
+              favorites={favorites}
+              onRemove={async (id) => {
+                removeFavorite(id);
+                await refreshFavorites();
+              }}
+              onClose={() => setShowFavorites(false)}
+              // Audio control props
+              audioIsPlaying={audioIsPlaying}
+              audioIsPaused={audioIsPaused}
+              audioProgress={audioProgress}
+              audioDuration={audioDuration}
+              audioVolume={audioVolume}
+              audioIsMuted={audioIsMuted}
+              audioPlaybackRate={audioPlaybackRate}
+              audioCurrentStoryId={audioCurrentStoryId || ""}
+              playAudio={playAudio}
+              stopAudio={stopAudio}
+              audioToggleMute={audioToggleMute}
+              setVolumeLevel={setVolumeLevel}
+              setPlaybackSpeed={setPlaybackSpeed}
+              seekTo={seekTo}
+              // onDownload, onBookmark kaldırıldı - çalışmayan özellikler
+            />
+          </Suspense>
         )}
 
         {/* API Key Help Panel */}
         {showApiKeyHelp && (
-          <ApiKeyHelp onClose={() => setShowApiKeyHelp(false)} />
+          <Suspense
+            fallback={<LoadingFallback message="Yardım yükleniyor..." />}
+          >
+            <ApiKeyHelp onClose={() => setShowApiKeyHelp(false)} />
+          </Suspense>
         )}
 
         {/* Analytics Dashboard */}
         {showAnalytics && (
-          <AnalyticsDashboard onClose={() => setShowAnalytics(false)} />
+          <Suspense
+            fallback={<LoadingFallback message="Analitik yükleniyor..." />}
+          >
+            <AnalyticsDashboard onClose={() => setShowAnalytics(false)} />
+          </Suspense>
         )}
 
         {/* Search Panel */}
         {showSearch && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <SearchPanel
-              onClose={() => setShowSearch(false)}
-              onStorySelect={(story) => {
-                setStory(story.story_text || story.story || "");
-                setSelectedStoryType(story.story_type || story.storyType || "");
-                setCustomTopic(story.custom_topic || story.customTopic || "");
-                setCurrentStoryId(String(story.id || ""));
-                const audioSrc = story.audio?.file_name
-                  ? getDbAudioUrl(story.audio.file_name)
-                  : null;
-                if (audioSrc) {
-                  setAudioUrl(audioSrc);
-                }
-                setShowSearch(false);
-                toast.success("Masal seçildi");
-              }}
-              favorites={favorites}
-              onToggleFavorite={handleToggleFavorite}
-              onDeleteStory={hybridDeleteStory}
-            />
+            <Suspense
+              fallback={<LoadingFallback message="Arama yükleniyor..." />}
+            >
+              <SearchPanel
+                onClose={() => setShowSearch(false)}
+                onStorySelect={(story) => {
+                  setStory(story.story_text || story.story || "");
+                  setSelectedStoryType(
+                    story.story_type || story.storyType || ""
+                  );
+                  setCustomTopic(story.custom_topic || story.customTopic || "");
+                  setCurrentStoryId(String(story.id || ""));
+                  const audioSrc = story.audio?.file_name
+                    ? getDbAudioUrl(story.audio.file_name)
+                    : null;
+                  if (audioSrc) {
+                    setAudioUrl(audioSrc);
+                  }
+                  setShowSearch(false);
+                  toast.success("Masal seçildi");
+                }}
+                favorites={favorites}
+                onToggleFavorite={handleToggleFavorite}
+                onDeleteStory={hybridDeleteStory}
+              />
+            </Suspense>
           </div>
         )}
 
         {/* Story Queue Panel - Replace old story list */}
         {(dbStories.length > 0 || history.length > 0) && (
-          <StoryQueuePanel
-            stories={
-              dbStories.length > 0
-                ? dbStories.map((dbStory) => ({
-                    id: dbStory.id,
-                    story: dbStory.story_text || "",
-                    story_text: dbStory.story_text || "",
-                    storyType: dbStory.story_type || "",
-                    story_type: dbStory.story_type || "",
-                    customTopic: dbStory.custom_topic ?? undefined,
-                    custom_topic: dbStory.custom_topic ?? undefined,
-                    createdAt: dbStory.created_at || "",
-                    created_at: dbStory.created_at || "",
-                    audioUrl: dbStory.audio
-                      ? getDbAudioUrl(dbStory.audio.file_name)
-                      : null,
-                    audio: dbStory.audio || undefined,
-                    audioGenerated: !!dbStory.audio,
-                  }))
-                : history.map((historyItem) => ({
-                    id: historyItem.id,
-                    story: historyItem.story || "",
-                    story_text: historyItem.story || "",
-                    storyType: historyItem.storyType || "",
-                    story_type: historyItem.storyType || "",
-                    customTopic: historyItem.customTopic ?? undefined,
-                    custom_topic: historyItem.customTopic ?? undefined,
-                    createdAt: historyItem.createdAt || "",
-                    created_at: historyItem.createdAt || "",
-                    audioUrl: historyItem.audioUrl,
-                    audioGenerated: historyItem.audioGenerated,
-                  }))
-            }
-            onUpdateStory={hybridUpdateStory}
-            onSelectStory={(story) => {
-              setStory(story.story_text || story.story);
-              setSelectedStoryType(story.story_type || story.storyType);
-              setCustomTopic(story.custom_topic || story.customTopic || "");
-              const audioSrc = story.audio
-                ? getDbAudioUrl(story.audio.file_name)
-                : story.audioUrl;
-              if (audioSrc) {
-                setAudioUrl(audioSrc);
+          <Suspense
+            fallback={<LoadingFallback message="Masal kuyruğu yükleniyor..." />}
+          >
+            <StoryQueuePanel
+              stories={
+                dbStories.length > 0
+                  ? dbStories.map((dbStory) => ({
+                      id: dbStory.id,
+                      story: dbStory.story_text || "",
+                      story_text: dbStory.story_text || "",
+                      storyType: dbStory.story_type || "",
+                      story_type: dbStory.story_type || "",
+                      customTopic: dbStory.custom_topic ?? undefined,
+                      custom_topic: dbStory.custom_topic ?? undefined,
+                      createdAt: dbStory.created_at || "",
+                      created_at: dbStory.created_at || "",
+                      audioUrl: dbStory.audio
+                        ? getDbAudioUrl(dbStory.audio.file_name)
+                        : null,
+                      audio: dbStory.audio || undefined,
+                      audioGenerated: !!dbStory.audio,
+                    }))
+                  : history.map((historyItem) => ({
+                      id: historyItem.id,
+                      story: historyItem.story || "",
+                      story_text: historyItem.story || "",
+                      storyType: historyItem.storyType || "",
+                      story_type: historyItem.storyType || "",
+                      customTopic: historyItem.customTopic ?? undefined,
+                      custom_topic: historyItem.customTopic ?? undefined,
+                      createdAt: historyItem.createdAt || "",
+                      created_at: historyItem.createdAt || "",
+                      audioUrl: historyItem.audioUrl,
+                      audioGenerated: historyItem.audioGenerated,
+                    }))
               }
-            }}
-            onShowStoryManagement={() => setShowStoryManagement(true)}
-            onToggleFavorite={handleToggleFavorite}
-            isFavorite={isFavorite}
-            onGenerateAudio={generateAudioForStoryId}
-            isGeneratingAudio={isGeneratingAudio}
-            // Audio control props
-            audioIsPlaying={audioIsPlaying}
-            audioIsPaused={audioIsPaused}
-            audioProgress={audioProgress}
-            audioDuration={audioDuration}
-            audioVolume={audioVolume}
-            audioIsMuted={audioIsMuted}
-            audioPlaybackRate={audioPlaybackRate}
-            audioCurrentStoryId={audioCurrentStoryId || ""}
-            playAudio={playAudioWrapper}
-            stopAudio={stopAudio}
-            audioToggleMute={audioToggleMute}
-            setVolumeLevel={setVolumeLevel}
-            setPlaybackSpeed={setPlaybackSpeed}
-            seekTo={seekTo}
-            getDbAudioUrl={(fileName: string) => getDbAudioUrl(fileName) || ""}
-            setOnEnded={setOnEnded}
-            onRemoteStatusChange={(st) => {
-              setRemotePlayback(st);
-              // Mini player görünürlüğü kontrolü
-              if (st.playing) {
-                setShowMiniPlayer(true);
-              } else {
-                setShowMiniPlayer(false);
-                setRemoteProgressPct(0);
+              onUpdateStory={hybridUpdateStory}
+              onSelectStory={(story) => {
+                setStory(story.story_text || story.story);
+                setSelectedStoryType(story.story_type || story.storyType);
+                setCustomTopic(story.custom_topic || story.customTopic || "");
+                const audioSrc = story.audio
+                  ? getDbAudioUrl(story.audio.file_name)
+                  : story.audioUrl;
+                if (audioSrc) {
+                  setAudioUrl(audioSrc);
+                }
+              }}
+              onShowStoryManagement={() => setShowStoryManagement(true)}
+              onToggleFavorite={handleToggleFavorite}
+              isFavorite={isFavorite}
+              onGenerateAudio={generateAudioForStoryId}
+              isGeneratingAudio={isGeneratingAudio}
+              // Audio control props
+              audioIsPlaying={audioIsPlaying}
+              audioIsPaused={audioIsPaused}
+              audioProgress={audioProgress}
+              audioDuration={audioDuration}
+              audioVolume={audioVolume}
+              audioIsMuted={audioIsMuted}
+              audioPlaybackRate={audioPlaybackRate}
+              audioCurrentStoryId={audioCurrentStoryId || ""}
+              playAudio={playAudioWrapper}
+              stopAudio={stopAudio}
+              audioToggleMute={audioToggleMute}
+              setVolumeLevel={setVolumeLevel}
+              setPlaybackSpeed={setPlaybackSpeed}
+              seekTo={seekTo}
+              getDbAudioUrl={(fileName: string) =>
+                getDbAudioUrl(fileName) || ""
               }
-            }}
-          />
+              setOnEnded={setOnEnded}
+              onRemoteStatusChange={(st) => {
+                setRemotePlayback(st);
+                // Mini player görünürlüğü kontrolü
+                if (st.playing) {
+                  setShowMiniPlayer(true);
+                } else {
+                  setShowMiniPlayer(false);
+                  setRemoteProgressPct(0);
+                }
+              }}
+            />
+          </Suspense>
         )}
       </main>
 
