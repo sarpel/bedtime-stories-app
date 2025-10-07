@@ -13,7 +13,7 @@ WorkingDirectory=/opt/storyapp
 Environment=NODE_ENV=production
 Environment=PORT=3001
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-ExecStart=/usr/bin/node backend/server.ts
+ExecStart=/usr/bin/node backend/server.js
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 RestartSec=10

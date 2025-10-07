@@ -1,19 +1,34 @@
 # 🌙 Bedtime Stories App
 
 [![Production Ready](https://img.shields.io/badge/Production-Ready-green.svg)](https://github.com/sarpel/bedtime-stories-app)
+[![Mobile Compatible](https://img.shields.io/badge/Mobile-Compatible-success.svg)](https://github.com/sarpel/bedtime-stories-app)
 [![Pi Zero 2W Optimized](https://img.shields.io/badge/Pi%20Zero%202W-Optimized-blue.svg)](https://www.raspberrypi.org/products/raspberry-pi-zero-2-w/)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19-blue.svg)](https://reactjs.org/)
 
-AI-powered bedtime story generator optimized for Raspberry Pi Zero 2W. Creates personalized stories for children with natural voice narration and remote audio playback.
+AI-powered bedtime story generator optimized for Raspberry Pi Zero 2W and mobile devices. Creates personalized stories for children with natural voice narration and remote audio playback.
 
 ## ✨ Features
+
+### 📱 NEW: Full Mobile Compatibility
+
+The app is now fully optimized for mobile devices with:
+
+- ✅ **Responsive Design**: Seamless experience from 320px to 1920px+ screens
+- ✅ **Touch-Optimized**: 44px+ touch targets, smooth scrolling, no zoom issues
+- ✅ **Mobile-First UI**: Full-screen modals, adaptive navigation, optimized layouts
+- ✅ **Device Support**: iPhone, iPad, Android phones/tablets, all desktop sizes
+- ✅ **PWA Ready**: Install as app, offline support, safe area insets for notched devices
+
+See [Mobile Compatibility Guide](docs/Mobile-Compatibility-Guide.md) for details.
 
 ### TTS Retry
 
 `/api/tts` endpointi artık ağ veya geçici sağlayıcı hatalarında otomatik olarak 1 kez (toplam 2 deneme) tekrar dener. Başarılı yanıt durumunda `x-tts-attempts` header'ı kaçıncı denemede başarı sağlandığını belirtir. İkinci deneme de başarısız olursa `500 { error: 'TTS başarısız (max retry).' }` döner.
 
 Otomatik tetikleme: `POST /api/stories?autoTts=1` veya body içinde `autoTts:true` gönderildiğinde masal oluşturma tamamlandıktan sonra arka planda `/api/tts` çağrılır. Provider belirtilmediyse `AUTO_TTS_PROVIDER` > ElevenLabs > Gemini sırası denenir.
+
+### Core Features
 
 - 🔊 **Remote Audio Playback**: Play stories directly on Pi Zero 2W speakers
 - 📊 **Performance Monitoring**: Real-time system health and resource tracking
@@ -143,6 +158,40 @@ sudo bash setup.sh
 - **Age Adaptation**: Content automatically adjusted for age
 - **Character Consistency**: Recurring characters in story series
 
+### 📱 Mobile Usage
+
+The app is fully optimized for mobile devices. Access from your phone or tablet:
+
+1. **Connect to Same Network**
+
+   ```
+   http://YOUR_PI_IP:3001
+   ```
+
+2. **Mobile Features**
+
+   - ✅ Full-screen modals for better focus
+   - ✅ Touch-optimized buttons (44px+ tap targets)
+   - ✅ Swipe-friendly navigation
+   - ✅ No zoom issues on form inputs
+   - ✅ Adaptive layout for all screen sizes
+   - ✅ Works in portrait and landscape
+
+3. **Install as PWA** (Optional)
+
+   - Open in Safari (iOS) or Chrome (Android)
+   - Tap "Add to Home Screen"
+   - Use like a native app with offline support
+
+4. **Tested Devices**
+   - ✅ iPhone SE to iPhone 14 Pro Max
+   - ✅ iPad (all sizes)
+   - ✅ Android phones (Samsung, Pixel, etc.)
+   - ✅ Android tablets
+   - ✅ Desktop browsers (Chrome, Safari, Firefox)
+
+See [Mobile Compatibility Guide](docs/Mobile-Compatibility-Guide.md) for technical details.
+
 ## 🔧 Configuration
 
 ### Environment Variables
@@ -152,7 +201,7 @@ Create `/opt/storyapp/backend/.env` with:
 ```env
 # OpenAI Configuration (Required)
 OPENAI_API_KEY=your_openai_key_here
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=gpt-5-nano
 OPENAI_ENDPOINT=https://api.openai.com/v1/responses
 
 # ElevenLabs Configuration (Required)
@@ -341,8 +390,53 @@ cd backend && npm install && cd ..
 cp backend/.env.example backend/.env
 # Edit backend/.env with your API keys
 
-# Start development servers
-npm run dev:all
+# Start development servers (local access)
+npm run dev
+
+# Start development servers (network access)
+npm run dev:share
+```
+
+### Available NPM Scripts
+
+#### Development
+
+```bash
+npm run dev              # Start frontend + backend (local)
+npm run dev:share        # Start frontend + backend (network accessible)
+cd backend && npm run dev:watch  # Backend with auto-reload
+```
+
+#### Production Build
+
+```bash
+npm run build            # Build frontend only
+npm run build:backend    # Build backend only
+npm run build:all        # Build everything
+```
+
+#### Production Serve
+
+```bash
+npm run serve            # Build & serve locally
+npm run serve:network    # Build & serve on network
+```
+
+#### Testing & Quality
+
+```bash
+npm test                 # Run all tests
+npm run type-check       # TypeScript type checking
+npm run lint             # Check code style
+npm run lint:fix         # Fix code style issues
+npm run check            # Type check + lint
+```
+
+#### Maintenance
+
+```bash
+npm run clean            # Clean build artifacts
+cd backend && npm run rebuild:sqlite  # Rebuild SQLite native module
 ```
 
 ### Testing
@@ -351,14 +445,17 @@ npm run dev:all
 # Run all tests
 npm test
 
-# Run backend tests only
-cd backend && npm test
+# Type checking
+npm run type-check
 
 # Run linting
 npm run lint
 
-# Run security audit
-npm run security:audit
+# Fix lint issues automatically
+npm run lint:fix
+
+# Full check (type + lint)
+npm run check
 ```
 
 ### Building for Production
@@ -367,8 +464,11 @@ npm run security:audit
 # Build optimized frontend
 npm run build
 
-# Build production package
-npm run build:production
+# Build backend
+npm run build:backend
+
+# Build everything
+npm run build:all
 ```
 
 ## 📚 API Documentation

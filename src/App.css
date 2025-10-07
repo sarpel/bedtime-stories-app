@@ -64,8 +64,8 @@
   --chart-2: oklch(0.45 0.12 220);
   --chart-3: oklch(0.35 0.08 200);
   --chart-4: oklch(0.65 0.18 260);
-  --chart-5: oklch(0.75 0.20 280);
-  --sidebar: oklch(0.10 0.02 240);
+  --chart-5: oklch(0.75 0.2 280);
+  --sidebar: oklch(0.1 0.02 240);
   --sidebar-foreground: oklch(0.95 0.01 240);
   --sidebar-primary: oklch(0.55 0.15 240);
   --sidebar-primary-foreground: oklch(0.98 0.01 240);
@@ -78,9 +78,9 @@
 .dark {
   --background: oklch(0.15 0.02 240);
   --foreground: oklch(0.96 0.01 240);
-  --card: oklch(0.20 0.03 240);
+  --card: oklch(0.2 0.03 240);
   --card-foreground: oklch(0.96 0.01 240);
-  --popover: oklch(0.20 0.03 240);
+  --popover: oklch(0.2 0.03 240);
   --popover-foreground: oklch(0.96 0.01 240);
   --primary: oklch(0.65 0.18 240);
   --primary-foreground: oklch(0.15 0.02 240);
@@ -88,7 +88,7 @@
   --secondary-foreground: oklch(0.88 0.02 240);
   --muted: oklch(0.25 0.04 240);
   --muted-foreground: oklch(0.68 0.02 240);
-  --accent: oklch(0.50 0.15 220);
+  --accent: oklch(0.5 0.15 220);
   --accent-foreground: oklch(0.96 0.01 240);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(0.35 0.05 240);
@@ -97,9 +97,9 @@
   --chart-1: oklch(0.65 0.18 240);
   --chart-2: oklch(0.55 0.15 220);
   --chart-3: oklch(0.45 0.12 200);
-  --chart-4: oklch(0.75 0.20 260);
+  --chart-4: oklch(0.75 0.2 260);
   --chart-5: oklch(0.85 0.22 280);
-  --sidebar: oklch(0.20 0.03 240);
+  --sidebar: oklch(0.2 0.03 240);
   --sidebar-foreground: oklch(0.96 0.01 240);
   --sidebar-primary: oklch(0.65 0.18 240);
   --sidebar-primary-foreground: oklch(0.15 0.02 240);
@@ -126,7 +126,8 @@
 
 .scrollbar-thin,
 .scrollbar-thin * {
-  scrollbar-color: color-mix(in oklch, var(--muted) 85%, transparent) transparent;
+  scrollbar-color: color-mix(in oklch, var(--muted) 85%, transparent)
+    transparent;
 }
 
 /* Webkit themed scrollbar */
@@ -150,7 +151,6 @@
 
 /* Mobile optimizations */
 @media (max-width: 640px) {
-
   /* Fix viewport on mobile */
   body {
     -webkit-text-size-adjust: 100%;
@@ -158,6 +158,12 @@
     /* Prevent horizontal scroll */
     overflow-x: hidden;
     width: 100%;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+
+  html {
+    height: -webkit-fill-available;
   }
 
   /* Improve touch targets */
@@ -192,7 +198,8 @@
 
   /* Mobile-friendly form inputs */
   textarea,
-  input {
+  input,
+  select {
     font-size: 16px;
     /* Prevents zoom on iOS */
     border-radius: 8px;
@@ -225,6 +232,53 @@
     user-select: none;
     -webkit-tap-highlight-color: transparent;
   }
+
+  /* Mobile-friendly modals and dialogs */
+  [role="dialog"],
+  .modal-container {
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
+    max-height: 100%;
+    border-radius: 0;
+  }
+
+  /* Better button groups on mobile */
+  .button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .button-group > button {
+    flex: 1 1 auto;
+    min-width: calc(50% - 0.25rem);
+  }
+
+  /* Optimize header for mobile */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    backdrop-filter: blur(8px);
+  }
+
+  /* Better textarea sizing on mobile */
+  textarea {
+    min-height: 120px;
+    max-height: 60vh;
+  }
+
+  /* Stack action buttons vertically on very small screens */
+  @media (max-width: 380px) {
+    .button-group > button {
+      min-width: 100%;
+    }
+  }
 }
 
 /* Tablet optimizations */
@@ -247,7 +301,6 @@
 
 /* Large mobile/small tablet optimizations */
 @media (max-width: 896px) {
-
   /* Better sidebar behavior */
   .sidebar {
     width: 100%;
@@ -272,7 +325,6 @@
 
 /* Touch-friendly interactions */
 @media (hover: none) and (pointer: coarse) {
-
   /* This targets touch devices */
   button:hover {
     /* Remove hover effects on touch devices */
@@ -291,5 +343,39 @@
   button:focus-visible {
     outline: 2px solid hsl(var(--primary));
     outline-offset: 2px;
+  }
+
+  /* Prevent double-tap zoom */
+  * {
+    touch-action: manipulation;
+  }
+}
+
+/* Improve mobile scrolling performance */
+@supports (-webkit-overflow-scrolling: touch) {
+  .scrollable {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Safe area insets for notched devices (iPhone X+, etc.) */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+
+  header {
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
+  }
+}
+
+/* PWA-specific mobile optimizations */
+@media (display-mode: standalone) {
+  /* When installed as PWA */
+  body {
+    padding-top: env(safe-area-inset-top);
   }
 }

@@ -225,22 +225,22 @@ export default function AnalyticsDashboard({
   }
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-1">
-      <div ref={panelRef}>
-        <Card className="w-[600px] h-[500px] overflow-y-auto scrollbar-thin">
-          <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-3 z-10">
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-0 sm:p-4">
+      <div ref={panelRef} className="w-full h-full sm:w-auto sm:h-auto">
+        <Card className="w-full h-full sm:w-[600px] sm:h-[500px] overflow-y-auto scrollbar-thin border-0 sm:border rounded-none sm:rounded-lg">
+          <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-3 sm:p-4 z-10">
             <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
                 <BarChart3 className="h-4 w-4 text-primary" />
                 Analitik
               </CardTitle>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
                 <Button
                   variant="outline"
                   onClick={loadAnalyticsData}
                   size="sm"
                   disabled={isLoading}
-                  className="h-8 px-3"
+                  className="h-8 px-2 sm:px-3"
                 >
                   <RefreshCw className="h-3 w-3" />
                 </Button>
@@ -248,7 +248,7 @@ export default function AnalyticsDashboard({
                   variant="outline"
                   onClick={exportData}
                   size="sm"
-                  className="h-7 px-2"
+                  className="h-8 px-2 sm:px-3 hidden sm:flex"
                 >
                   <Download className="h-3 w-3" />
                 </Button>
@@ -256,7 +256,7 @@ export default function AnalyticsDashboard({
                   variant="outline"
                   onClick={onClose}
                   size="sm"
-                  className="h-7 px-2"
+                  className="h-8 px-2"
                 >
                   <X className="h-3 w-3" />
                 </Button>

@@ -19,6 +19,7 @@ import {
   Package,
   Zap,
   Loader2,
+  X,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { getDefaultSettings } from "@/services/configService";
@@ -292,75 +293,80 @@ export default function Settings({
   };
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-1">
-      <div ref={panelRef}>
-        <Card className="w-[600px] h-[500px] overflow-y-auto scrollbar-thin border shadow-lg">
-          <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold">Ayarlar</CardTitle>
-              <div className="flex gap-2">
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-0 sm:p-4">
+      <div ref={panelRef} className="w-full h-full sm:w-auto sm:h-auto">
+        <Card className="w-full h-full sm:w-[600px] sm:h-[500px] overflow-y-auto scrollbar-thin border-0 sm:border shadow-none sm:shadow-lg rounded-none sm:rounded-lg">
+          <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-3 sm:p-4 z-10">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base sm:text-lg font-semibold">
+                Ayarlar
+              </CardTitle>
+              <div className="flex gap-1 sm:gap-2">
                 <Button
                   variant="outline"
                   onClick={handleReset}
                   size="sm"
-                  className="h-8 px-3 text-xs"
+                  className="h-8 sm:h-9 px-2 sm:px-3 text-xs"
                 >
                   <RotateCcw className="h-3 w-3" />
+                  <span className="hidden sm:inline ml-1">Sıfırla</span>
                 </Button>
                 <Button
                   onClick={onClose}
                   variant="outline"
                   size="sm"
-                  className="h-8 px-3 text-xs"
+                  className="h-8 sm:h-9 px-2 sm:px-3 text-xs"
                 >
-                  İptal
+                  <X className="h-3 w-3 sm:hidden" />
+                  <span className="hidden sm:inline">İptal</span>
                 </Button>
                 <Button
                   onClick={handleSave}
                   size="sm"
-                  className="h-8 px-3 text-xs"
+                  className="h-8 sm:h-9 px-2 sm:px-3 text-xs"
                 >
                   <Save className="h-3 w-3 mr-1" />
-                  Kaydet
+                  <span className="hidden sm:inline">Kaydet</span>
+                  <span className="sm:hidden">Tamam</span>
                 </Button>
               </div>
             </div>
           </CardHeader>
 
-          <CardContent className="p-3">
-            <Tabs defaultValue="llm" className="space-y-3">
-              <TabsList className="grid w-full grid-cols-5 h-8">
+          <CardContent className="p-2 sm:p-3">
+            <Tabs defaultValue="llm" className="space-y-2 sm:space-y-3">
+              <TabsList className="grid w-full grid-cols-5 h-9 sm:h-10">
                 <TabsTrigger
                   value="llm"
-                  className="flex items-center gap-1 text-xs"
+                  className="flex items-center gap-1 text-[10px] sm:text-xs px-1"
                 >
                   <Brain className="h-3 w-3" />
                   <span className="hidden sm:inline">LLM</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="voice"
-                  className="flex items-center gap-1 text-xs"
+                  className="flex items-center gap-1 text-[10px] sm:text-xs px-1"
                 >
                   <Volume2 className="h-3 w-3" />
                   <span className="hidden sm:inline">Ses</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="stt"
-                  className="flex items-center gap-1 text-xs"
+                  className="flex items-center gap-1 text-[10px] sm:text-xs px-1"
                 >
                   <Mic className="h-3 w-3" />
                   <span className="hidden sm:inline">STT</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="content"
-                  className="flex items-center gap-1 text-xs"
+                  className="flex items-center gap-1 text-[10px] sm:text-xs px-1"
                 >
                   <MessageSquare className="h-3 w-3" />
                   <span className="hidden sm:inline">İçerik</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="batch"
-                  className="flex items-center gap-1 text-xs"
+                  className="flex items-center gap-1 text-[10px] sm:text-xs px-1"
                 >
                   <Package className="h-3 w-3" />
                   <span className="hidden sm:inline">Toplu</span>

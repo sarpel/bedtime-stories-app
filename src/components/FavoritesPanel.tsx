@@ -101,13 +101,13 @@ export default function FavoritesPanel({
   };
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-1">
-      <div ref={panelRef}>
-        <Card className="w-[600px] h-[500px] overflow-y-auto scrollbar-thin">
-          <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-2">
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-0 sm:p-4">
+      <div ref={panelRef} className="w-full h-full sm:w-auto sm:h-auto">
+        <Card className="w-full h-full sm:w-[600px] sm:h-[500px] overflow-y-auto scrollbar-thin border-0 sm:border rounded-none sm:rounded-lg">
+          <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b p-3 sm:p-4 z-10">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-sm flex items-center gap-1">
+                <CardTitle className="text-sm sm:text-base flex items-center gap-2">
                   <Heart className="h-4 w-4 text-primary" />
                   Favoriler ({favorites.length})
                 </CardTitle>
@@ -116,14 +116,14 @@ export default function FavoritesPanel({
                 variant="outline"
                 onClick={onClose}
                 size="sm"
-                className="h-7 px-2"
+                className="h-8 px-2"
               >
                 <X className="h-3 w-3" />
               </Button>
             </div>
           </CardHeader>
 
-          <CardContent className="p-2">
+          <CardContent className="p-2 sm:p-4">
             {favorites.length === 0 ? (
               <div className="text-center py-4">
                 <Heart className="h-8 w-8 text-muted-foreground mx-auto mb-2" />

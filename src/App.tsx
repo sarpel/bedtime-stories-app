@@ -1059,36 +1059,58 @@ function App() {
       <Toaster richColors position="top-right" closeButton />
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-2 sm:px-4 py-3 sm:py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="p-1.5 sm:p-2 bg-primary/20 rounded-lg">
-              <Moon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+        <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-4">
+          <div className="flex items-center justify-between gap-2 mb-2 sm:mb-0">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 bg-primary/20 rounded-lg">
+                <Moon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-base sm:text-xl font-bold">
+                  Uyku Masalları
+                </h1>
+              </div>
             </div>
-            <div>
-              <h1 className="text-lg sm:text-xl font-bold">Uyku Masalları</h1>
+            {/* Settings and Analytics on first row for mobile */}
+            <div className="flex gap-1 sm:hidden">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAnalytics(true)}
+                className="gap-1 px-2 h-8 text-xs"
+              >
+                <BarChart3 className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSettings(!showSettings)}
+                className="gap-1 px-2 h-8 text-xs"
+              >
+                <Settings className="h-3 w-3" />
+              </Button>
             </div>
           </div>
-          <div className="flex gap-1 sm:gap-2 flex-wrap">
+          {/* Button row - wraps on mobile */}
+          <div className="flex gap-1 sm:gap-2 flex-wrap justify-center sm:justify-end">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowSearch(true)}
-              className="gap-1 px-2 h-8 text-xs"
+              className="gap-1 px-2 h-8 text-xs flex-shrink-0"
             >
               <Search className="h-3 w-3" />
               <span className="hidden md:inline">Arama</span>
-              <span className="md:hidden">Ara</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowStoryManagement(true)}
-              className="gap-1 px-2 h-8 text-xs"
+              className="gap-1 px-2 h-8 text-xs flex-shrink-0"
             >
               <BookOpen className="h-3 w-3" />
-              <span className="hidden md:inline">Masal Yönetimi</span>
-              <span className="md:hidden">Masallar</span>
-              <span className="text-xs">
+              <span className="hidden md:inline">Masallar</span>
+              <span className="text-[10px]">
                 ({dbStories.length > 0 ? dbStories.length : history.length})
               </span>
             </Button>
@@ -1096,18 +1118,18 @@ function App() {
               variant="outline"
               size="sm"
               onClick={() => setShowFavorites(true)}
-              className="gap-1 px-2 h-8 text-xs"
+              className="gap-1 px-2 h-8 text-xs flex-shrink-0"
             >
               <Heart className="h-3 w-3" />
               <span className="hidden md:inline">Favoriler</span>
-              <span className="md:hidden">♥</span>
-              <span className="text-xs">({favorites.length})</span>
+              <span className="text-[10px]">({favorites.length})</span>
             </Button>
+            {/* Show these on desktop only */}
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowAnalytics(true)}
-              className="gap-1 px-2 h-8 text-xs"
+              className="gap-1 px-2 h-8 text-xs hidden sm:flex"
             >
               <BarChart3 className="h-3 w-3" />
               <span className="hidden lg:inline">Analitik</span>
@@ -1116,7 +1138,7 @@ function App() {
               variant="outline"
               size="sm"
               onClick={() => setShowSettings(!showSettings)}
-              className="gap-1 px-2 h-8 text-xs"
+              className="gap-1 px-2 h-8 text-xs hidden sm:flex"
             >
               <Settings className="h-3 w-3" />
               <span className="hidden md:inline">Ayarlar</span>
