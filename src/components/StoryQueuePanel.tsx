@@ -832,8 +832,9 @@ export default function StoryQueuePanel({
                   currentIndex === -1 ? queue[0]?.id : queue[currentIndex]?.id;
                 const candidate =
                   currentIndex === -1 ? queue[0] : queue[currentIndex];
-                const hasAudio = Boolean(candidate &&
-                  (candidate.audio || candidate.audioUrl));
+                const hasAudio = Boolean(
+                  candidate && (candidate.audio || candidate.audioUrl),
+                );
                 if (activeId && hasAudio) {
                   remotePlayToggle(activeId);
                 }

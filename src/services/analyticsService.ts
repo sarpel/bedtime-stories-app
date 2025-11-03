@@ -107,11 +107,7 @@ class AnalyticsService {
     this.saveEvent(event);
   }
 
-  trackAudioPlayback(
-    storyId: string,
-    action: string,
-    position = 0,
-  ): void {
+  trackAudioPlayback(storyId: string, action: string, position = 0): void {
     const event: AnalyticsEvent = {
       type: "audio_playback",
       timestamp: Date.now(),

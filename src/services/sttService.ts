@@ -188,10 +188,9 @@ class AudioRecorder {
       const options = {
         mimeType: preferredMimeType || undefined,
         // Use very low bitrate for Pi Zero 2W to minimize CPU load
-        audioBitsPerSecond:
-          preferredMimeType?.includes("webm")
-            ? this.audioSettings.webmBitRate || 32000
-            : undefined, // Low bitrate for WebM only
+        audioBitsPerSecond: preferredMimeType?.includes("webm")
+          ? this.audioSettings.webmBitRate || 32000
+          : undefined, // Low bitrate for WebM only
       };
 
       this.mediaRecorder = new MediaRecorder(this.stream, options);

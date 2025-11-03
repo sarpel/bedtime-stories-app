@@ -98,10 +98,7 @@ export const getStoryTypeLabel = (id: string): string => {
 };
 
 // Masal türü prompt'unu getirme
-export const getStoryTypePrompt = (
-  id: string,
-  customTopic = "",
-): string => {
+export const getStoryTypePrompt = (id: string, customTopic = ""): string => {
   const type = getStoryTypeById(id);
 
   if (id === "custom" && customTopic) {

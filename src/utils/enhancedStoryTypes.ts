@@ -244,10 +244,7 @@ export const getStoryTypeName = (id: string): string => {
 
 export const getStoryTypeLabel = getStoryTypeName;
 
-export const getStoryTypePrompt = (
-  id: string,
-  customTopic = "",
-): string => {
+export const getStoryTypePrompt = (id: string, customTopic = ""): string => {
   const type = getStoryTypeById(id);
 
   if (id === "custom" && customTopic) {

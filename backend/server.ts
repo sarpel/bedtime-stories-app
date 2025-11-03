@@ -254,7 +254,9 @@ app.get("/health", async (req, res) => {
         apiKeys: {
           openai: Boolean(process.env.OPENAI_API_KEY),
           elevenlabs: Boolean(process.env.ELEVENLABS_API_KEY),
-          gemini: Boolean(process.env.GEMINI_LLM_API_KEY || process.env.GEMINI_TTS_API_KEY),
+          gemini: Boolean(
+            process.env.GEMINI_LLM_API_KEY || process.env.GEMINI_TTS_API_KEY,
+          ),
         },
       },
     };
@@ -830,10 +832,7 @@ ${prompt}`;
       let storyContent = "";
 
       // Extract text from parts
-      if (
-        candidate.content?.parts &&
-        Array.isArray(candidate.content.parts)
-      ) {
+      if (candidate.content?.parts && Array.isArray(candidate.content.parts)) {
         for (const part of candidate.content.parts) {
           if (part.text) {
             storyContent += part.text;
@@ -1618,8 +1617,9 @@ app.post("/api/tts", async (req, res) => {
         logger.info({
           msg: "[Gemini TTS] Response",
           status: resp.status,
-          hasAudio:
-            Boolean(resp.data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data),
+          hasAudio: Boolean(
+            resp.data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data,
+          ),
         });
         if (resp.data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
           const audioData =
@@ -2482,7 +2482,8 @@ app.post("/api/stt", upload.single("audio"), async (req, res) => {
       errorMessage = "Ses dosyası formatı geçersiz veya desteklenmiyor.";
       statusCode = 400;
     } else if (error.response?.status === 429) {
-      errorMessage = "API rate limit aşıldı. Lütfen biraz bekleyip tekrar deneyin.";
+      errorMessage =
+        "API rate limit aşıldı. Lütfen biraz bekleyip tekrar deneyin.";
       statusCode = 429;
     } else if (error.code === "ECONNABORTED" || error.code === "ETIMEDOUT") {
       errorMessage = "STT API zaman aşımına uğradı. Lütfen tekrar deneyin.";
