@@ -1,10 +1,11 @@
 // @ts-nocheck
 // database/maintenance.ts
-import Database from 'better-sqlite3';
-import * as fs from 'fs';
-import * as path from 'path';
+import Database from "better-sqlite3";
+import * as fs from "fs";
+import * as path from "path";
 
-const DB_PATH: string = process.env.STORIES_DB_PATH || path.join(__dirname, 'stories.db');
+const DB_PATH: string =
+  process.env.STORIES_DB_PATH || path.join(__dirname, "stories.db");
 
 /**
  * Database Maintenance Module
@@ -75,16 +76,18 @@ class DatabaseMaintenance {
    */
   vacuum(): VacuumResult {
     const db = this.connect();
-    console.log('Starting database vacuum...');
+    console.log("Starting database vacuum...");
 
     try {
       const startSize = fs.statSync(this.dbPath).size;
-      db.exec('VACUUM;');
+      db.exec("VACUUM;");
       const endSize = fs.statSync(this.dbPath).size;
       const savedBytes = startSize - endSize;
 
       console.log(`Database vacuum completed:`);
-      console.log(`  Original size: ${(startSize / 1024 / 1024).toFixed(2)} MB`);
+      console.log(
+        `  Original size: ${(startSize / 1024 / 1024).toFixed(2)} MB`,
+      );
       console.log(`  New size: ${(endSize / 1024 / 1024).toFixed(2)} MB`);
       console.log(`  Space saved: ${(savedBytes / 1024 / 1024).toFixed(2)} MB`);
 
@@ -92,10 +95,10 @@ class DatabaseMaintenance {
         success: true,
         originalSize: startSize,
         newSize: endSize,
-        spaceSaved: savedBytes
+        spaceSaved: savedBytes,
       };
     } catch (error) {
-      console.error('Database vacuum failed:', error);
+      console.error("Database vacuum failed:", error);
       return { success: false, error: (error as Error).message };
     }
   }
@@ -105,34 +108,42 @@ class DatabaseMaintenance {
    */
   analyze(): AnalyzeResult {
     const db = this.connect();
-    console.log('Starting database analysis...');
+    console.log("Starting database analysis...");
 
     try {
       // Analyze all tables
-      db.exec('ANALYZE;');
+      db.exec("ANALYZE;");
 
       // Get table statistics
-      const tables = db.prepare(`
+      const tables = db
+        .prepare(
+          `
         SELECT name FROM sqlite_master
         WHERE type='table' AND name NOT LIKE 'sqlite_%'
-      `).all();
+      `,
+        )
+        .all();
 
       const stats: any = {};
       tables.forEach((table: any) => {
-        const tableStats = db.prepare(`
+        const tableStats = db
+          .prepare(
+            `
           SELECT
             COUNT(*) as row_count,
             SUM(pgsize) as total_size
           FROM ${table.name}
-        `).get();
+        `,
+          )
+          .get();
 
         stats[table.name] = tableStats;
       });
 
-      console.log('Database analysis completed');
+      console.log("Database analysis completed");
       return { success: true, stats };
     } catch (error) {
-      console.error('Database analysis failed:', error);
+      console.error("Database analysis failed:", error);
       return { success: false, error: (error as Error).message };
     }
   }
@@ -142,14 +153,18 @@ class DatabaseMaintenance {
    */
   reindex(): ReindexResult {
     const db = this.connect();
-    console.log('Starting database reindex...');
+    console.log("Starting database reindex...");
 
     try {
       // Get all indexes
-      const indexes = db.prepare(`
+      const indexes = db
+        .prepare(
+          `
         SELECT name FROM sqlite_master
         WHERE type='index' AND name NOT LIKE 'sqlite_%'
-      `).all();
+      `,
+        )
+        .all();
 
       // Reindex each index
       indexes.forEach((index: any) => {
@@ -157,10 +172,10 @@ class DatabaseMaintenance {
         console.log(`Reindexed: ${index.name}`);
       });
 
-      console.log('Database reindex completed');
+      console.log("Database reindex completed");
       return { success: true, indexesReindexed: indexes.length };
     } catch (error) {
-      console.error('Database reindex failed:', error);
+      console.error("Database reindex failed:", error);
       return { success: false, error: (error as Error).message };
     }
   }
@@ -170,27 +185,37 @@ class DatabaseMaintenance {
    */
   cleanup(): CleanupResult {
     const db = this.connect();
-    console.log('Starting database cleanup...');
+    console.log("Starting database cleanup...");
 
     try {
       let totalCleaned = 0;
 
       // Clean up orphaned audio files (audio_files without corresponding stories)
-      const orphanedAudio = db.prepare(`
+      const orphanedAudio = db
+        .prepare(
+          `
         DELETE FROM audio_files
         WHERE story_id NOT IN (SELECT id FROM stories)
-      `).run();
+      `,
+        )
+        .run();
 
       totalCleaned += orphanedAudio.changes;
       if (orphanedAudio.changes > 0) {
-        console.log(`Cleaned up ${orphanedAudio.changes} orphaned audio records`);
+        console.log(
+          `Cleaned up ${orphanedAudio.changes} orphaned audio records`,
+        );
       }
 
       // Clean up orphaned queue items (queue items without corresponding stories)
-      const orphanedQueue = db.prepare(`
+      const orphanedQueue = db
+        .prepare(
+          `
         DELETE FROM queue
         WHERE story_id NOT IN (SELECT id FROM stories)
-      `).run();
+      `,
+        )
+        .run();
 
       totalCleaned += orphanedQueue.changes;
       if (orphanedQueue.changes > 0) {
@@ -198,29 +223,37 @@ class DatabaseMaintenance {
       }
 
       // Clean up orphaned series references in stories
-      const orphanedSeriesRefs = db.prepare(`
+      const orphanedSeriesRefs = db
+        .prepare(
+          `
         UPDATE stories
         SET series_id = NULL, series_order = NULL, series_title = NULL
         WHERE series_id NOT IN (SELECT id FROM series)
-      `).run();
+      `,
+        )
+        .run();
 
       totalCleaned += orphanedSeriesRefs.changes;
       if (orphanedSeriesRefs.changes > 0) {
-        console.log(`Cleaned up ${orphanedSeriesRefs.changes} orphaned series references`);
+        console.log(
+          `Cleaned up ${orphanedSeriesRefs.changes} orphaned series references`,
+        );
       }
 
       // Profile feature removed: no profile reference cleanup
 
-      console.log(`Database cleanup completed. Total records cleaned: ${totalCleaned}`);
+      console.log(
+        `Database cleanup completed. Total records cleaned: ${totalCleaned}`,
+      );
       return {
         success: true,
         totalCleaned,
         orphanedAudio: orphanedAudio.changes,
         orphanedQueue: orphanedQueue.changes,
-        orphanedSeriesRefs: orphanedSeriesRefs.changes
+        orphanedSeriesRefs: orphanedSeriesRefs.changes,
       };
     } catch (error) {
-      console.error('Database cleanup failed:', error);
+      console.error("Database cleanup failed:", error);
       return { success: false, error: (error as Error).message };
     }
   }
@@ -230,22 +263,22 @@ class DatabaseMaintenance {
    */
   integrityCheck() {
     const db = this.connect();
-    console.log('Starting database integrity check...');
+    console.log("Starting database integrity check...");
 
     try {
-      const result = db.prepare('PRAGMA integrity_check;').get();
-// @ts-expect-error - SQLite pragma result typing
-      const isValid = result['integrity_check'] === 'ok';
+      const result = db.prepare("PRAGMA integrity_check;").get();
+      // @ts-expect-error - SQLite pragma result typing
+      const isValid = result["integrity_check"] === "ok";
 
       if (isValid) {
-        console.log('Database integrity check passed');
+        console.log("Database integrity check passed");
       } else {
-        console.error('Database integrity check failed:', result);
+        console.error("Database integrity check failed:", result);
       }
 
-      return { success: isValid, result: result['integrity_check'] };
+      return { success: isValid, result: result["integrity_check"] };
     } catch (error) {
-      console.error('Database integrity check failed:', error);
+      console.error("Database integrity check failed:", error);
       return { success: false, error: (error as Error).message };
     }
   }
@@ -260,13 +293,19 @@ class DatabaseMaintenance {
       const stats = {};
 
       // Table row counts
-      const tables = db.prepare(`
+      const tables = db
+        .prepare(
+          `
         SELECT name FROM sqlite_master
         WHERE type='table' AND name NOT LIKE 'sqlite_%'
-      `).all();
+      `,
+        )
+        .all();
 
-      tables.forEach(table => {
-        const count = db.prepare(`SELECT COUNT(*) as count FROM ${table.name}`).get();
+      tables.forEach((table) => {
+        const count = db
+          .prepare(`SELECT COUNT(*) as count FROM ${table.name}`)
+          .get();
         stats[table.name] = { rowCount: count.count };
       });
 
@@ -274,21 +313,23 @@ class DatabaseMaintenance {
       const dbStats = fs.statSync(this.dbPath);
       stats.fileSize = {
         bytes: dbStats.size,
-        mb: (dbStats.size / 1024 / 1024).toFixed(2)
+        mb: (dbStats.size / 1024 / 1024).toFixed(2),
       };
 
       // Page statistics
-      const pageStats = db.prepare('PRAGMA page_count; PRAGMA page_size; PRAGMA freelist_count;').all();
+      const pageStats = db
+        .prepare("PRAGMA page_count; PRAGMA page_size; PRAGMA freelist_count;")
+        .all();
       stats.pages = {
-        total: pageStats[0]['page_count'],
-        size: pageStats[1]['page_size'],
-        free: pageStats[2]['freelist_count'],
-        used: pageStats[0]['page_count'] - pageStats[2]['freelist_count']
+        total: pageStats[0]["page_count"],
+        size: pageStats[1]["page_size"],
+        free: pageStats[2]["freelist_count"],
+        used: pageStats[0]["page_count"] - pageStats[2]["freelist_count"],
       };
 
       return { success: true, stats };
     } catch (error) {
-      console.error('Failed to get database statistics:', error);
+      console.error("Failed to get database statistics:", error);
       return { success: false, error: error.message };
     }
   }
@@ -297,7 +338,7 @@ class DatabaseMaintenance {
    * Run full maintenance suite
    */
   async fullMaintenance(): Promise<{ success: boolean; error?: string }> {
-    console.log('Starting full database maintenance...');
+    console.log("Starting full database maintenance...");
 
     try {
       await Promise.resolve(); // Ensure async consistency
@@ -307,10 +348,10 @@ class DatabaseMaintenance {
         analyze: this.analyze(),
         reindex: this.reindex(),
         vacuum: this.vacuum(),
-        stats: this.getStats()
+        stats: this.getStats(),
       };
 
-      console.log('Full database maintenance completed');
+      console.log("Full database maintenance completed");
       return { success: true };
     } catch (error) {
       return { success: false, error: (error as Error).message };
@@ -322,7 +363,7 @@ class DatabaseMaintenance {
    */
   optimize() {
     const db = this.connect();
-    console.log('Starting database optimization...');
+    console.log("Starting database optimization...");
 
     try {
       // Set optimal pragmas for production
@@ -335,10 +376,10 @@ class DatabaseMaintenance {
         PRAGMA mmap_size = 268435456;
       `);
 
-      console.log('Database optimization completed');
+      console.log("Database optimization completed");
       return { success: true };
     } catch (error) {
-      console.error('Database optimization failed:', error);
+      console.error("Database optimization failed:", error);
       return { success: false, error: error.message };
     }
   }
@@ -349,32 +390,32 @@ function runMaintenance(command) {
   const maintenance = new DatabaseMaintenance();
 
   switch (command) {
-    case 'vacuum':
+    case "vacuum":
       return maintenance.vacuum();
-    case 'analyze':
+    case "analyze":
       return maintenance.analyze();
-    case 'reindex':
+    case "reindex":
       return maintenance.reindex();
-    case 'cleanup':
+    case "cleanup":
       return maintenance.cleanup();
-    case 'integrity':
+    case "integrity":
       return maintenance.integrityCheck();
-    case 'stats':
+    case "stats":
       return maintenance.getStats();
-    case 'full':
+    case "full":
       return maintenance.fullMaintenance();
-    case 'optimize':
+    case "optimize":
       return maintenance.optimize();
     default:
-      console.log('Available commands:');
-      console.log('  vacuum   - Reclaim disk space');
-      console.log('  analyze  - Update query statistics');
-      console.log('  reindex  - Rebuild indexes');
-      console.log('  cleanup  - Remove orphaned records');
-      console.log('  integrity- Check database integrity');
-      console.log('  stats    - Show database statistics');
-      console.log('  full     - Run complete maintenance');
-      console.log('  optimize - Optimize for production');
+      console.log("Available commands:");
+      console.log("  vacuum   - Reclaim disk space");
+      console.log("  analyze  - Update query statistics");
+      console.log("  reindex  - Rebuild indexes");
+      console.log("  cleanup  - Remove orphaned records");
+      console.log("  integrity- Check database integrity");
+      console.log("  stats    - Show database statistics");
+      console.log("  full     - Run complete maintenance");
+      console.log("  optimize - Optimize for production");
       return;
   }
 }

@@ -1,4 +1,4 @@
-import { logger } from '../utils/logger'
+import { logger } from "../utils/logger";
 
 // Masal paylaşım servisi
 class SharingService {
@@ -6,29 +6,31 @@ class SharingService {
 
   constructor() {
     // VITE_BACKEND_URL öncelik; yoksa aynı origin + /api prefix kullanılabilir
-    const envUrl = (import.meta as any).env?.VITE_BACKEND_URL as string | undefined
+    const envUrl = (import.meta as any).env?.VITE_BACKEND_URL as
+      | string
+      | undefined;
     if (envUrl) {
-      this.baseUrl = envUrl.replace(/\/$/, '')
+      this.baseUrl = envUrl.replace(/\/$/, "");
     } else {
       // Fallback: aynı origin (proxy varsayımı)
-      this.baseUrl = ''
+      this.baseUrl = "";
     }
   }
 
   // Masalı paylaşıma aç
   async shareStory(storyId: string) {
     try {
-      const base = this.baseUrl || ''
+      const base = this.baseUrl || "";
       const response = await fetch(`${base}/api/stories/${storyId}/share`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Paylaşım başarısız');
+        throw new Error(errorData.error || "Paylaşım başarısız");
       }
 
       const data = await response.json();
@@ -36,13 +38,16 @@ class SharingService {
         success: true,
         shareId: data.shareId,
         shareUrl: data.shareUrl,
-        message: data.message
+        message: data.message,
       };
     } catch (error) {
-      logger.error('Paylaşım hatası', 'SharingService', { error: (error as Error)?.message });
+      logger.error("Paylaşım hatası", "SharingService", {
+        error: (error as Error)?.message,
+      });
       return {
         success: false,
-        error: (error as Error).message || 'Masal paylaşılırken bir hata oluştu'
+        error:
+          (error as Error).message || "Masal paylaşılırken bir hata oluştu",
       };
     }
   }
@@ -50,29 +55,32 @@ class SharingService {
   // Masalın paylaşımını kaldır
   async unshareStory(storyId: string) {
     try {
-      const base = this.baseUrl || ''
+      const base = this.baseUrl || "";
       const response = await fetch(`${base}/api/stories/${storyId}/share`, {
-        method: 'DELETE',
+        method: "DELETE",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Paylaşım kaldırma başarısız');
+        throw new Error(errorData.error || "Paylaşım kaldırma başarısız");
       }
 
       const data = await response.json();
       return {
         success: true,
-        message: data.message
+        message: data.message,
       };
     } catch (error) {
-      logger.error('Paylaşım kaldırma hatası:', 'SharingService', { error: (error as Error)?.message });
+      logger.error("Paylaşım kaldırma hatası:", "SharingService", {
+        error: (error as Error)?.message,
+      });
       return {
         success: false,
-        error: (error as Error).message || 'Paylaşım kaldırılırken bir hata oluştu'
+        error:
+          (error as Error).message || "Paylaşım kaldırılırken bir hata oluştu",
       };
     }
   }
@@ -80,24 +88,28 @@ class SharingService {
   // Paylaşılan masalı getir
   async getSharedStory(shareId: string) {
     try {
-      const base = this.baseUrl || ''
+      const base = this.baseUrl || "";
       const response = await fetch(`${base}/api/shared/${shareId}`);
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Paylaşılan masal bulunamadı');
+        throw new Error(errorData.error || "Paylaşılan masal bulunamadı");
       }
 
       const story = await response.json();
       return {
         success: true,
-        story
+        story,
       };
     } catch (error) {
-      logger.error('Paylaşılan masal getirme hatası:', 'SharingService', { error: (error as Error)?.message });
+      logger.error("Paylaşılan masal getirme hatası:", "SharingService", {
+        error: (error as Error)?.message,
+      });
       return {
         success: false,
-        error: (error as Error).message || 'Paylaşılan masal getirilirken bir hata oluştu'
+        error:
+          (error as Error).message ||
+          "Paylaşılan masal getirilirken bir hata oluştu",
       };
     }
   }
@@ -105,31 +117,35 @@ class SharingService {
   // Paylaşılan masalların listesini getir
   async getSharedStories() {
     try {
-      const base = this.baseUrl || ''
+      const base = this.baseUrl || "";
       const response = await fetch(`${base}/api/shared`);
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Paylaşılan masallar getirilemedi');
+        throw new Error(errorData.error || "Paylaşılan masallar getirilemedi");
       }
 
       const stories = await response.json();
       return {
         success: true,
-        stories
+        stories,
       };
     } catch (error) {
-      logger.error('Paylaşılan masallar listeleme hatası:', 'SharingService', { error: (error as Error)?.message });
+      logger.error("Paylaşılan masallar listeleme hatası:", "SharingService", {
+        error: (error as Error)?.message,
+      });
       return {
         success: false,
-        error: (error as Error).message || 'Paylaşılan masallar listelenirken bir hata oluştu'
+        error:
+          (error as Error).message ||
+          "Paylaşılan masallar listelenirken bir hata oluştu",
       };
     }
   }
 
   // Paylaşılan masalın ses URL'ini oluştur
   getSharedAudioUrl(shareId: string) {
-    const base = this.baseUrl || ''
+    const base = this.baseUrl || "";
     return `${base}/api/shared/${shareId}/audio`;
   }
 
@@ -140,8 +156,13 @@ class SharingService {
   }
 
   // Sosyal medya paylaşımı için URL'ler oluştur
-  createSocialShareUrls(shareUrl: string, storyTitle: string = 'Bedtime Story') {
-    const text = encodeURIComponent(`${storyTitle} - Bedtime Stories App ile oluşturuldu`);
+  createSocialShareUrls(
+    shareUrl: string,
+    storyTitle: string = "Bedtime Story",
+  ) {
+    const text = encodeURIComponent(
+      `${storyTitle} - Bedtime Stories App ile oluşturuldu`,
+    );
     const url = encodeURIComponent(shareUrl);
 
     return {
@@ -149,7 +170,7 @@ class SharingService {
       facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
       whatsapp: `https://wa.me/?text=${text}%20${url}`,
       telegram: `https://t.me/share/url?url=${url}&text=${text}`,
-      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
     };
   }
 
@@ -159,10 +180,12 @@ class SharingService {
       await navigator.clipboard.writeText(shareUrl);
       return { success: true };
     } catch (error) {
-      logger.error('Clipboard kopyalama hatası:', 'SharingService', { error: (error as Error)?.message });
+      logger.error("Clipboard kopyalama hatası:", "SharingService", {
+        error: (error as Error)?.message,
+      });
       return {
         success: false,
-        error: 'Link kopyalanamadı'
+        error: "Link kopyalanamadı",
       };
     }
   }

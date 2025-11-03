@@ -1,10 +1,10 @@
-import { logger } from '@/utils/logger';
+import { logger } from "@/utils/logger";
 
 export interface RaspberryAudioStatus {
   isRaspberryPi: boolean;
   audioDevice: string;
   alsaDevices?: string;
-  status: 'ready' | 'error' | 'playing';
+  status: "ready" | "error" | "playing";
   error?: string;
 }
 
@@ -26,48 +26,58 @@ export interface RaspberryPlaybackResponse {
  * - Audio device detection and status monitoring
  */
 export class RaspberryAudioService {
-  private baseUrl: string = '/api/raspberry-audio';
+  private baseUrl: string = "/api/raspberry-audio";
 
   /**
    * Play audio file on Raspberry Pi speakers through IQAudio Codec Zero
    * Logic: Send audio file path to backend, which uses ALSA/omxplayer for Pi playback
    */
-  async playAudio(audioFilePath: string, volume: number = 80): Promise<RaspberryPlaybackResponse> {
+  async playAudio(
+    audioFilePath: string,
+    volume: number = 80,
+  ): Promise<RaspberryPlaybackResponse> {
     try {
-      logger.info('Starting Raspberry Pi audio playback', 'RaspberryAudioService', {
-        audioFile: audioFilePath.substring(0, 100),
-        volume: volume
-      });
+      logger.info(
+        "Starting Raspberry Pi audio playback",
+        "RaspberryAudioService",
+        {
+          audioFile: audioFilePath.substring(0, 100),
+          volume: volume,
+        },
+      );
 
       const response = await fetch(`${this.baseUrl}/play`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           audioFile: audioFilePath,
-          volume: volume
+          volume: volume,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Raspberry Pi playback failed');
+        throw new Error(errorData.error || "Raspberry Pi playback failed");
       }
 
       const result = await response.json();
 
-      logger.info('Raspberry Pi playback started successfully', 'RaspberryAudioService', {
-        device: result.device,
-        volume: result.volume
-      });
+      logger.info(
+        "Raspberry Pi playback started successfully",
+        "RaspberryAudioService",
+        {
+          device: result.device,
+          volume: result.volume,
+        },
+      );
 
       return result;
-
     } catch (error) {
-      logger.error('Raspberry Pi playback failed', 'RaspberryAudioService', {
+      logger.error("Raspberry Pi playback failed", "RaspberryAudioService", {
         error: (error as Error).message,
-        audioFile: audioFilePath
+        audioFile: audioFilePath,
       });
 
       throw new Error(`Raspberry Pi audio failed: ${(error as Error).message}`);
@@ -80,31 +90,42 @@ export class RaspberryAudioService {
    */
   async stopAudio(): Promise<{ success: boolean; message: string }> {
     try {
-      logger.info('Stopping Raspberry Pi audio playback', 'RaspberryAudioService');
+      logger.info(
+        "Stopping Raspberry Pi audio playback",
+        "RaspberryAudioService",
+      );
 
       const response = await fetch(`${this.baseUrl}/stop`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to stop Raspberry Pi audio');
+        throw new Error(errorData.error || "Failed to stop Raspberry Pi audio");
       }
 
       const result = await response.json();
 
-      logger.info('Raspberry Pi audio stopped successfully', 'RaspberryAudioService');
+      logger.info(
+        "Raspberry Pi audio stopped successfully",
+        "RaspberryAudioService",
+      );
       return result;
-
     } catch (error) {
-      logger.error('Failed to stop Raspberry Pi audio', 'RaspberryAudioService', {
-        error: (error as Error).message
-      });
+      logger.error(
+        "Failed to stop Raspberry Pi audio",
+        "RaspberryAudioService",
+        {
+          error: (error as Error).message,
+        },
+      );
 
-      throw new Error(`Failed to stop Raspberry Pi audio: ${(error as Error).message}`);
+      throw new Error(
+        `Failed to stop Raspberry Pi audio: ${(error as Error).message}`,
+      );
     }
   }
 
@@ -114,41 +135,51 @@ export class RaspberryAudioService {
    */
   async getAudioStatus(): Promise<RaspberryAudioStatus> {
     try {
-      logger.debug('Checking Raspberry Pi audio status', 'RaspberryAudioService');
+      logger.debug(
+        "Checking Raspberry Pi audio status",
+        "RaspberryAudioService",
+      );
 
       const response = await fetch(`${this.baseUrl}/status`, {
-        method: 'GET',
+        method: "GET",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to get audio status');
+        throw new Error(errorData.error || "Failed to get audio status");
       }
 
       const result = await response.json();
 
-      logger.debug('Raspberry Pi audio status retrieved', 'RaspberryAudioService', {
-        isRaspberryPi: result.isRaspberryPi,
-        audioDevice: result.audioDevice,
-        status: result.status
-      });
+      logger.debug(
+        "Raspberry Pi audio status retrieved",
+        "RaspberryAudioService",
+        {
+          isRaspberryPi: result.isRaspberryPi,
+          audioDevice: result.audioDevice,
+          status: result.status,
+        },
+      );
 
       return result;
-
     } catch (error) {
-      logger.error('Failed to get Raspberry Pi audio status', 'RaspberryAudioService', {
-        error: (error as Error).message
-      });
+      logger.error(
+        "Failed to get Raspberry Pi audio status",
+        "RaspberryAudioService",
+        {
+          error: (error as Error).message,
+        },
+      );
 
       // Return fallback status on error
       return {
         isRaspberryPi: false,
-        audioDevice: 'unknown',
-        status: 'error',
-        error: (error as Error).message
+        audioDevice: "unknown",
+        status: "error",
+        error: (error as Error).message,
       };
     }
   }
@@ -159,8 +190,8 @@ export class RaspberryAudioService {
    */
   convertAudioUrlToFilePath(audioUrl: string): string {
     // Convert http://localhost:3001/audio/story-123.mp3 to /absolute/path/backend/audio/story-123.mp3
-    if (audioUrl.includes('/audio/')) {
-      const fileName = audioUrl.split('/audio/').pop();
+    if (audioUrl.includes("/audio/")) {
+      const fileName = audioUrl.split("/audio/").pop();
       // Backend will resolve the full path server-side
       return `audio/${fileName}`;
     }

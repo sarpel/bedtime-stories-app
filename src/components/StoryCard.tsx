@@ -1,9 +1,15 @@
-import { useState, useEffect, useRef } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Textarea } from '@/components/ui/textarea'
-import { Progress } from '@/components/ui/progress'
+import { useState, useEffect, useRef } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
 import {
   Heart,
   Share2,
@@ -16,56 +22,56 @@ import {
   CheckCircle,
   AlertCircle,
   MoreHorizontal,
-  X
-} from 'lucide-react'
-import { getStoryTypeName } from '@/utils/storyTypes'
-import { shareStory, shareToSocialMedia, downloadStory } from '@/utils/share'
+  X,
+} from "lucide-react";
+import { getStoryTypeName } from "@/utils/storyTypes";
+import { shareStory, shareToSocialMedia, downloadStory } from "@/utils/share";
 
 interface Story {
-  id?: string | number
-  story_text?: string
-  story?: string
-  story_type?: string
-  storyType?: string
-  custom_topic?: string | null
-  customTopic?: string | null
-  created_at?: string
-  createdAt?: string
+  id?: string | number;
+  story_text?: string;
+  story?: string;
+  story_type?: string;
+  storyType?: string;
+  custom_topic?: string | null;
+  customTopic?: string | null;
+  created_at?: string;
+  createdAt?: string;
   audio?: {
-    file_name?: string
-  }
+    file_name?: string;
+  };
 }
 
 interface StoryCardProps {
-  story: Story | string
-  storyType?: string
-  customTopic?: string
-  isGenerating?: boolean
-  progress?: number
-  audioUrl?: string
-  isPlaying?: boolean
-  audioProgress?: number
-  audioDuration?: number
-  onPlayAudio?: () => void
-  onPauseAudio?: () => void
-  onStopAudio?: () => void
-  onToggleMute?: () => void
-  isMuted?: boolean
-  isFavorite?: boolean
-  onToggleFavorite?: () => void
-  onClearStory?: () => void
-  compact?: boolean
-  showActions?: boolean
-  onSelect?: () => void
-  onDelete?: () => void
+  story: Story | string;
+  storyType?: string;
+  customTopic?: string;
+  isGenerating?: boolean;
+  progress?: number;
+  audioUrl?: string;
+  isPlaying?: boolean;
+  audioProgress?: number;
+  audioDuration?: number;
+  onPlayAudio?: () => void;
+  onPauseAudio?: () => void;
+  onStopAudio?: () => void;
+  onToggleMute?: () => void;
+  isMuted?: boolean;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
+  onClearStory?: () => void;
+  compact?: boolean;
+  showActions?: boolean;
+  onSelect?: () => void;
+  onDelete?: () => void;
 }
 
-type SupportedPlatform = 'twitter' | 'facebook' | 'whatsapp' | 'telegram'
+type SupportedPlatform = "twitter" | "facebook" | "whatsapp" | "telegram";
 
 export default function StoryCard({
   story,
   storyType,
-  customTopic = '',
+  customTopic = "",
   isGenerating,
   progress,
   audioUrl,
@@ -83,98 +89,133 @@ export default function StoryCard({
   compact = false,
   showActions = false,
   onSelect,
-  onDelete
+  onDelete,
 }: StoryCardProps) {
-  const [copied, setCopied] = useState(false)
-  const [showShareMenu, setShowShareMenu] = useState(false)
-  const shareMenuRef = useRef<HTMLDivElement>(null)
+  const [copied, setCopied] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const shareMenuRef = useRef<HTMLDivElement>(null);
 
   // Click outside handler for share menu
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (shareMenuRef.current && !shareMenuRef.current.contains(event.target as Node)) {
-        setShowShareMenu(false)
+      if (
+        shareMenuRef.current &&
+        !shareMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowShareMenu(false);
       }
     }
 
     if (showShareMenu) {
-      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [showShareMenu])
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showShareMenu]);
 
   const handleCopy = async () => {
-    const storyText = typeof story === 'string' ? story : (story?.story_text || story?.story || '')
+    const storyText =
+      typeof story === "string"
+        ? story
+        : story?.story_text || story?.story || "";
     try {
-      await navigator.clipboard.writeText(storyText)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      await navigator.clipboard.writeText(storyText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('Kopyalama başarısız:', error)
+      console.error("Kopyalama başarısız:", error);
     }
-  }
+  };
 
   const handleShare = async () => {
-    const storyText = typeof story === 'string' ? story : (story?.story_text || story?.story || '')
-    if (!storyText) return
-    const result = await shareStory(storyText, storyType || '', customTopic || '')
-    if (result.success && result.method === 'clipboard') {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+    const storyText =
+      typeof story === "string"
+        ? story
+        : story?.story_text || story?.story || "";
+    if (!storyText) return;
+    const result = await shareStory(
+      storyText,
+      storyType || "",
+      customTopic || "",
+    );
+    if (result.success && result.method === "clipboard") {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
-  }
+  };
 
   const handleDownload = () => {
-    const storyText = typeof story === 'string' ? story : (story?.story_text || story?.story || '')
-    if (!storyText) return
-    downloadStory(storyText, storyType || '')
-  }
+    const storyText =
+      typeof story === "string"
+        ? story
+        : story?.story_text || story?.story || "";
+    if (!storyText) return;
+    downloadStory(storyText, storyType || "");
+  };
 
   const handleSocialShare = (platform: SupportedPlatform) => {
-    const storyText = typeof story === 'string' ? story : (story?.story_text || story?.story || '')
-    if (!storyText) return
-    shareToSocialMedia(storyText, storyType || '', platform)
-    setShowShareMenu(false)
-  }
+    const storyText =
+      typeof story === "string"
+        ? story
+        : story?.story_text || story?.story || "";
+    if (!storyText) return;
+    shareToSocialMedia(storyText, storyType || "", platform);
+    setShowShareMenu(false);
+  };
 
   const formatDuration = (seconds: number | undefined | null): string => {
-    if (!seconds) return '0:00'
-    const mins = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
+    if (!seconds) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
 
   const getReadingTime = (text: string | undefined | null): number => {
-    if (!text || typeof text !== 'string') {
-      return 1 // varsayılan değer
+    if (!text || typeof text !== "string") {
+      return 1; // varsayılan değer
     }
-    const wordsPerMinute = 150
-    const words = text.trim().split(/\s+/).length
-    const minutes = Math.ceil(words / wordsPerMinute)
-    return minutes
-  }
+    const wordsPerMinute = 150;
+    const words = text.trim().split(/\s+/).length;
+    const minutes = Math.ceil(words / wordsPerMinute);
+    return minutes;
+  };
 
   // Compact mode için favoriler paneli tarzı render
   if (compact) {
-    const storyText = typeof story === 'object' && story ? (story?.story_text || story?.story || '') : (typeof story === 'string' ? story : '')
-    const storyTypeName = storyType || (typeof story === 'object' && story ? (story?.story_type || story?.storyType || '') : '')
-    const topicText = customTopic || (typeof story === 'object' && story ? (story?.custom_topic || story?.customTopic || '') : '')
-    const createdAt = (typeof story === 'object' && story ? (story?.created_at || story?.createdAt) : null) || new Date().toISOString();
+    const storyText =
+      typeof story === "object" && story
+        ? story?.story_text || story?.story || ""
+        : typeof story === "string"
+          ? story
+          : "";
+    const storyTypeName =
+      storyType ||
+      (typeof story === "object" && story
+        ? story?.story_type || story?.storyType || ""
+        : "");
+    const topicText =
+      customTopic ||
+      (typeof story === "object" && story
+        ? story?.custom_topic || story?.customTopic || ""
+        : "");
+    const createdAt =
+      (typeof story === "object" && story
+        ? story?.created_at || story?.createdAt
+        : null) || new Date().toISOString();
 
     const formatDate = (dateStr: string | undefined | null): string => {
-      if (!dateStr) return 'Bilinmiyor'
+      if (!dateStr) return "Bilinmiyor";
       try {
         const date = new Date(dateStr);
-        return date.toLocaleDateString('tr-TR', {
-          day: '2-digit',
-          month: '2-digit',
-          year: '2-digit'
+        return date.toLocaleDateString("tr-TR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "2-digit",
         });
       } catch {
-        return 'Bilinmiyor';
+        return "Bilinmiyor";
       }
     };
 
@@ -185,12 +226,18 @@ export default function StoryCard({
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1 flex-1 min-w-0">
               <h3 className="text-sm font-medium truncate">
-                {topicText || getStoryTypeName(storyTypeName) || 'Özel Masal'}
+                {topicText || getStoryTypeName(storyTypeName) || "Özel Masal"}
               </h3>
-              <Badge variant="secondary" className="text-xs px-1 py-0 h-4 flex-shrink-0">
+              <Badge
+                variant="secondary"
+                className="text-xs px-1 py-0 h-4 flex-shrink-0"
+              >
                 {getStoryTypeName(storyTypeName)}
               </Badge>
-              <Badge variant="outline" className="text-xs px-1 py-0 h-4 flex-shrink-0">
+              <Badge
+                variant="outline"
+                className="text-xs px-1 py-0 h-4 flex-shrink-0"
+              >
                 <Clock className="h-2 w-2 mr-0.5" />
                 {formatDate(createdAt)}
               </Badge>
@@ -213,9 +260,11 @@ export default function StoryCard({
                   variant="ghost"
                   size="sm"
                   onClick={() => onToggleFavorite && onToggleFavorite()}
-                  className={`h-6 px-1.5 ${isFavorite ? 'text-red-500 hover:text-red-600' : ''}`}
+                  className={`h-6 px-1.5 ${isFavorite ? "text-red-500 hover:text-red-600" : ""}`}
                 >
-                  <Heart className={`h-3 w-3 ${isFavorite ? 'fill-current' : ''}`} />
+                  <Heart
+                    className={`h-3 w-3 ${isFavorite ? "fill-current" : ""}`}
+                  />
                 </Button>
 
                 {onDelete && (
@@ -236,10 +285,10 @@ export default function StoryCard({
           <div
             className="text-xs text-muted-foreground"
             style={{
-              display: '-webkit-box',
+              display: "-webkit-box",
               WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden'
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
             }}
           >
             {storyText.substring(0, 150)}...
@@ -253,7 +302,7 @@ export default function StoryCard({
                 {getReadingTime(storyText)} dk
               </Badge>
 
-              {typeof story === 'object' && story?.audio?.file_name && (
+              {typeof story === "object" && story?.audio?.file_name && (
                 <Badge variant="outline" className="text-xs px-1 py-0 h-4">
                   <Volume2 className="h-2 w-2 mr-0.5" />
                   Sesli
@@ -284,11 +333,18 @@ export default function StoryCard({
               <Badge variant="outline">Uyku Vakti</Badge>
               <Badge variant="outline" className="flex items-center gap-1">
                 <Sparkles className="h-3 w-3" />
-                {getStoryTypeName(storyType || 'custom')}
+                {getStoryTypeName(storyType || "custom")}
               </Badge>
               <Badge variant="outline" className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                {getReadingTime(typeof story === 'object' && story ? (story.story_text || story.story || '') : (typeof story === 'string' ? story : ''))} dk okuma
+                {getReadingTime(
+                  typeof story === "object" && story
+                    ? story.story_text || story.story || ""
+                    : typeof story === "string"
+                      ? story
+                      : "",
+                )}{" "}
+                dk okuma
               </Badge>
             </div>
           </div>
@@ -297,9 +353,11 @@ export default function StoryCard({
               variant="ghost"
               size="sm"
               onClick={onToggleFavorite}
-              className={isFavorite ? 'text-red-500 hover:text-red-600' : ''}
+              className={isFavorite ? "text-red-500 hover:text-red-600" : ""}
             >
-              <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
+              <Heart
+                className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`}
+              />
             </Button>
             <div className="relative">
               <Button
@@ -311,7 +369,10 @@ export default function StoryCard({
               </Button>
 
               {showShareMenu && (
-                <div ref={shareMenuRef} className="absolute right-0 top-full mt-1 bg-background border rounded-lg shadow-lg p-2 z-10 min-w-[200px]">
+                <div
+                  ref={shareMenuRef}
+                  className="absolute right-0 top-full mt-1 bg-background border rounded-lg shadow-lg p-2 z-10 min-w-[200px]"
+                >
                   <Button
                     variant="ghost"
                     size="sm"
@@ -336,8 +397,12 @@ export default function StoryCard({
                     className="w-full justify-start"
                     onClick={handleCopy}
                   >
-                    {copied ? <CheckCircle className="h-4 w-4 text-green-500 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-                    {copied ? 'Kopyalandı' : 'Kopyala'}
+                    {copied ? (
+                      <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                    ) : (
+                      <Copy className="h-4 w-4 mr-2" />
+                    )}
+                    {copied ? "Kopyalandı" : "Kopyala"}
                   </Button>
                   <div className="border-t my-1" />
                   <div className="text-xs text-muted-foreground px-2 py-1">
@@ -347,7 +412,7 @@ export default function StoryCard({
                     variant="ghost"
                     size="sm"
                     className="w-full justify-start text-xs"
-                    onClick={() => handleSocialShare('twitter')}
+                    onClick={() => handleSocialShare("twitter")}
                   >
                     Twitter
                   </Button>
@@ -355,7 +420,7 @@ export default function StoryCard({
                     variant="ghost"
                     size="sm"
                     className="w-full justify-start text-xs"
-                    onClick={() => handleSocialShare('whatsapp')}
+                    onClick={() => handleSocialShare("whatsapp")}
                   >
                     WhatsApp
                   </Button>
@@ -400,7 +465,11 @@ export default function StoryCard({
           <div className="space-y-4">
             <div className="relative">
               <Textarea
-                value={typeof story === 'string' ? story : (story.story_text || story.story || '')}
+                value={
+                  typeof story === "string"
+                    ? story
+                    : story.story_text || story.story || ""
+                }
                 readOnly
                 className="min-h-[300px] text-base leading-relaxed resize-none border-0 bg-transparent p-0 focus-visible:ring-0"
                 placeholder="Masalın burada görünecek..."
@@ -425,17 +494,20 @@ export default function StoryCard({
                     size="sm"
                     variant="outline"
                   >
-                    {isPlaying ? 'Duraklat' : 'Oynat'}
+                    {isPlaying ? "Duraklat" : "Oynat"}
                   </Button>
                   <Button onClick={onStopAudio} size="sm" variant="outline">
                     Durdur
                   </Button>
                   <Button onClick={onToggleMute} size="sm" variant="outline">
-                    {isMuted ? 'Sesi Aç' : 'Sustur'}
+                    {isMuted ? "Sesi Aç" : "Sustur"}
                   </Button>
                   {audioDuration && audioDuration > 0 && (
                     <span className="text-sm text-muted-foreground">
-                      {formatDuration((audioDuration || 0) * (audioProgress || 0) / 100)} / {formatDuration(audioDuration)}
+                      {formatDuration(
+                        ((audioDuration || 0) * (audioProgress || 0)) / 100,
+                      )}{" "}
+                      / {formatDuration(audioDuration)}
                     </span>
                   )}
                 </div>
@@ -460,5 +532,5 @@ export default function StoryCard({
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

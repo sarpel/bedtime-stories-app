@@ -1,76 +1,86 @@
-import { useRef, useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
-import { Volume2, User, Clock, Star } from 'lucide-react'
-import { voiceOptions, getVoiceById } from '@/utils/voiceOptions'
-import { TTSService } from '@/services/ttsService'
+import { useRef, useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Volume2, User, Clock, Star } from "lucide-react";
+import { voiceOptions, getVoiceById } from "@/utils/voiceOptions";
+import { TTSService } from "@/services/ttsService";
 
 interface Voice {
-  id: string
-  name: string
-  description: string
-  language: string
-  gender: string
-  age: string
-  style: string
+  id: string;
+  name: string;
+  description: string;
+  language: string;
+  gender: string;
+  age: string;
+  style: string;
 }
 
 interface VoiceSelectorProps {
-  selectedVoiceId: string
-  onVoiceChange: (voiceId: string) => void
+  selectedVoiceId: string;
+  onVoiceChange: (voiceId: string) => void;
   settings?: {
-    ttsProvider?: string
+    ttsProvider?: string;
     elevenlabs?: {
-      voiceId?: string
-      [key: string]: any
-    }
-    voiceId?: string
-    [key: string]: any
-  }
+      voiceId?: string;
+      [key: string]: any;
+    };
+    voiceId?: string;
+    [key: string]: any;
+  };
 }
 
-export default function VoiceSelector({ selectedVoiceId, onVoiceChange, settings }: VoiceSelectorProps) {
-  const selectedVoice = getVoiceById(selectedVoiceId)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
-  const [previewingId, setPreviewingId] = useState<string | null>(null)
+export default function VoiceSelector({
+  selectedVoiceId,
+  onVoiceChange,
+  settings,
+}: VoiceSelectorProps) {
+  const selectedVoice = getVoiceById(selectedVoiceId);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
 
   const playPreview = async (voice: Voice) => {
     try {
-      setPreviewingId(voice.id)
+      setPreviewingId(voice.id);
       // Önce varsa çalan önizlemeyi durdur
       if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current.src = ''
-        audioRef.current = null
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current = null;
       }
 
       // Mevcut ayarları kullan fakat voiceId'yi override et
       const svc = new TTSService({
         ...(settings || {}),
-        ttsProvider: (settings?.ttsProvider) || 'elevenlabs',
+        ttsProvider: settings?.ttsProvider || "elevenlabs",
         elevenlabs: {
           ...(settings?.elevenlabs || {}),
-          voiceId: voice.id
+          voiceId: voice.id,
         },
-        voiceId: voice.id
-      })
+        voiceId: voice.id,
+      });
 
-      const sample = `Merhaba, ben ${voice.name}. Seni masallar diyarına götürmek için hazırım.`
-      const url = await svc.generateAudio(sample)
+      const sample = `Merhaba, ben ${voice.name}. Seni masallar diyarına götürmek için hazırım.`;
+      const url = await svc.generateAudio(sample);
 
-      const audio = new Audio(url)
-      audioRef.current = audio
-      audio.play().catch(() => { })
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.play().catch(() => {});
     } catch (err) {
-      console.error('Ses önizleme hatası:', err)
+      console.error("Ses önizleme hatası:", err);
     } finally {
-      setPreviewingId(null)
+      setPreviewingId(null);
     }
-  }
+  };
 
   return (
     <Card>
@@ -79,14 +89,15 @@ export default function VoiceSelector({ selectedVoiceId, onVoiceChange, settings
           <Volume2 className="h-5 w-5 text-primary" />
           Ses Seçimi
         </CardTitle>
-        <CardDescription>
-          Masalını seslendirecek sesi seç
-        </CardDescription>
+        <CardDescription>Masalını seslendirecek sesi seç</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
         <RadioGroup value={selectedVoiceId} onValueChange={onVoiceChange}>
           {voiceOptions.map((voice) => (
-            <div key={voice.id} className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50 transition-colors">
+            <div
+              key={voice.id}
+              className="flex items-center space-x-2 p-2 border rounded-md hover:bg-muted/50 transition-colors"
+            >
               <RadioGroupItem value={voice.id} id={voice.id} />
               <Label htmlFor={voice.id} className="flex-1 cursor-pointer">
                 <div className="flex items-center justify-between gap-2">
@@ -122,8 +133,8 @@ export default function VoiceSelector({ selectedVoiceId, onVoiceChange, settings
                     size="sm"
                     title="Önizleme"
                     onClick={(e) => {
-                      e.preventDefault()
-                      playPreview(voice)
+                      e.preventDefault();
+                      playPreview(voice);
                     }}
                     className="ml-2"
                     disabled={previewingId === voice.id}
@@ -161,5 +172,5 @@ export default function VoiceSelector({ selectedVoiceId, onVoiceChange, settings
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

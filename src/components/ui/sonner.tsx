@@ -1,39 +1,43 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react";
 import { Toaster as Sonner } from "sonner";
 
 interface ToasterProps {
-  position?: "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right"
-  expand?: boolean
-  richColors?: boolean
-  closeButton?: boolean
-  offset?: string | number
-  dir?: "rtl" | "ltr"
-  visibleToasts?: number
+  position?:
+    | "top-left"
+    | "top-center"
+    | "top-right"
+    | "bottom-left"
+    | "bottom-center"
+    | "bottom-right";
+  expand?: boolean;
+  richColors?: boolean;
+  closeButton?: boolean;
+  offset?: string | number;
+  dir?: "rtl" | "ltr";
+  visibleToasts?: number;
   toastOptions?: {
-    duration?: number
-    className?: string
-    descriptionClassName?: string
-  }
+    duration?: number;
+    className?: string;
+    descriptionClassName?: string;
+  };
 }
 
-const Toaster = ({
-  ...props
-}: ToasterProps) => {
+const Toaster = ({ ...props }: ToasterProps) => {
   // Next.js yerine native React dark mode detection
-  const [theme, setTheme] = useState<"light" | "dark" | "system">("system")
+  const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
 
   useEffect(() => {
     // System theme detection
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const updateTheme = () => {
-      setTheme(mediaQuery.matches ? 'dark' : 'light')
-    }
+      setTheme(mediaQuery.matches ? "dark" : "light");
+    };
 
-    updateTheme()
-    mediaQuery.addEventListener('change', updateTheme)
+    updateTheme();
+    mediaQuery.addEventListener("change", updateTheme);
 
-    return () => mediaQuery.removeEventListener('change', updateTheme)
-  }, [])
+    return () => mediaQuery.removeEventListener("change", updateTheme);
+  }, []);
 
   return (
     <Sonner
@@ -43,11 +47,12 @@ const Toaster = ({
         {
           "--normal-bg": "var(--popover)",
           "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)"
+          "--normal-border": "var(--border)",
         } as React.CSSProperties
       }
-      {...props} />
+      {...props}
+    />
   );
-}
+};
 
-export { Toaster }
+export { Toaster };

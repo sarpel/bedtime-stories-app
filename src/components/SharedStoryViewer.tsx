@@ -1,8 +1,14 @@
-import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   BookOpen,
   Volume2,
@@ -15,11 +21,11 @@ import {
   Share2,
   ArrowLeft,
   AlertCircle,
-  Heart
-} from 'lucide-react'
-import { getStoryTypeName } from '@/utils/storyTypes'
-import sharingService from '@/services/sharingService'
-import AudioControls from '@/components/AudioControls'
+  Heart,
+} from "lucide-react";
+import { getStoryTypeName } from "@/utils/storyTypes";
+import sharingService from "@/services/sharingService";
+import AudioControls from "@/components/AudioControls";
 
 // Story interface for type safety
 interface Story {
@@ -32,96 +38,98 @@ interface Story {
 }
 
 export default function SharedStoryViewer() {
-  const { shareId } = useParams()
-  const navigate = useNavigate()
+  const { shareId } = useParams();
+  const navigate = useNavigate();
 
-  const [story, setStory] = useState<Story | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [audioUrl, setAudioUrl] = useState<string | null>(null)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [audioProgress, setAudioProgress] = useState(0)
-  const [audioDuration, setAudioDuration] = useState(0)
-  const [isMuted, setIsMuted] = useState(false)
+  const [story, setStory] = useState<Story | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioProgress, setAudioProgress] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
 
   useEffect(() => {
     const loadSharedStory = async () => {
       if (!shareId) {
-        setError('Geçersiz paylaşım bağlantısı')
-        setLoading(false)
-        return
+        setError("Geçersiz paylaşım bağlantısı");
+        setLoading(false);
+        return;
       }
 
-      setLoading(true)
-      setError(null)
+      setLoading(true);
+      setError(null);
 
       try {
-        const result = await sharingService.getSharedStory(shareId)
+        const result = await sharingService.getSharedStory(shareId);
 
         if (result.success) {
-          setStory(result.story)
+          setStory(result.story);
 
           // Ses dosyası varsa URL'ini ayarla
           if (result.story.audio) {
-            setAudioUrl(sharingService.getSharedAudioUrl(shareId))
+            setAudioUrl(sharingService.getSharedAudioUrl(shareId));
           }
         } else {
-          setError(result.error || 'Masal bulunamadı')
+          setError(result.error || "Masal bulunamadı");
         }
       } catch (err) {
-        console.error('Paylaşılan masal yükleme hatası:', err)
-        setError('Masal yüklenirken bir hata oluştu')
+        console.error("Paylaşılan masal yükleme hatası:", err);
+        setError("Masal yüklenirken bir hata oluştu");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    loadSharedStory()
-  }, [shareId])
+    loadSharedStory();
+  }, [shareId]);
 
   const handleShareStory = async () => {
-    if (!story) return
+    if (!story) return;
 
-    const shareUrl = window.location.href
+    const shareUrl = window.location.href;
 
     try {
       if (navigator.share) {
         await navigator.share({
-          title: 'Bedtime Story',
+          title: "Bedtime Story",
           text: `${getStoryTypeName(story.story_type)} Masalı`,
-          url: shareUrl
-        })
+          url: shareUrl,
+        });
       } else {
-        await navigator.clipboard.writeText(shareUrl)
+        await navigator.clipboard.writeText(shareUrl);
         // Basit bir feedback göster
-        const button = document.querySelector('#share-button') as HTMLButtonElement | null
+        const button = document.querySelector(
+          "#share-button",
+        ) as HTMLButtonElement | null;
         if (button) {
-          const originalText = button.textContent
-          button.textContent = 'Kopyalandı!'
+          const originalText = button.textContent;
+          button.textContent = "Kopyalandı!";
           setTimeout(() => {
-            button.textContent = originalText
-          }, 2000)
+            button.textContent = originalText;
+          }, 2000);
         }
       }
     } catch (error) {
-      console.error('Paylaşım hatası:', error)
+      console.error("Paylaşım hatası:", error);
     }
-  }
+  };
 
   const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('tr-TR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
-  }
+    return new Date(dateString).toLocaleDateString("tr-TR", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
 
   const getReadingTime = (text: string): number => {
-    const wordsPerMinute = 150
-    const words = text.trim().split(/\s+/).length
-    const minutes = Math.ceil(words / wordsPerMinute)
-    return minutes
-  }
+    const wordsPerMinute = 150;
+    const words = text.trim().split(/\s+/).length;
+    const minutes = Math.ceil(words / wordsPerMinute);
+    return minutes;
+  };
 
   if (loading) {
     return (
@@ -131,7 +139,7 @@ export default function SharedStoryViewer() {
           <p className="text-muted-foreground">Masal yükleniyor...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -143,19 +151,17 @@ export default function SharedStoryViewer() {
               <AlertCircle className="h-5 w-5" />
               Masal Bulunamadı
             </CardTitle>
-            <CardDescription>
-              {error}
-            </CardDescription>
+            <CardDescription>{error}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => navigate('/') } className="w-full">
+            <Button onClick={() => navigate("/")} className="w-full">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Ana Sayfaya Dön
             </Button>
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -165,7 +171,7 @@ export default function SharedStoryViewer() {
         <div className="flex items-center justify-between mb-6">
           <Button
             variant="ghost"
-            onClick={() => navigate('/')}
+            onClick={() => navigate("/")}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -195,15 +201,16 @@ export default function SharedStoryViewer() {
 
                 <div className="flex flex-wrap gap-2 mb-2">
                   <Badge variant="secondary">
-                    {story ? getStoryTypeName(story.story_type) : 'Bilinmiyor'}
+                    {story ? getStoryTypeName(story.story_type) : "Bilinmiyor"}
                   </Badge>
                   {story?.custom_topic && (
-                    <Badge variant="outline">
-                      {story.custom_topic}
-                    </Badge>
+                    <Badge variant="outline">{story.custom_topic}</Badge>
                   )}
                   {story?.audio && (
-                    <Badge variant="outline" className="flex items-center gap-1">
+                    <Badge
+                      variant="outline"
+                      className="flex items-center gap-1"
+                    >
                       <Volume2 className="h-3 w-3" />
                       Sesli
                     </Badge>
@@ -213,11 +220,11 @@ export default function SharedStoryViewer() {
                 <CardDescription className="flex items-center gap-4 text-sm">
                   <span className="flex items-center gap-1">
                     <Calendar className="h-4 w-4" />
-                    {story ? formatDate(story.created_at) : 'Bilinmiyor'}
+                    {story ? formatDate(story.created_at) : "Bilinmiyor"}
                   </span>
                   <span className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    ~{story ? getReadingTime(story.story_text) : 0} dk okuma
+                    <Clock className="h-4 w-4" />~
+                    {story ? getReadingTime(story.story_text) : 0} dk okuma
                   </span>
                 </CardDescription>
               </div>
@@ -229,7 +236,7 @@ export default function SharedStoryViewer() {
             {audioUrl && (
               <div className="mb-6">
                 <AudioControls
-                  storyId={story?.id || 'shared'}
+                  storyId={story?.id || "shared"}
                   audioUrl={audioUrl}
                   isPlaying={isPlaying}
                   isPaused={!isPlaying}
@@ -238,12 +245,12 @@ export default function SharedStoryViewer() {
                   volume={1}
                   isMuted={isMuted}
                   playbackRate={1}
-                  currentStoryId={story?.id || 'shared'}
+                  currentStoryId={story?.id || "shared"}
                   onPlay={() => setIsPlaying(true)}
                   onPause={() => setIsPlaying(false)}
                   onStop={() => {
-                    setIsPlaying(false)
-                    setAudioProgress(0)
+                    setIsPlaying(false);
+                    setAudioProgress(0);
                   }}
                   onToggleMute={() => setIsMuted(!isMuted)}
                   onVolumeChange={() => {}}
@@ -257,7 +264,7 @@ export default function SharedStoryViewer() {
             {/* Story Text */}
             <div className="prose prose-lg max-w-none">
               <div className="whitespace-pre-wrap text-gray-800 leading-relaxed">
-                {story?.story_text || 'Masal metni bulunamadı'}
+                {story?.story_text || "Masal metni bulunamadı"}
               </div>
             </div>
           </CardContent>
@@ -268,7 +275,7 @@ export default function SharedStoryViewer() {
           <p>Bu masal Bedtime Stories App ile oluşturulmuştur.</p>
           <Button
             variant="link"
-            onClick={() => navigate('/')}
+            onClick={() => navigate("/")}
             className="text-sm p-0 h-auto mt-2"
           >
             Kendi masalınızı oluşturun
@@ -276,5 +283,5 @@ export default function SharedStoryViewer() {
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -12,34 +12,34 @@ graph TB
         Web[Web Browser]
         Mobile[Mobile Browser]
     end
-    
+
     subgraph "Frontend (React)"
         UI[User Interface]
         State[State Management]
         Services[API Services]
     end
-    
+
     subgraph "Backend (Node.js)"
         API[REST API]
         Business[Business Logic]
         DB[Database Layer]
     end
-    
+
     subgraph "External Services"
         OpenAI[OpenAI GPT]
         ElevenLabs[ElevenLabs TTS]
         Gemini[Google Gemini]
     end
-    
+
     subgraph "Storage"
         SQLite[(SQLite Database)]
         Files[Audio Files]
     end
-    
+
     subgraph "Hardware (Optional)"
         RPi[Raspberry Pi Audio]
     end
-    
+
     Web --> UI
     Mobile --> UI
     UI --> State
@@ -58,6 +58,7 @@ graph TB
 ## Technology Stack
 
 ### Frontend Stack
+
 - **Framework**: React 19 with TypeScript
 - **Build Tool**: Vite 6.x
 - **Styling**: TailwindCSS 4.x
@@ -67,6 +68,7 @@ graph TB
 - **Audio**: Web Audio API
 
 ### Backend Stack
+
 - **Runtime**: Node.js 20+
 - **Framework**: Express.js 5.x
 - **Language**: TypeScript
@@ -76,6 +78,7 @@ graph TB
 - **Validation**: Joi
 
 ### External Integrations
+
 - **LLM Services**: OpenAI GPT-4o-mini, Google Gemini
 - **TTS Services**: ElevenLabs, Google Gemini TTS
 - **STT Services**: OpenAI Whisper, Google Speech-to-Text
@@ -126,6 +129,7 @@ bedtime-stories-app/
 ### Database Schema
 
 #### Core Tables
+
 ```sql
 -- Stories table
 CREATE TABLE stories (
@@ -179,6 +183,7 @@ CREATE TABLE usage_analytics (
 ```
 
 #### Indexes
+
 ```sql
 CREATE INDEX idx_stories_type ON stories(story_type);
 CREATE INDEX idx_stories_favorite ON stories(is_favorite);
@@ -197,7 +202,7 @@ sequenceDiagram
     participant LLM
     participant TTS
     participant Database
-    
+
     User->>Frontend: Request story generation
     Frontend->>Backend: POST /api/generate-story
     Backend->>LLM: Generate story text
@@ -206,7 +211,7 @@ sequenceDiagram
     Database-->>Backend: Story ID
     Backend-->>Frontend: Story data
     Frontend-->>User: Display story
-    
+
     User->>Frontend: Request audio generation
     Frontend->>Backend: POST /api/audio/generate/:id
     Backend->>TTS: Convert text to speech
@@ -226,22 +231,22 @@ graph TD
     App --> Header[Header]
     App --> MainContent[Main Content]
     App --> ErrorBoundary[Error Boundary]
-    
+
     MainContent --> StoryCreator[Story Creator]
     MainContent --> StoryQueue[Story Queue Panel]
     MainContent --> Settings[Settings Panel]
     MainContent --> Analytics[Analytics Dashboard]
-    
+
     StoryCreator --> TypeSelector[Story Type Selector]
     StoryCreator --> TextArea[Story Text Area]
     StoryCreator --> AudioControls[Audio Controls]
     StoryCreator --> ActionButtons[Action Buttons]
-    
+
     StoryQueue --> StoryList[Story List]
     StoryQueue --> QueueControls[Queue Controls]
     StoryList --> StoryItem[Story Item]
     StoryItem --> AudioControls
-    
+
     Settings --> APISettings[API Settings]
     Settings --> UISettings[UI Settings]
     Settings --> VoiceSettings[Voice Settings]
@@ -250,6 +255,7 @@ graph TD
 ### Component Responsibilities
 
 #### StoryCreator
+
 - **Purpose**: Main interface for story creation and editing
 - **Responsibilities**:
   - Story type selection
@@ -259,6 +265,7 @@ graph TD
   - Story saving and management
 
 #### StoryQueuePanel
+
 - **Purpose**: Playlist-style story management
 - **Responsibilities**:
   - Story list display with drag-and-drop reordering
@@ -267,6 +274,7 @@ graph TD
   - Audio playback controls for each story
 
 #### AudioControls
+
 - **Purpose**: Audio playback interface
 - **Responsibilities**:
   - Play/pause/stop controls
@@ -275,6 +283,7 @@ graph TD
   - Audio format support
 
 #### Settings
+
 - **Purpose**: Application configuration
 - **Responsibilities**:
   - API key management
@@ -287,6 +296,7 @@ graph TD
 ### Frontend Services
 
 #### LLMService
+
 ```typescript
 interface LLMService {
   generateStory(params: StoryGenerationParams): Promise<string>;
@@ -296,6 +306,7 @@ interface LLMService {
 ```
 
 #### TTSService
+
 ```typescript
 interface TTSService {
   generateAudio(text: string, options: TTSOptions): Promise<AudioBlob>;
@@ -305,6 +316,7 @@ interface TTSService {
 ```
 
 #### DatabaseService
+
 ```typescript
 interface DatabaseService {
   saveStory(story: StoryData): Promise<Story>;
@@ -317,17 +329,18 @@ interface DatabaseService {
 ### Backend Services
 
 #### Service Layer Pattern
+
 ```typescript
 // Abstract service base
 abstract class BaseService {
   protected logger: Logger;
   protected config: ServiceConfig;
-  
+
   constructor(config: ServiceConfig) {
     this.logger = createLogger(this.constructor.name);
     this.config = config;
   }
-  
+
   abstract validate(): Promise<boolean>;
 }
 
@@ -344,6 +357,7 @@ class OpenAIService extends BaseService implements LLMProvider {
 ### REST API Design
 
 #### Endpoint Structure
+
 ```
 /api/v1/
 ├── stories/              # Story CRUD operations
@@ -371,6 +385,7 @@ class OpenAIService extends BaseService implements LLMProvider {
 ```
 
 #### Request/Response Patterns
+
 ```typescript
 // Standard API response format
 interface APIResponse<T> {
@@ -396,13 +411,14 @@ interface PaginatedResponse<T> extends APIResponse<T[]> {
 ```
 
 #### Middleware Stack
+
 ```typescript
 app.use(helmet()); // Security headers
 app.use(cors(corsOptions)); // CORS
 app.use(compression()); // Response compression
-app.use(morgan('combined')); // Request logging
+app.use(morgan("combined")); // Request logging
 app.use(rateLimit(rateLimitOptions)); // Rate limiting
-app.use(express.json({ limit: '10mb' })); // JSON parsing
+app.use(express.json({ limit: "10mb" })); // JSON parsing
 app.use(validateRequest); // Request validation
 app.use(authenticateUser); // Authentication (future)
 app.use(errorHandler); // Error handling
@@ -419,23 +435,23 @@ graph TB
         SettingsState[Settings Context]
         AudioState[Audio Context]
     end
-    
+
     subgraph "Local State (useState)"
         ComponentState[Component State]
         FormState[Form State]
         UIState[UI State]
     end
-    
+
     subgraph "Server State (API)"
         Stories[Stories Data]
         Analytics[Analytics Data]
     end
-    
+
     subgraph "Persistent State"
         LocalStorage[localStorage]
         Database[Backend Database]
     end
-    
+
     AppState --> ComponentState
     SettingsState --> LocalStorage
     AudioState --> ComponentState
@@ -446,6 +462,7 @@ graph TB
 ### State Management Patterns
 
 #### Context Provider Pattern
+
 ```typescript
 interface AppState {
   user: User | null;
@@ -461,14 +478,14 @@ const AppStateContext = createContext<{
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
-  
+
   const actions = useMemo(() => ({
-    setCurrentStory: (story: Story) => 
+    setCurrentStory: (story: Story) =>
       dispatch({ type: 'SET_CURRENT_STORY', payload: story }),
-    updateSettings: (settings: Partial<Settings>) => 
+    updateSettings: (settings: Partial<Settings>) =>
       dispatch({ type: 'UPDATE_SETTINGS', payload: settings }),
   }), []);
-  
+
   return (
     <AppStateContext.Provider value={{ state, actions }}>
       {children}
@@ -480,51 +497,66 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 ## Security Architecture
 
 ### Frontend Security
+
 - **XSS Prevention**: React's built-in escaping + Content Security Policy
 - **CSRF Protection**: SameSite cookies + CSRF tokens (future)
 - **API Key Protection**: Never expose keys in frontend code
 - **Input Validation**: Client-side validation for UX + server-side for security
 
 ### Backend Security
+
 ```typescript
 // Security middleware stack
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://api.openai.com", "https://api.elevenlabs.io"]
-    }
-  }
-}));
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: [
+          "'self'",
+          "https://api.openai.com",
+          "https://api.elevenlabs.io",
+        ],
+      },
+    },
+  }),
+);
 
 // Rate limiting by IP
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP'
+  message: "Too many requests from this IP",
 });
 
 // Input validation
-const validateStoryInput = (req: Request, res: Response, next: NextFunction) => {
+const validateStoryInput = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   const schema = Joi.object({
     storyText: Joi.string().min(50).max(10000).required(),
-    storyType: Joi.string().valid(...validStoryTypes).required(),
-    customTopic: Joi.string().max(200).optional()
+    storyType: Joi.string()
+      .valid(...validStoryTypes)
+      .required(),
+    customTopic: Joi.string().max(200).optional(),
   });
-  
+
   const { error } = schema.validate(req.body);
   if (error) {
     return res.status(400).json({ error: error.details[0].message });
   }
-  
+
   next();
 };
 ```
 
 ### Data Protection
+
 - **API Keys**: Stored in environment variables, never in code
 - **Database**: File permissions and access control
 - **Audio Files**: Served with proper headers and access control
@@ -533,13 +565,14 @@ const validateStoryInput = (req: Request, res: Response, next: NextFunction) => 
 ## Performance Architecture
 
 ### Frontend Performance
+
 ```typescript
 // Code splitting
 const StoryQueuePanel = lazy(() => import('./components/StoryQueuePanel'));
 const SettingsPanel = lazy(() => import('./components/Settings'));
 
 // Memoization
-const MemoizedStoryItem = React.memo(StoryItem, (prevProps, nextProps) => 
+const MemoizedStoryItem = React.memo(StoryItem, (prevProps, nextProps) =>
   prevProps.story.id === nextProps.story.id &&
   prevProps.isPlaying === nextProps.isPlaying
 );
@@ -563,6 +596,7 @@ const VirtualizedStoryList = ({ stories }: { stories: Story[] }) => {
 ```
 
 ### Backend Performance
+
 ```typescript
 // Database optimization
 const getStoriesOptimized = (filters: StoryFilters) => {
@@ -577,7 +611,7 @@ const getStoriesOptimized = (filters: StoryFilters) => {
     ORDER BY s.created_at DESC
     LIMIT ? OFFSET ?
   `);
-  
+
   return stmt.all(filters.type, filters.limit, filters.offset);
 };
 
@@ -587,14 +621,14 @@ const cache = new Map<string, { data: any; expires: number }>();
 const getCachedOrFetch = async <T>(
   key: string,
   fetcher: () => Promise<T>,
-  ttlMs: number = 300000 // 5 minutes
+  ttlMs: number = 300000, // 5 minutes
 ): Promise<T> => {
   const cached = cache.get(key);
-  
+
   if (cached && Date.now() < cached.expires) {
     return cached.data;
   }
-  
+
   const data = await fetcher();
   cache.set(key, { data, expires: Date.now() + ttlMs });
   return data;
@@ -604,6 +638,7 @@ const getCachedOrFetch = async <T>(
 ## Deployment Architecture
 
 ### Development Environment
+
 ```
 Developer Machine
 ├── Frontend (Vite Dev Server) :5173
@@ -612,6 +647,7 @@ Developer Machine
 ```
 
 ### Production Environment (Standard)
+
 ```
 Production Server
 ├── Nginx (Reverse Proxy) :80, :443
@@ -628,6 +664,7 @@ Production Server
 ```
 
 ### Raspberry Pi Environment
+
 ```
 Raspberry Pi Zero 2W
 ├── Frontend (Nginx) :80
@@ -640,6 +677,7 @@ Raspberry Pi Zero 2W
 ```
 
 ### Proxmox LXC Environment
+
 ```
 LXC Container (Ubuntu 22.04)
 ├── Application Stack
@@ -659,26 +697,30 @@ LXC Container (Ubuntu 22.04)
 ## Monitoring and Observability
 
 ### Application Metrics
+
 ```typescript
 // Performance monitoring
 class PerformanceMonitor {
   static async measureAsync<T>(
     operation: string,
-    fn: () => Promise<T>
+    fn: () => Promise<T>,
   ): Promise<T> {
     const start = performance.now();
-    
+
     try {
       const result = await fn();
       const duration = performance.now() - start;
-      
+
       // Log metrics
       console.log(`${operation}: ${duration.toFixed(2)}ms`);
-      
+
       return result;
     } catch (error) {
       const duration = performance.now() - start;
-      console.error(`${operation} failed after ${duration.toFixed(2)}ms:`, error);
+      console.error(
+        `${operation} failed after ${duration.toFixed(2)}ms:`,
+        error,
+      );
       throw error;
     }
   }
@@ -688,29 +730,32 @@ class PerformanceMonitor {
 class AnalyticsService {
   trackEvent(event: string, properties: Record<string, any>) {
     // Store locally and/or send to analytics service
-    console.log('Analytics:', { event, properties, timestamp: Date.now() });
+    console.log("Analytics:", { event, properties, timestamp: Date.now() });
   }
 }
 ```
 
 ### Health Monitoring
+
 ```typescript
 // Health check endpoint
-app.get('/api/health', async (req, res) => {
+app.get("/api/health", async (req, res) => {
   const health = {
-    status: 'healthy',
+    status: "healthy",
     timestamp: new Date().toISOString(),
-    version: process.env.APP_VERSION || '1.0.0',
+    version: process.env.APP_VERSION || "1.0.0",
     uptime: process.uptime(),
     checks: {
       database: await checkDatabase(),
       apiKeys: checkApiKeys(),
-      diskSpace: await checkDiskSpace()
-    }
+      diskSpace: await checkDiskSpace(),
+    },
   };
-  
-  const allHealthy = Object.values(health.checks).every(check => check.status === 'healthy');
-  
+
+  const allHealthy = Object.values(health.checks).every(
+    (check) => check.status === "healthy",
+  );
+
   res.status(allHealthy ? 200 : 503).json(health);
 });
 ```

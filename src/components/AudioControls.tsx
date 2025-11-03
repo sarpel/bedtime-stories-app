@@ -1,6 +1,6 @@
-import { Button } from '@/components/ui/button.jsx'
-import { Slider } from '@/components/ui/slider.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
+import { Button } from "@/components/ui/button.jsx";
+import { Slider } from "@/components/ui/slider.jsx";
+import { Badge } from "@/components/ui/badge.jsx";
 import {
   Play,
   Pause,
@@ -8,30 +8,30 @@ import {
   Volume2,
   VolumeX,
   Volume1,
-  Gauge
+  Gauge,
   // Download, Bookmark, Music kaldırıldı - çalışmayan özellikler
-} from 'lucide-react'
+} from "lucide-react";
 
 interface AudioControlsProps {
-  storyId: string
-  audioUrl: string | null
-  isPlaying: boolean
-  isPaused: boolean
-  progress: number
-  duration: number
-  volume: number
-  isMuted: boolean
-  playbackRate: number
-  currentStoryId: string | null
-  onPlay: (audioUrl: string, storyId: string) => void
-  onPause: () => void
-  onStop: () => void
-  onToggleMute: () => void
-  onVolumeChange: (volume: number) => void
-  onPlaybackSpeedChange: (speed: number) => void
-  onSeek: (progress: number) => void
-  size?: 'xs' | 'sm' | 'default'
-  showAdvanced?: boolean
+  storyId: string;
+  audioUrl: string | null;
+  isPlaying: boolean;
+  isPaused: boolean;
+  progress: number;
+  duration: number;
+  volume: number;
+  isMuted: boolean;
+  playbackRate: number;
+  currentStoryId: string | null;
+  onPlay: (audioUrl: string, storyId: string) => void;
+  onPause: () => void;
+  onStop: () => void;
+  onToggleMute: () => void;
+  onVolumeChange: (volume: number) => void;
+  onPlaybackSpeedChange: (speed: number) => void;
+  onSeek: (progress: number) => void;
+  size?: "xs" | "sm" | "default";
+  showAdvanced?: boolean;
 }
 
 export default function AudioControls({
@@ -53,35 +53,38 @@ export default function AudioControls({
   onPlaybackSpeedChange,
   onSeek,
   // onDownload, onBookmark kaldırıldı - çalışmayan özellikler
-  size = 'default', // 'xs' | 'sm' | 'default'
-  showAdvanced = true // Gelişmiş kontrolleri göster/gizle
+  size = "default", // 'xs' | 'sm' | 'default'
+  showAdvanced = true, // Gelişmiş kontrolleri göster/gizle
 }: AudioControlsProps) {
-  const isCurrentAudio = currentStoryId === storyId
-  const isThisPlaying = isCurrentAudio && isPlaying
-  const isThisPaused = isCurrentAudio && isPaused
+  const isCurrentAudio = currentStoryId === storyId;
+  const isThisPlaying = isCurrentAudio && isPlaying;
+  const isThisPaused = isCurrentAudio && isPaused;
 
   const formatTime = (seconds: number): string => {
-    if (!seconds || isNaN(seconds)) return '0:00'
-    const mins = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
+    if (!seconds || isNaN(seconds)) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
 
   const getVolumeIcon = (): typeof VolumeX => {
-    if (isMuted || volume === 0) return VolumeX
-    if (volume < 0.3) return Volume1
-    if (volume < 0.7) return Volume2
-    return Volume2
-  }
+    if (isMuted || volume === 0) return VolumeX;
+    if (volume < 0.3) return Volume1;
+    if (volume < 0.7) return Volume2;
+    return Volume2;
+  };
 
-  const VolumeIcon = getVolumeIcon()
-  const buttonSize = size === 'xs' ? 'sm' : size === 'sm' ? 'sm' : 'default'
-  const iconSize = size === 'xs' ? 'h-2.5 w-2.5' : size === 'sm' ? 'h-3 w-3' : 'h-4 w-4'
+  const VolumeIcon = getVolumeIcon();
+  const buttonSize = size === "xs" ? "sm" : size === "sm" ? "sm" : "default";
+  const iconSize =
+    size === "xs" ? "h-2.5 w-2.5" : size === "sm" ? "h-3 w-3" : "h-4 w-4";
 
-  if (!audioUrl) return null
+  if (!audioUrl) return null;
 
   return (
-    <div className={`flex items-center gap-2 ${size === 'xs' ? 'text-[10px]' : size === 'sm' ? 'text-xs' : 'text-sm'}`}>
+    <div
+      className={`flex items-center gap-2 ${size === "xs" ? "text-[10px]" : size === "sm" ? "text-xs" : "text-sm"}`}
+    >
       {/* Play/Pause Button */}
       <Button
         variant="ghost"
@@ -89,14 +92,14 @@ export default function AudioControls({
         onClick={() => {
           if (!audioUrl) return;
           if (isThisPlaying) {
-            if (typeof onPause === 'function') {
-              onPause()
+            if (typeof onPause === "function") {
+              onPause();
             } else {
               // Geriye dönük: onPlay toggle mantığıyla çalışsın
-              onPlay(audioUrl, storyId)
+              onPlay(audioUrl, storyId);
             }
           } else {
-            onPlay(audioUrl, storyId)
+            onPlay(audioUrl, storyId);
           }
         }}
         className="shrink-0"
@@ -141,15 +144,11 @@ export default function AudioControls({
 
       {/* Volume Control */}
       <div className="flex items-center gap-1 shrink-0">
-        <Button
-          variant="ghost"
-          size={buttonSize}
-          onClick={onToggleMute}
-        >
+        <Button variant="ghost" size={buttonSize} onClick={onToggleMute}>
           <VolumeIcon className={iconSize} />
         </Button>
 
-        {size !== 'sm' && size !== 'xs' && (
+        {size !== "sm" && size !== "xs" && (
           <Slider
             value={[isMuted ? 0 : volume * 100]}
             onValueChange={(value: number[]) => onVolumeChange(value[0] / 100)}
@@ -161,13 +160,9 @@ export default function AudioControls({
       </div>
 
       {/* Speed Control with Preset Buttons */}
-      {isCurrentAudio && size !== 'sm' && size !== 'xs' && showAdvanced && (
+      {isCurrentAudio && size !== "sm" && size !== "xs" && showAdvanced && (
         <div className="flex items-center gap-1 shrink-0">
-          <Button
-            variant="ghost"
-            size={buttonSize}
-            title="Hız Kontrolü"
-          >
+          <Button variant="ghost" size={buttonSize} title="Hız Kontrolü">
             <Gauge className={iconSize} />
           </Button>
 
@@ -190,5 +185,5 @@ export default function AudioControls({
 
       {/* Download ve Bookmark butonları kaldırıldı - çalışmayan özellikler */}
     </div>
-  )
+  );
 }

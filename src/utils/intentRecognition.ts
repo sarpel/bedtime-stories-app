@@ -26,120 +26,213 @@ export interface IntentResult {
 // Turkish intent patterns with confidence scoring
 export const turkishIntents: { [key: string]: Intent } = {
   story_request: {
-    name: 'story_request',
+    name: "story_request",
     patterns: [
-      'masal anlat', 'hikaye anlat', 'masal oku', 'hikaye oku',
-      'bir masal', 'bir hikaye', 'masal istiyorum', 'hikaye istiyorum',
-      'masal söyle', 'hikaye söyle', 'öykü anlat', 'öykü oku',
-      'masalı', 'hikayesi', 'için masal', 'için hikaye'
+      "masal anlat",
+      "hikaye anlat",
+      "masal oku",
+      "hikaye oku",
+      "bir masal",
+      "bir hikaye",
+      "masal istiyorum",
+      "hikaye istiyorum",
+      "masal söyle",
+      "hikaye söyle",
+      "öykü anlat",
+      "öykü oku",
+      "masalı",
+      "hikayesi",
+      "için masal",
+      "için hikaye",
     ],
-    confidence: 0.9
+    confidence: 0.9,
   },
 
   // Story types
   fairy_tale: {
-    name: 'fairy_tale',
+    name: "fairy_tale",
     patterns: [
-      'peri masalı', 'peri hikayesi', 'prenses masalı', 'prenses hikayesi',
-      'şehzade masalı', 'kral masalı', 'kraliçe masalı',
-      'cadı masalı', 'büyücü masalı', 'sihirli masal', 'büyülü masal',
-      'ejder masalı', 'dev masalı', 'cin masalı'
+      "peri masalı",
+      "peri hikayesi",
+      "prenses masalı",
+      "prenses hikayesi",
+      "şehzade masalı",
+      "kral masalı",
+      "kraliçe masalı",
+      "cadı masalı",
+      "büyücü masalı",
+      "sihirli masal",
+      "büyülü masal",
+      "ejder masalı",
+      "dev masalı",
+      "cin masalı",
     ],
-    confidence: 0.85
+    confidence: 0.85,
   },
 
   adventure: {
-    name: 'adventure',
+    name: "adventure",
     patterns: [
-      'macera hikayesi', 'macera masalı', 'macera',
-      'kahraman hikayesi', 'kahraman masalı', 'kahramanlık',
-      'yolculuk hikayesi', 'keşif masalı', 'serüven',
-      'cesaret hikayesi', 'cesur kahraman', 'maceracı'
+      "macera hikayesi",
+      "macera masalı",
+      "macera",
+      "kahraman hikayesi",
+      "kahraman masalı",
+      "kahramanlık",
+      "yolculuk hikayesi",
+      "keşif masalı",
+      "serüven",
+      "cesaret hikayesi",
+      "cesur kahraman",
+      "maceracı",
     ],
-    confidence: 0.8
+    confidence: 0.8,
   },
 
   educational: {
-    name: 'educational',
+    name: "educational",
     patterns: [
-      'öğretici hikaye', 'eğitici masal', 'bilim hikayesi',
-      'matematik masalı', 'doğa hikayesi', 'hayvan hikayesi',
-      'tarih masalı', 'coğrafya hikayesi', 'öğretici',
-      'bilgi verici', 'eğitim', 'öğrenme'
+      "öğretici hikaye",
+      "eğitici masal",
+      "bilim hikayesi",
+      "matematik masalı",
+      "doğa hikayesi",
+      "hayvan hikayesi",
+      "tarih masalı",
+      "coğrafya hikayesi",
+      "öğretici",
+      "bilgi verici",
+      "eğitim",
+      "öğrenme",
     ],
-    confidence: 0.8
+    confidence: 0.8,
   },
 
   animal: {
-    name: 'animal',
+    name: "animal",
     patterns: [
-      'hayvan hikayesi', 'hayvan masalı', 'kedi masalı', 'köpek hikayesi',
-      'kuş hikayesi', 'balık masalı', 'orman hikayesi', 'çiftlik masalı',
-      'aslan masalı', 'kartal hikayesi', 'tavşan masalı', 'ayı hikayesi',
-      'yaban hayvanları', 'evcil hayvanlar', 'hayvanlar hakkında'
+      "hayvan hikayesi",
+      "hayvan masalı",
+      "kedi masalı",
+      "köpek hikayesi",
+      "kuş hikayesi",
+      "balık masalı",
+      "orman hikayesi",
+      "çiftlik masalı",
+      "aslan masalı",
+      "kartal hikayesi",
+      "tavşan masalı",
+      "ayı hikayesi",
+      "yaban hayvanları",
+      "evcil hayvanlar",
+      "hayvanlar hakkında",
     ],
-    confidence: 0.8
+    confidence: 0.8,
   },
 
   // Audio controls
   play_story: {
-    name: 'play_story',
+    name: "play_story",
     patterns: [
-      'oynat', 'çal', 'başlat', 'dinle', 'masalı oynat',
-      'hikayeyi çal', 'ses ver', 'sesli oku', 'dinlemek istiyorum'
+      "oynat",
+      "çal",
+      "başlat",
+      "dinle",
+      "masalı oynat",
+      "hikayeyi çal",
+      "ses ver",
+      "sesli oku",
+      "dinlemek istiyorum",
     ],
-    confidence: 0.9
+    confidence: 0.9,
   },
 
   pause_story: {
-    name: 'pause_story',
+    name: "pause_story",
     patterns: [
-      'duraklat', 'bekle', 'dur', 'ara ver', 'masalı duraklat',
-      'biraz dur', 'durakla', 'ara', 'mola'
+      "duraklat",
+      "bekle",
+      "dur",
+      "ara ver",
+      "masalı duraklat",
+      "biraz dur",
+      "durakla",
+      "ara",
+      "mola",
     ],
-    confidence: 0.9
+    confidence: 0.9,
   },
 
   stop_story: {
-    name: 'stop_story',
+    name: "stop_story",
     patterns: [
-      'bitir', 'kes', 'kapat', 'durdur', 'masalı bitir',
-      'hikayeyi kes', 'son', 'yeter', 'kapalı'
+      "bitir",
+      "kes",
+      "kapat",
+      "durdur",
+      "masalı bitir",
+      "hikayeyi kes",
+      "son",
+      "yeter",
+      "kapalı",
     ],
-    confidence: 0.9
+    confidence: 0.9,
   },
 
   // Generate audio/TTS
   generate_audio: {
-    name: 'generate_audio',
+    name: "generate_audio",
     patterns: [
-      'sese dönüştür', 'seslendir', 'sesli yap', 'oku', 'sesle',
-      'masalı sese dönüştür', 'hikayeyi seslendir', 'sesli oku',
-      'ses oluştur', 'sesli ver', 'oku bunu', 'sesini dinle',
-      'sesli hale getir', 'ses kaydı yap', 'dinlemek istiyorum'
+      "sese dönüştür",
+      "seslendir",
+      "sesli yap",
+      "oku",
+      "sesle",
+      "masalı sese dönüştür",
+      "hikayeyi seslendir",
+      "sesli oku",
+      "ses oluştur",
+      "sesli ver",
+      "oku bunu",
+      "sesini dinle",
+      "sesli hale getir",
+      "ses kaydı yap",
+      "dinlemek istiyorum",
     ],
-    confidence: 0.9
+    confidence: 0.9,
   },
 
   // Settings and help
   settings: {
-    name: 'settings',
+    name: "settings",
     patterns: [
-      'ayarlar', 'ayar', 'seçenekler', 'konfigürasyon',
-      'ayarları aç', 'ayar menüsü', 'seçenek', 'tercihler'
+      "ayarlar",
+      "ayar",
+      "seçenekler",
+      "konfigürasyon",
+      "ayarları aç",
+      "ayar menüsü",
+      "seçenek",
+      "tercihler",
     ],
-    confidence: 0.8
+    confidence: 0.8,
   },
 
   help: {
-    name: 'help',
+    name: "help",
     patterns: [
-      'yardım', 'nasıl', 'ne yapabilirim', 'komutlar',
-      'yardım et', 'nasıl kullanıyorum', 'ne diyebilirim',
-      'hangi komutlar', 'yardıma ihtiyacım var'
+      "yardım",
+      "nasıl",
+      "ne yapabilirim",
+      "komutlar",
+      "yardım et",
+      "nasıl kullanıyorum",
+      "ne diyebilirim",
+      "hangi komutlar",
+      "yardıma ihtiyacım var",
     ],
-    confidence: 0.8
-  }
+    confidence: 0.8,
+  },
 };
 
 /**
@@ -150,7 +243,7 @@ export const extractAge = (text: string): number | undefined => {
     /(\d+)\s*yaş/gi,
     /(\d+)\s*yaşında/gi,
     /yaş[ıi]\s*(\d+)/gi,
-    /(\d+)\s*sene/gi
+    /(\d+)\s*sene/gi,
   ];
 
   for (const pattern of agePatterns) {
@@ -179,7 +272,7 @@ export const extractCharacterName = (text: string): string | undefined => {
     /(\w+)\s*için/gi,
     /kahraman\s*(\w+)/gi,
     /(\w+)\s*karakteri/gi,
-    /ana\s*karakter\s*(\w+)/gi
+    /ana\s*karakter\s*(\w+)/gi,
   ];
 
   for (const pattern of namePatterns) {
@@ -188,9 +281,23 @@ export const extractCharacterName = (text: string): string | undefined => {
       const name = match[1].trim();
       // Filter out common words that aren't names
       const stopWords = [
-        'bir', 'bu', 'şu', 'o', 'benim', 'senin', 'onun',
-        'masal', 'hikaye', 'için', 'hakkında', 'ile', 've',
-        'yaş', 'yaşında', 'kahraman', 'karakter'
+        "bir",
+        "bu",
+        "şu",
+        "o",
+        "benim",
+        "senin",
+        "onun",
+        "masal",
+        "hikaye",
+        "için",
+        "hakkında",
+        "ile",
+        "ve",
+        "yaş",
+        "yaşında",
+        "kahraman",
+        "karakter",
       ];
 
       if (!stopWords.includes(name.toLowerCase()) && name.length >= 2) {
@@ -213,7 +320,7 @@ export const extractCustomTopic = (text: string): string | undefined => {
     /(\w+)\s*konulu/gi,
     /(\w+)\s*temal[ıi]/gi,
     /konu\s*(\w+)/gi,
-    /tema\s*(\w+)/gi
+    /tema\s*(\w+)/gi,
   ];
 
   for (const pattern of topicPatterns) {
@@ -232,9 +339,11 @@ export const extractCustomTopic = (text: string): string | undefined => {
 /**
  * Detect intent from Turkish text
  */
-export const detectIntent = (text: string): { intent: string; confidence: number } => {
+export const detectIntent = (
+  text: string,
+): { intent: string; confidence: number } => {
   const normalizedText = text.toLowerCase().trim();
-  let bestIntent = 'unknown';
+  let bestIntent = "unknown";
   let bestConfidence = 0;
 
   // Check each intent pattern
@@ -250,7 +359,7 @@ export const detectIntent = (text: string): { intent: string; confidence: number
         }
 
         // Boost confidence for word boundaries
-        const regex = new RegExp(`\\b${pattern}\\b`, 'gi');
+        const regex = new RegExp(`\\b${pattern}\\b`, "gi");
         if (regex.test(normalizedText)) {
           confidence += 0.05;
         }
@@ -273,7 +382,7 @@ export const extractStoryType = (text: string): string | undefined => {
   const normalizedText = text.toLowerCase();
 
   // Check for story type patterns
-  const storyTypes = ['fairy_tale', 'adventure', 'educational', 'animal'];
+  const storyTypes = ["fairy_tale", "adventure", "educational", "animal"];
 
   for (const storyType of storyTypes) {
     const patterns = turkishIntents[storyType]?.patterns || [];
@@ -324,13 +433,16 @@ export const processTurkishVoiceCommand = (text: string): IntentResult => {
   }
 
   // Special handling for story requests
-  if (intent === 'story_request' || Object.keys(parameters).length > 0) {
+  if (intent === "story_request" || Object.keys(parameters).length > 0) {
     // If we have story parameters but no explicit story request, assume it's a story request
-    if (intent === 'unknown' && (parameters.storyType || parameters.characterName)) {
+    if (
+      intent === "unknown" &&
+      (parameters.storyType || parameters.characterName)
+    ) {
       return {
-        intent: 'story_request',
+        intent: "story_request",
         parameters,
-        confidence: Math.max(confidence, 0.7)
+        confidence: Math.max(confidence, 0.7),
       };
     }
   }
@@ -346,7 +458,7 @@ export const processTurkishVoiceCommand = (text: string): IntentResult => {
   return {
     intent,
     parameters,
-    confidence: finalConfidence
+    confidence: finalConfidence,
   };
 };
 
@@ -363,35 +475,39 @@ export const getSuggestedCommands = (): string[] => {
     "Masalı oynat",
     "Masalı durdur",
     "Ayarları aç",
-    "Yardım"
+    "Yardım",
   ];
 };
 
 /**
  * Validate command confidence and provide feedback
  */
-export const validateCommandConfidence = (result: IntentResult): {
+export const validateCommandConfidence = (
+  result: IntentResult,
+): {
   isValid: boolean;
   feedback?: string;
 } => {
   if (result.confidence < 0.4) {
     return {
       isValid: false,
-      feedback: "Komut anlaşılamadı. Lütfen daha açık konuşun."
+      feedback: "Komut anlaşılamadı. Lütfen daha açık konuşun.",
     };
   }
 
   if (result.confidence < 0.6) {
     return {
       isValid: false,
-      feedback: "Komut belirsiz. Lütfen tekrar deneyin veya farklı kelimeler kullanın."
+      feedback:
+        "Komut belirsiz. Lütfen tekrar deneyin veya farklı kelimeler kullanın.",
     };
   }
 
-  if (result.intent === 'unknown') {
+  if (result.intent === "unknown") {
     return {
       isValid: false,
-      feedback: "Bu komut desteklenmiyor. 'Yardım' diyerek mevcut komutları öğrenebilirsiniz."
+      feedback:
+        "Bu komut desteklenmiyor. 'Yardım' diyerek mevcut komutları öğrenebilirsiniz.",
     };
   }
 

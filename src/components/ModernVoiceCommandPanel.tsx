@@ -1,11 +1,18 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Mic, MicOff, Volume2, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
-import { STTService, GPT4oMiniSTTService } from '@/services/sttService';
-import { logger } from '@/utils/logger';
+import React, { useState, useRef, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import {
+  Mic,
+  MicOff,
+  Volume2,
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+} from "lucide-react";
+import { STTService, GPT4oMiniSTTService } from "@/services/sttService";
+import { logger } from "@/utils/logger";
 
 export interface VoiceCommand {
   intent: string;
@@ -28,7 +35,7 @@ interface ModernVoiceCommandPanelProps {
       provider?: string;
       model?: string;
       wakeWordEnabled?: boolean;
-      wakeWordSensitivity?: 'low' | 'medium' | 'high';
+      wakeWordSensitivity?: "low" | "medium" | "high";
       continuousListening?: boolean;
       responseFormat?: string;
       language?: string;
@@ -48,7 +55,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ isActive }) => {
     if (!canvasRef.current) return;
 
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     const draw = () => {
@@ -58,7 +65,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ isActive }) => {
       }
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#3B82F6';
+      ctx.fillStyle = "#3B82F6";
 
       // Simple animated bars
       for (let i = 0; i < 5; i++) {
@@ -108,55 +115,56 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ isActive }) => {
  * - Better error handling and user feedback
  * - More maintainable code structure
  */
-export const ModernVoiceCommandPanel: React.FC<ModernVoiceCommandPanelProps> = ({
-  onVoiceCommand,
-  disabled = false,
-  className = '',
-  settings
-}) => {
+export const ModernVoiceCommandPanel: React.FC<
+  ModernVoiceCommandPanelProps
+> = ({ onVoiceCommand, disabled = false, className = "", settings }) => {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [transcription, setTranscription] = useState<string>('');
+  const [transcription, setTranscription] = useState<string>("");
   const [lastCommand, setLastCommand] = useState<VoiceCommand | null>(null);
   const [progress, setProgress] = useState(0);
-  const [error, setError] = useState<string>('');
-  const [microphonePermission, setMicrophonePermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
+  const [error, setError] = useState<string>("");
+  const [microphonePermission, setMicrophonePermission] = useState<
+    "granted" | "denied" | "prompt"
+  >("prompt");
 
   const sttServiceRef = useRef<STTService | GPT4oMiniSTTService | null>(null);
 
   // Initialize STT service (simplified - no more wake word complexity here)
   useEffect(() => {
     const sttSettings = settings?.sttSettings || {};
-    const modelId = sttSettings.model || 'gpt-4o-mini-transcribe';
+    const modelId = sttSettings.model || "gpt-4o-mini-transcribe";
 
-    if (modelId === 'gpt-4o-mini-transcribe') {
+    if (modelId === "gpt-4o-mini-transcribe") {
       // Use GPT-4o-mini-transcribe service
       sttServiceRef.current = new GPT4oMiniSTTService({
-        sttProvider: sttSettings.provider || 'openai',
+        sttProvider: sttSettings.provider || "openai",
         openaiSTT: {
-          modelId: modelId
+          modelId: modelId,
         },
         audioSettings: {
           sampleRate: 16000,
           channels: 1,
           bitDepth: 16,
-          format: 'webm'
+          format: "webm",
         },
-        responseFormat: (sttSettings.responseFormat as 'json' | 'verbose_json') || 'verbose_json'
+        responseFormat:
+          (sttSettings.responseFormat as "json" | "verbose_json") ||
+          "verbose_json",
       });
     } else {
       // Use standard STT service
       sttServiceRef.current = new STTService({
-        sttProvider: sttSettings.provider || 'openai',
+        sttProvider: sttSettings.provider || "openai",
         openaiSTT: {
-          modelId: modelId
+          modelId: modelId,
         },
         audioSettings: {
           sampleRate: 16000,
           channels: 1,
           bitDepth: 16,
-          format: 'webm'
-        }
+          format: "webm",
+        },
       });
     }
 
@@ -172,50 +180,76 @@ export const ModernVoiceCommandPanel: React.FC<ModernVoiceCommandPanelProps> = (
 
   const checkMicrophonePermission = async () => {
     try {
-      logger.debug('Checking microphone permission...', 'ModernVoiceCommandPanel');
+      logger.debug(
+        "Checking microphone permission...",
+        "ModernVoiceCommandPanel",
+      );
       const hasPermission = await STTService.checkMicrophonePermission();
-      setMicrophonePermission(hasPermission ? 'granted' : 'denied');
-      logger.info(`Microphone permission: ${hasPermission ? 'granted' : 'denied'}`, 'ModernVoiceCommandPanel');
+      setMicrophonePermission(hasPermission ? "granted" : "denied");
+      logger.info(
+        `Microphone permission: ${hasPermission ? "granted" : "denied"}`,
+        "ModernVoiceCommandPanel",
+      );
     } catch (error) {
-      logger.error('Error checking microphone permission', 'ModernVoiceCommandPanel', {
-        error: (error as Error)?.message
-      });
-      setMicrophonePermission('denied');
+      logger.error(
+        "Error checking microphone permission",
+        "ModernVoiceCommandPanel",
+        {
+          error: (error as Error)?.message,
+        },
+      );
+      setMicrophonePermission("denied");
     }
   };
 
   const handleStartListening = async () => {
-    if (!sttServiceRef.current || disabled || isListening || isProcessing) return;
+    if (!sttServiceRef.current || disabled || isListening || isProcessing)
+      return;
 
     try {
-      setError('');
-      setTranscription('');
+      setError("");
+      setTranscription("");
       setProgress(0);
       setIsListening(true);
 
-      logger.debug('Starting voice recording', 'ModernVoiceCommandPanel');
+      logger.debug("Starting voice recording", "ModernVoiceCommandPanel");
       await sttServiceRef.current.startListening();
-      setMicrophonePermission('granted');
-
+      setMicrophonePermission("granted");
     } catch (error) {
-      const errorMessage = (error as Error)?.message || 'Unknown error';
-      logger.error('Failed to start listening', 'ModernVoiceCommandPanel', {
-        error: errorMessage
+      const errorMessage = (error as Error)?.message || "Unknown error";
+      logger.error("Failed to start listening", "ModernVoiceCommandPanel", {
+        error: errorMessage,
       });
 
       // Provide specific error messages for common microphone issues
-      if (errorMessage.includes('izin') || errorMessage.includes('permission') || errorMessage.includes('denied')) {
-        setError('Mikrofon izni gerekli. Lütfen tarayıcınızda mikrofon erişimine izin verin ve sayfayı yenileyin.');
-      } else if (errorMessage.includes('https') || errorMessage.includes('secure')) {
-        setError('Mikrofon erişimi için güvenli bağlantı (HTTPS) gerekli. Lütfen sayfayı HTTPS üzerinden açın.');
-      } else if (errorMessage.includes('not found') || errorMessage.includes('device')) {
-        setError('Mikrofon cihazı bulunamadı. Lütfen mikrofonunuzun bağlı ve çalışır durumda olduğundan emin olun.');
+      if (
+        errorMessage.includes("izin") ||
+        errorMessage.includes("permission") ||
+        errorMessage.includes("denied")
+      ) {
+        setError(
+          "Mikrofon izni gerekli. Lütfen tarayıcınızda mikrofon erişimine izin verin ve sayfayı yenileyin.",
+        );
+      } else if (
+        errorMessage.includes("https") ||
+        errorMessage.includes("secure")
+      ) {
+        setError(
+          "Mikrofon erişimi için güvenli bağlantı (HTTPS) gerekli. Lütfen sayfayı HTTPS üzerinden açın.",
+        );
+      } else if (
+        errorMessage.includes("not found") ||
+        errorMessage.includes("device")
+      ) {
+        setError(
+          "Mikrofon cihazı bulunamadı. Lütfen mikrofonunuzun bağlı ve çalışır durumda olduğundan emin olun.",
+        );
       } else {
         setError(`Ses kaydı başlatılamadı: ${errorMessage}`);
       }
 
       setIsListening(false);
-      setMicrophonePermission('denied');
+      setMicrophonePermission("denied");
     }
   };
 
@@ -226,7 +260,10 @@ export const ModernVoiceCommandPanel: React.FC<ModernVoiceCommandPanelProps> = (
       setIsListening(false);
       setIsProcessing(true);
 
-      logger.debug('Stopping voice recording and processing', 'ModernVoiceCommandPanel');
+      logger.debug(
+        "Stopping voice recording and processing",
+        "ModernVoiceCommandPanel",
+      );
 
       // Start progress simulation
       let currentProgress = 0;
@@ -246,8 +283,8 @@ export const ModernVoiceCommandPanel: React.FC<ModernVoiceCommandPanelProps> = (
 
       if (result && result.text) {
         setTranscription(result.text);
-        logger.debug('Transcription received', 'ModernVoiceCommandPanel', {
-          transcription: result.text
+        logger.debug("Transcription received", "ModernVoiceCommandPanel", {
+          transcription: result.text,
         });
 
         // Parse the transcription into a voice command
@@ -255,23 +292,26 @@ export const ModernVoiceCommandPanel: React.FC<ModernVoiceCommandPanelProps> = (
         if (command) {
           setLastCommand(command);
           onVoiceCommand(command);
-          logger.info('Voice command processed', 'ModernVoiceCommandPanel', {
+          logger.info("Voice command processed", "ModernVoiceCommandPanel", {
             intent: command.intent,
-            confidence: command.confidence
+            confidence: command.confidence,
           });
         } else {
-          logger.warn('Unable to parse voice command', 'ModernVoiceCommandPanel', {
-            transcription: result.text
-          });
-          setError('Unable to understand the voice command. Please try again.');
+          logger.warn(
+            "Unable to parse voice command",
+            "ModernVoiceCommandPanel",
+            {
+              transcription: result.text,
+            },
+          );
+          setError("Unable to understand the voice command. Please try again.");
         }
       } else {
-        setError('No speech detected. Please try again.');
+        setError("No speech detected. Please try again.");
       }
-
     } catch (error) {
-      logger.error('Failed to process voice input', 'ModernVoiceCommandPanel', {
-        error: (error as Error)?.message
+      logger.error("Failed to process voice input", "ModernVoiceCommandPanel", {
+        error: (error as Error)?.message,
       });
       setError(`Failed to process voice: ${(error as Error)?.message}`);
     } finally {
@@ -288,17 +328,25 @@ export const ModernVoiceCommandPanel: React.FC<ModernVoiceCommandPanelProps> = (
     const text = transcription.toLowerCase().trim();
 
     // Story creation commands
-    if (text.includes('create') || text.includes('tell') || text.includes('story')) {
-      let storyType = 'adventure';
-      let characterName = '';
+    if (
+      text.includes("create") ||
+      text.includes("tell") ||
+      text.includes("story")
+    ) {
+      let storyType = "adventure";
+      let characterName = "";
       let age = undefined;
-      let customTopic = '';
+      let customTopic = "";
 
       // Extract story type
-      if (text.includes('princess') || text.includes('fairy tale')) storyType = 'princess';
-      else if (text.includes('pirate') || text.includes('treasure')) storyType = 'pirate';
-      else if (text.includes('space') || text.includes('astronaut')) storyType = 'space';
-      else if (text.includes('animal') || text.includes('jungle')) storyType = 'animal';
+      if (text.includes("princess") || text.includes("fairy tale"))
+        storyType = "princess";
+      else if (text.includes("pirate") || text.includes("treasure"))
+        storyType = "pirate";
+      else if (text.includes("space") || text.includes("astronaut"))
+        storyType = "space";
+      else if (text.includes("animal") || text.includes("jungle"))
+        storyType = "animal";
 
       // Extract character name
       const nameMatch = text.match(/(?:about|with|character|named)\s+(\w+)/);
@@ -319,15 +367,15 @@ export const ModernVoiceCommandPanel: React.FC<ModernVoiceCommandPanelProps> = (
       }
 
       return {
-        intent: 'create_story',
+        intent: "create_story",
         parameters: {
           storyType,
           characterName: characterName || undefined,
           age,
-          customTopic: customTopic || undefined
+          customTopic: customTopic || undefined,
         },
         confidence: 0.8,
-        originalText: transcription
+        originalText: transcription,
       };
     }
 
@@ -347,20 +395,26 @@ export const ModernVoiceCommandPanel: React.FC<ModernVoiceCommandPanelProps> = (
               {isListening ? (
                 <>
                   <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />
-                  <span className="text-sm font-medium text-red-600">Recording...</span>
+                  <span className="text-sm font-medium text-red-600">
+                    Recording...
+                  </span>
                   <AudioVisualizer isActive={isListening} />
                 </>
               ) : isProcessing ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                  <span className="text-sm font-medium text-blue-600">Processing...</span>
+                  <span className="text-sm font-medium text-blue-600">
+                    Processing...
+                  </span>
                 </>
               ) : lastCommand ? (
                 <>
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span className="text-sm font-medium text-green-600">Command Recognized</span>
+                  <span className="text-sm font-medium text-green-600">
+                    Command Recognized
+                  </span>
                   <Badge variant="secondary" className="text-xs">
-                    {lastCommand.intent.replace('_', ' ')}
+                    {lastCommand.intent.replace("_", " ")}
                   </Badge>
                 </>
               ) : (
@@ -382,7 +436,9 @@ export const ModernVoiceCommandPanel: React.FC<ModernVoiceCommandPanelProps> = (
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start space-x-2">
               <AlertCircle className="h-4 w-4 text-red-500 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-red-800">Voice Recognition Error</p>
+                <p className="text-sm font-medium text-red-800">
+                  Voice Recognition Error
+                </p>
                 <p className="text-sm text-red-700">{error}</p>
               </div>
             </div>
@@ -425,8 +481,10 @@ export const ModernVoiceCommandPanel: React.FC<ModernVoiceCommandPanelProps> = (
             {transcription && (
               <Button
                 onClick={() => {
-                  if ('speechSynthesis' in window && transcription) {
-                    speechSynthesis.speak(new SpeechSynthesisUtterance(transcription));
+                  if ("speechSynthesis" in window && transcription) {
+                    speechSynthesis.speak(
+                      new SpeechSynthesisUtterance(transcription),
+                    );
                   }
                 }}
                 variant="outline"
@@ -440,10 +498,11 @@ export const ModernVoiceCommandPanel: React.FC<ModernVoiceCommandPanelProps> = (
           </div>
 
           {/* Microphone Permission Status */}
-          {microphonePermission === 'denied' && (
+          {microphonePermission === "denied" && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
               <p className="text-sm text-yellow-800 mb-2">
-                Mikrofon erişimi ses komutları için gereklidir. Lütfen tarayıcı ayarlarınızdan mikrofon izinlerini etkinleştirin.
+                Mikrofon erişimi ses komutları için gereklidir. Lütfen tarayıcı
+                ayarlarınızdan mikrofon izinlerini etkinleştirin.
               </p>
               <Button
                 onClick={checkMicrophonePermission}
@@ -458,13 +517,16 @@ export const ModernVoiceCommandPanel: React.FC<ModernVoiceCommandPanelProps> = (
           )}
 
           {/* HTTPS Warning - only show for non-localhost HTTP */}
-          {location.protocol === 'http:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1' && (
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-              <p className="text-sm text-orange-800">
-                ⚠️ Mikrofon erişimi için güvenli bağlantı (HTTPS) gereklidir. HTTP üzerinden mikrofon erişimi kısıtlıdır.
-              </p>
-            </div>
-          )}
+          {location.protocol === "http:" &&
+            location.hostname !== "localhost" &&
+            location.hostname !== "127.0.0.1" && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                <p className="text-sm text-orange-800">
+                  ⚠️ Mikrofon erişimi için güvenli bağlantı (HTTPS) gereklidir.
+                  HTTP üzerinden mikrofon erişimi kısıtlıdır.
+                </p>
+              </div>
+            )}
         </CardContent>
       </Card>
     </div>
