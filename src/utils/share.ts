@@ -28,7 +28,7 @@ function getStoryTypeName(storyType: StoryType) {
 export const shareStory = async (
   story: string,
   storyType: string,
-  customTopic: string = "",
+  customTopic = "",
 ) => {
   const storyTypeName = getStoryTypeName(storyType as StoryType);
   const topicText = customTopic ? `Konu: ${customTopic}\n\n` : "";

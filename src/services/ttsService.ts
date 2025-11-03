@@ -128,7 +128,7 @@ export class TTSService {
     onProgress?: ProgressCallback,
     storyId?: string | null,
   ): Promise<string> {
-    console.log(`🎵 [TTSService Debug] generateAudio called`);
+    console.log("🎵 [TTSService Debug] generateAudio called");
     console.log(`🎵 [TTSService Debug] - provider: ${this.provider}`);
     console.log(`🎵 [TTSService Debug] - modelId: ${this.modelId}`);
     console.log(`🎵 [TTSService Debug] - voiceId: ${this.voiceId}`);
@@ -150,7 +150,7 @@ export class TTSService {
       }
 
       if (!text || text.trim().length === 0) {
-        console.error(`🎵 [TTSService Debug] No text provided for TTS`);
+        console.error("🎵 [TTSService Debug] No text provided for TTS");
         throw new Error("Seslendirilecek metin bulunamadı.");
       }
 
@@ -160,7 +160,7 @@ export class TTSService {
       if (storyId) {
         try {
           const story = await optimizedDatabaseService.getStory(storyId);
-          if (story && story.audio && story.audio.file_name) {
+          if (story?.audio && story.audio.file_name) {
             const audioUrl = optimizedDatabaseService.getAudioUrl(
               story.audio.file_name,
             );
@@ -210,7 +210,7 @@ export class TTSService {
       console.log("🔊 [TTSService] Request payload:", requestPayload);
 
       // İstek relative backend yoluna yapılıyor (Vite proxy/prod aynı origin)
-      const response = await fetch(`/api/tts`, {
+      const response = await fetch("/api/tts", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -352,7 +352,7 @@ export class TTSService {
 
   // Clean up audio URL when done
   static cleanupAudioUrl(url: string): void {
-    if (url && url.startsWith("blob:")) {
+    if (url?.startsWith("blob:")) {
       URL.revokeObjectURL(url);
     }
   }

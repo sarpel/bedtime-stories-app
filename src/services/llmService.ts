@@ -56,9 +56,9 @@ export class LLMService {
         temperature: this.temperature,
         maxTokens: this.maxTokens,
         storyLength: this.storyLength,
-        hasCustomPrompt: !!this.customPrompt,
+        hasCustomPrompt: Boolean(this.customPrompt),
         customPromptLen: this.customPrompt?.length || 0,
-        hasCustomInstructions: !!this.customInstructions,
+        hasCustomInstructions: Boolean(this.customInstructions),
         customInstructionsLen: this.customInstructions?.length || 0,
       });
     } catch (initErr) {
@@ -152,7 +152,7 @@ export class LLMService {
       onProgress?.(30);
 
       // İstek backend proxy'imize yönlendirilir (aynı origin, dev'de Vite proxy)
-      const url = `/api/llm`;
+      const url = "/api/llm";
       const payload = {
         provider: this.provider,
         modelId: this.modelId,
@@ -325,9 +325,9 @@ Elif, çiçeğe sevgiyle bakmış ve ona güzel şarkılar söylemiş. Sevgisi s
 O günden sonra Elif, sevginin her şeyi iyileştirebileceğini öğrenmiş. Sen de sevginle dünyayı daha güzel yapabilirsin.
 
 İyi geceler, tatlı rüyalar...`,
-      `Bir zamanlar, deniz kıyısında yaşayan Zeynep, dalgaların fısıltılarını dinlemeyi çok severmiş. Bir gece, deniz kabuğunun içinden minik bir peri çıkmış ve "Cesaretle paylaştığın her iyilik, büyüyüp sana döner" demiş. Zeynep o günden sonra herkesle sevgi dolu hikayeler paylaşmış. İyi geceler, tatlı rüyalar...`,
-      `Bir zamanlar, yıldızların altında kamp yapan küçük Defne, gökyüzündeki takımyıldızları sayarken uykuya dalmış. Rüyasında bir kuyruklu yıldız ona “Merak ettiğin her şeyin cevabı, sabırlı kalbinde saklı” demiş. Defne sabırla çalışmayı öğrenmiş. İyi geceler, tatlı rüyalar...`,
-      `Bir zamanlar, yeşil bir tepenin ardında yaşayan Nazlı, her gün minik bir ağacı sulayıp onunla konuşurmuş. Ağaç büyüdükçe gölgesi herkesi serinletmiş. Nazlı, emek verince güzelliklerin çoğaldığını anlamış. İyi geceler, tatlı rüyalar...`,
+      'Bir zamanlar, deniz kıyısında yaşayan Zeynep, dalgaların fısıltılarını dinlemeyi çok severmiş. Bir gece, deniz kabuğunun içinden minik bir peri çıkmış ve "Cesaretle paylaştığın her iyilik, büyüyüp sana döner" demiş. Zeynep o günden sonra herkesle sevgi dolu hikayeler paylaşmış. İyi geceler, tatlı rüyalar...',
+      "Bir zamanlar, yıldızların altında kamp yapan küçük Defne, gökyüzündeki takımyıldızları sayarken uykuya dalmış. Rüyasında bir kuyruklu yıldız ona “Merak ettiğin her şeyin cevabı, sabırlı kalbinde saklı” demiş. Defne sabırla çalışmayı öğrenmiş. İyi geceler, tatlı rüyalar...",
+      "Bir zamanlar, yeşil bir tepenin ardında yaşayan Nazlı, her gün minik bir ağacı sulayıp onunla konuşurmuş. Ağaç büyüdükçe gölgesi herkesi serinletmiş. Nazlı, emek verince güzelliklerin çoğaldığını anlamış. İyi geceler, tatlı rüyalar...",
     ];
 
     // Basit tohumlama: storyType/customTopic metnini kullanarak deterministik/dağıtık seçim

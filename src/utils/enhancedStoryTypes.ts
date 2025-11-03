@@ -246,7 +246,7 @@ export const getStoryTypeLabel = getStoryTypeName;
 
 export const getStoryTypePrompt = (
   id: string,
-  customTopic: string = "",
+  customTopic = "",
 ): string => {
   const type = getStoryTypeById(id);
 

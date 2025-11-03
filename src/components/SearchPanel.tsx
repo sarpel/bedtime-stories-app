@@ -102,7 +102,7 @@ const SearchPanel = ({
 
   // Perform search (memoized)
   const performSearch = useCallback(
-    async (query: string, type: string = "all") => {
+    async (query: string, type = "all") => {
       const q = (query || "").trim();
       if (q.length < 2) {
         setSearchResults([]);
@@ -209,7 +209,7 @@ const SearchPanel = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 pr-10"
-                autoFocus
+                
               />
               {searchQuery && (
                 <Button
@@ -332,8 +332,8 @@ const SearchPanel = ({
                         onToggleFavorite={() => onToggleFavorite(story)}
                         onDelete={() => onDeleteStory(story.id || "")}
                         isFavorite={story.isFavorite}
-                        showActions={true}
-                        compact={true}
+                        showActions
+                        compact
                       />
                     ))}
                   </div>

@@ -26,7 +26,7 @@ export interface RaspberryPlaybackResponse {
  * - Audio device detection and status monitoring
  */
 export class RaspberryAudioService {
-  private baseUrl: string = "/api/raspberry-audio";
+  private baseUrl = "/api/raspberry-audio";
 
   /**
    * Play audio file on Raspberry Pi speakers through IQAudio Codec Zero
@@ -34,7 +34,7 @@ export class RaspberryAudioService {
    */
   async playAudio(
     audioFilePath: string,
-    volume: number = 80,
+    volume = 80,
   ): Promise<RaspberryPlaybackResponse> {
     try {
       logger.info(

@@ -103,10 +103,10 @@ try {
   logger.info({
     msg: "API key presence check",
     nodeEnv: process.env.NODE_ENV,
-    hasOpenAI: !!process.env.OPENAI_API_KEY,
-    hasElevenLabs: !!process.env.ELEVENLABS_API_KEY,
-    hasGeminiLLM: !!process.env.GEMINI_LLM_API_KEY,
-    hasGeminiTTS: !!process.env.GEMINI_TTS_API_KEY,
+    hasOpenAI: Boolean(process.env.OPENAI_API_KEY),
+    hasElevenLabs: Boolean(process.env.ELEVENLABS_API_KEY),
+    hasGeminiLLM: Boolean(process.env.GEMINI_LLM_API_KEY),
+    hasGeminiTTS: Boolean(process.env.GEMINI_TTS_API_KEY),
   });
 } catch {
   /* initial presence log skipped */
@@ -252,11 +252,9 @@ app.get("/health", async (req, res) => {
         database: "checking...",
         filesystem: "checking...",
         apiKeys: {
-          openai: !!process.env.OPENAI_API_KEY,
-          elevenlabs: !!process.env.ELEVENLABS_API_KEY,
-          gemini: !!(
-            process.env.GEMINI_LLM_API_KEY || process.env.GEMINI_TTS_API_KEY
-          ),
+          openai: Boolean(process.env.OPENAI_API_KEY),
+          elevenlabs: Boolean(process.env.ELEVENLABS_API_KEY),
+          gemini: Boolean(process.env.GEMINI_LLM_API_KEY || process.env.GEMINI_TTS_API_KEY),
         },
       },
     };
@@ -760,14 +758,14 @@ ${prompt}`;
       logger.info({
         msg: "[API /api/llm] OpenAI response received",
         status: response.status,
-        hasOutput: !!data.output,
-        hasChoices: !!data.choices,
+        hasOutput: Boolean(data.output),
+        hasChoices: Boolean(data.choices),
       });
     } else if (provider === "gemini") {
       logger.info({
         msg: "[API /api/llm] Gemini response received",
         status: response.status,
-        hasCandidates: !!data.candidates,
+        hasCandidates: Boolean(data.candidates),
         candidatesCount: data.candidates?.length || 0,
       });
     }
@@ -833,8 +831,7 @@ ${prompt}`;
 
       // Extract text from parts
       if (
-        candidate.content &&
-        candidate.content.parts &&
+        candidate.content?.parts &&
         Array.isArray(candidate.content.parts)
       ) {
         for (const part of candidate.content.parts) {
@@ -1165,7 +1162,7 @@ app.post("/api/stories", (req, res) => {
     );
     logger.info({
       msg: "DB:createAndFetch:done",
-      found: !!story,
+      found: Boolean(story),
       id: story?.id,
       inconsistent: (story as any)?._inconsistent,
     });
@@ -1407,9 +1404,9 @@ app.post("/api/tts", async (req, res) => {
     msg: "[Backend TTS] Request received",
     provider: req.body.provider,
     voiceId: req.body.voiceId,
-    hasRequestBody: !!req.body.requestBody,
+    hasRequestBody: Boolean(req.body.requestBody),
     storyId: req.body.storyId,
-    autoMode: !req.body.requestBody && !!req.body.storyId,
+    autoMode: !req.body.requestBody && Boolean(req.body.storyId),
   });
 
   // Frontend veya otomatik çağrıdan gelen parametreler
@@ -1484,7 +1481,7 @@ app.post("/api/tts", async (req, res) => {
     logger.warn({
       msg: "[Backend TTS] Validation failed",
       provider,
-      hasRequestBody: !!requestBody,
+      hasRequestBody: Boolean(requestBody),
     });
     return res.status(400).json({ error: "Provider veya request body eksik." });
   }
@@ -1622,7 +1619,7 @@ app.post("/api/tts", async (req, res) => {
           msg: "[Gemini TTS] Response",
           status: resp.status,
           hasAudio:
-            !!resp.data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data,
+            Boolean(resp.data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data),
         });
         if (resp.data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
           const audioData =
@@ -2109,7 +2106,7 @@ app.post("/api/stt/transcribe", upload.single("audio"), async (req, res) => {
     logger.info({
       msg: "[STT GPT-4o-mini-transcribe] Request received",
       language: req.body.language,
-      hasAudioFile: !!req.file,
+      hasAudioFile: Boolean(req.file),
       audioSize: req.file?.size,
       audioType: req.file?.mimetype,
     });
@@ -2291,7 +2288,7 @@ app.post("/api/stt", upload.single("audio"), async (req, res) => {
       provider: req.body.provider,
       model: req.body.model,
       language: req.body.language,
-      hasAudioFile: !!req.file,
+      hasAudioFile: Boolean(req.file),
       audioSize: req.file?.size,
       audioType: req.file?.mimetype,
     });
@@ -2482,13 +2479,13 @@ app.post("/api/stt", upload.single("audio"), async (req, res) => {
       errorMessage = `${req.body.provider || "STT"} API anahtarı geçersiz.`;
       statusCode = 401;
     } else if (error.response?.status === 400) {
-      errorMessage = `Ses dosyası formatı geçersiz veya desteklenmiyor.`;
+      errorMessage = "Ses dosyası formatı geçersiz veya desteklenmiyor.";
       statusCode = 400;
     } else if (error.response?.status === 429) {
-      errorMessage = `API rate limit aşıldı. Lütfen biraz bekleyip tekrar deneyin.`;
+      errorMessage = "API rate limit aşıldı. Lütfen biraz bekleyip tekrar deneyin.";
       statusCode = 429;
     } else if (error.code === "ECONNABORTED" || error.code === "ETIMEDOUT") {
-      errorMessage = `STT API zaman aşımına uğradı. Lütfen tekrar deneyin.`;
+      errorMessage = "STT API zaman aşımına uğradı. Lütfen tekrar deneyin.";
       statusCode = 408;
     } else if (error.message.includes("file too large")) {
       errorMessage = "Ses dosyası çok büyük. Maksimum 10MB destekleniyor.";
@@ -2607,7 +2604,7 @@ app.get("/api/shared", (req, res) => {
       custom_topic: story.custom_topic,
       shared_at: story.shared_at,
       created_at: story.created_at,
-      hasAudio: !!story.audio,
+      hasAudio: Boolean(story.audio),
     }));
 
     res.json(publicStories);
@@ -2995,7 +2992,7 @@ if (require.main === module) {
     const systemPrompt = (
       process.env.SYSTEM_PROMPT_TURKISH || defaultSystemPrompt
     ).trim();
-    const isCustomPrompt = !!process.env.SYSTEM_PROMPT_TURKISH;
+    const isCustomPrompt = Boolean(process.env.SYSTEM_PROMPT_TURKISH);
     logger.info({
       msg: "System prompt configuration",
       isCustomPrompt,

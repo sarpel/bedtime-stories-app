@@ -162,7 +162,7 @@ class AudioRecorder {
   private stream: MediaStream | null = null;
   private audioChunks: Blob[] = [];
   private isRecording = false;
-  private actualMimeType: string = ""; // Track the actual MIME type used
+  private actualMimeType = ""; // Track the actual MIME type used
 
   constructor(private audioSettings: any) {}
 
@@ -189,7 +189,7 @@ class AudioRecorder {
         mimeType: preferredMimeType || undefined,
         // Use very low bitrate for Pi Zero 2W to minimize CPU load
         audioBitsPerSecond:
-          preferredMimeType && preferredMimeType.includes("webm")
+          preferredMimeType?.includes("webm")
             ? this.audioSettings.webmBitRate || 32000
             : undefined, // Low bitrate for WebM only
       };
@@ -300,9 +300,9 @@ class AudioRecorder {
 // Main STT Service class
 export class STTService {
   provider: string;
-  endpoint: string = "/api/stt";
-  modelId: string = "whisper-1";
-  apiKey: string = "";
+  endpoint = "/api/stt";
+  modelId = "whisper-1";
+  apiKey = "";
   audioSettings: any;
   audioRecorder: AudioRecorder;
 
@@ -589,9 +589,9 @@ export class STTService {
     }
 
     // Deepgram format
-    if (data.results && data.results.channels) {
+    if (data.results?.channels) {
       const channel = data.results.channels[0];
-      if (channel && channel.alternatives) {
+      if (channel?.alternatives) {
         const alternative = channel.alternatives[0];
         return {
           text: alternative.transcript.trim(),
@@ -625,7 +625,7 @@ export class STTService {
     // Google format
     if (data.results && Array.isArray(data.results)) {
       const result = data.results[0];
-      if (result && result.alternatives) {
+      if (result?.alternatives) {
         const alternative = result.alternatives[0];
         return {
           text: alternative.transcript.trim(),

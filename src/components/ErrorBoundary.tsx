@@ -98,13 +98,13 @@ class ErrorBoundary extends React.Component<
                   <div className="font-mono">
                     <p>
                       <strong>Error:</strong>{" "}
-                      {this.state.error && this.state.error.toString()}
+                      {this.state.error?.toString()}
                     </p>
                     <p>
                       <strong>Stack:</strong>
                     </p>
                     <pre className="whitespace-pre-wrap">
-                      {this.state.error && this.state.error.stack}
+                      {this.state.error?.stack}
                     </pre>
                   </div>
                 </div>

@@ -2,15 +2,15 @@
 
 // Başlangıç kalıplarını farklı yazım varyasyonlarıyla temizle
 const PREFIX_PATTERNS = [
-  /^bir\s+varmış\s*,?\s*bir\s+yokmuş\s*[,–-]?\s*/i,
-  /^evvel\s+zaman\s+içinde\s*[,–-]?\s*/i,
-  /^bir\s+zamanlar\s*[,–-]?\s*/i,
-  /^uzak\s+diyarlarda\s*[,–-]?\s*/i,
-  /^büyülü\s+bir\s+ormanda\s*[,–-]?\s*/i,
-  /^bir\s+gün\s*[,–-]?\s*/i,
+  /^bir\s+varmış\s*,?\s*bir\s+yokmuş\s*[,–-]?\s*/iu,
+  /^evvel\s+zaman\s+içinde\s*[,–-]?\s*/iu,
+  /^bir\s+zamanlar\s*[,–-]?\s*/iu,
+  /^uzak\s+diyarlarda\s*[,–-]?\s*/iu,
+  /^büyülü\s+bir\s+ormanda\s*[,–-]?\s*/iu,
+  /^bir\s+gün\s*[,–-]?\s*/iu,
 ];
 
-function toTitleCaseTR(str: string = "") {
+function toTitleCaseTR(str = "") {
   return String(str)
     .toLocaleLowerCase("tr-TR")
     .split(/\s+/)
@@ -18,7 +18,7 @@ function toTitleCaseTR(str: string = "") {
     .join(" ");
 }
 
-function stripPrefixes(text: string = "") {
+function stripPrefixes(text = "") {
   let s = String(text).trim();
   for (const rx of PREFIX_PATTERNS) {
     if (rx.test(s)) {
@@ -29,14 +29,14 @@ function stripPrefixes(text: string = "") {
   return s;
 }
 
-function firstSentence(text: string = "") {
+function firstSentence(text = "") {
   const s = String(text).replace(/\s+/g, " ").trim();
   const m = s.match(/([^.!?]+[.!?])/);
   if (m) return m[1].trim();
   return s.split(/[.!?]/)[0] || s;
 }
 
-function deriveFromContent(storyText: string = "") {
+function deriveFromContent(storyText = "") {
   if (!storyText) return "";
   let sentence = stripPrefixes(firstSentence(storyText));
   // Ad + "adında" kalıbından isim yakala (örn: "Elif adında küçük bir kız")

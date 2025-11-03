@@ -438,7 +438,7 @@ function App() {
       // Eğer dbStories'te varsa veritabanından sil
       const dbStory = dbStories.find((s) => s.id === Number(id)); // Convert id to number for comparison
       console.log(
-        `[App] hybridDeleteStory - dbStory found: ${!!dbStory}, id: ${id}`,
+        `[App] hybridDeleteStory - dbStory found: ${Boolean(dbStory)}, id: ${id}`,
       );
       if (dbStory) {
         await deleteDbStory(id); // This calls deleteStory from useStoryDatabase
@@ -625,7 +625,7 @@ function App() {
     console.log("🔊 [generateAudioForStory] Called with:", {
       inputType: typeof storyInput,
       storyId,
-      hasStoryText: !!storyText,
+      hasStoryText: Boolean(storyText),
       storyTextLength: storyText?.length,
     });
 
@@ -939,7 +939,7 @@ function App() {
     // overrideText parametresi ile voice-generated race condition engellenir
     const storySnapshot = overrideText ?? story;
     console.log(
-      `🎵 [Save Debug] saveStory called - isAutoSave: ${isAutoSave}, overrideUsed: ${!!overrideText}, story length: ${storySnapshot?.length || 0}`,
+      `🎵 [Save Debug] saveStory called - isAutoSave: ${isAutoSave}, overrideUsed: ${Boolean(overrideText)}, story length: ${storySnapshot?.length || 0}`,
     );
     console.log(
       `🎵 [Save Debug] story content preview: "${storySnapshot?.substring(0, 100) || "EMPTY"}"`,
@@ -1160,7 +1160,7 @@ function App() {
                     audioUrl: dbStory.audio
                       ? getDbAudioUrl(dbStory.audio.file_name)
                       : null,
-                    audioGenerated: !!dbStory.audio,
+                    audioGenerated: Boolean(dbStory.audio),
                   }))
                 : history
             }
@@ -1283,7 +1283,7 @@ function App() {
                       ? getDbAudioUrl(dbStory.audio.file_name)
                       : null,
                     audio: dbStory.audio || undefined,
-                    audioGenerated: !!dbStory.audio,
+                    audioGenerated: Boolean(dbStory.audio),
                   }))
                 : history.map((historyItem) => ({
                     id: historyItem.id,

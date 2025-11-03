@@ -7,7 +7,7 @@ export interface VoiceAssistantResponse {
 }
 
 export class VoiceAssistantService {
-  private endpoint: string = "/api/voice-assistant";
+  private endpoint = "/api/voice-assistant";
 
   /**
    * Process voice transcript through LLM for story generation or TTS commands

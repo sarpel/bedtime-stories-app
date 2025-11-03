@@ -832,10 +832,8 @@ export default function StoryQueuePanel({
                   currentIndex === -1 ? queue[0]?.id : queue[currentIndex]?.id;
                 const candidate =
                   currentIndex === -1 ? queue[0] : queue[currentIndex];
-                const hasAudio = !!(
-                  candidate &&
-                  (candidate.audio || candidate.audioUrl)
-                );
+                const hasAudio = Boolean(candidate &&
+                  (candidate.audio || candidate.audioUrl));
                 if (activeId && hasAudio) {
                   remotePlayToggle(activeId);
                 }
@@ -874,7 +872,7 @@ export default function StoryQueuePanel({
                 }
                 setCurrentIndex(target);
                 const item = queue[target];
-                if (item && item.id) remotePlayToggle(item.id);
+                if (item?.id) remotePlayToggle(item.id);
               }}
               disabled={remoteLoading || queue.length < 2}
               title="Önceki (Uzaktan)"
@@ -894,7 +892,7 @@ export default function StoryQueuePanel({
                 }
                 setCurrentIndex(target);
                 const item = queue[target];
-                if (item && item.id) remotePlayToggle(item.id);
+                if (item?.id) remotePlayToggle(item.id);
               }}
               disabled={remoteLoading || queue.length < 2}
               title="Sonraki (Uzaktan)"
@@ -1112,7 +1110,7 @@ export default function StoryQueuePanel({
 
         {/* Edit Dialog */}
         <Dialog
-          open={!!editTarget}
+          open={Boolean(editTarget)}
           onOpenChange={(open) => !open && setEditTarget(null)}
         >
           <DialogContent className="sm:max-w-lg">

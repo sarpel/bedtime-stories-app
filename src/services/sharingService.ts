@@ -158,7 +158,7 @@ class SharingService {
   // Sosyal medya paylaşımı için URL'ler oluştur
   createSocialShareUrls(
     shareUrl: string,
-    storyTitle: string = "Bedtime Story",
+    storyTitle = "Bedtime Story",
   ) {
     const text = encodeURIComponent(
       `${storyTitle} - Bedtime Stories App ile oluşturuldu`,

@@ -206,7 +206,7 @@ export default function FavoritesPanel({
                                 variant="outline"
                                 size="sm"
                                 onClick={() => playAudio("", favorite.id)}
-                                disabled={true}
+                                disabled
                                 className="h-5 px-1 text-xs"
                                 title="Ses dosyası bulunamadı"
                               >

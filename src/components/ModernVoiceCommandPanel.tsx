@@ -281,7 +281,7 @@ export const ModernVoiceCommandPanel: React.FC<
       clearInterval(progressInterval);
       setProgress(100);
 
-      if (result && result.text) {
+      if (result?.text) {
         setTranscription(result.text);
         logger.debug("Transcription received", "ModernVoiceCommandPanel", {
           transcription: result.text,

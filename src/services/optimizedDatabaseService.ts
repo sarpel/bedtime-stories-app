@@ -57,7 +57,7 @@ class OptimizedDatabaseService {
     if (import.meta.env?.DEV) {
       console.log("[DB] cachedFetch:start", {
         url,
-        hasBody: !!options.body,
+        hasBody: Boolean(options.body),
         cacheKey: key,
       });
     }

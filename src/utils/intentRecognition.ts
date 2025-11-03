@@ -277,7 +277,7 @@ export const extractCharacterName = (text: string): string | undefined => {
 
   for (const pattern of namePatterns) {
     const match = text.match(pattern);
-    if (match && match[1]) {
+    if (match?.[1]) {
       const name = match[1].trim();
       // Filter out common words that aren't names
       const stopWords = [
@@ -325,7 +325,7 @@ export const extractCustomTopic = (text: string): string | undefined => {
 
   for (const pattern of topicPatterns) {
     const match = text.match(pattern);
-    if (match && match[1]) {
+    if (match?.[1]) {
       const topic = match[1].trim();
       if (topic.length >= 3) {
         return topic.toLowerCase();

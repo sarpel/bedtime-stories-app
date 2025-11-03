@@ -110,7 +110,7 @@ class AnalyticsService {
   trackAudioPlayback(
     storyId: string,
     action: string,
-    position: number = 0,
+    position = 0,
   ): void {
     const event: AnalyticsEvent = {
       type: "audio_playback",
@@ -173,7 +173,7 @@ class AnalyticsService {
   }
 
   // Analytics calculation methods
-  async getStoryGenerationMetrics(timeRange: string = "7d"): Promise<any> {
+  async getStoryGenerationMetrics(timeRange = "7d"): Promise<any> {
     try {
       const events = this.getEventsFromStorage("story_generation", timeRange);
 
@@ -215,7 +215,7 @@ class AnalyticsService {
     }
   }
 
-  async getStoryTypePopularity(timeRange: string = "7d"): Promise<any> {
+  async getStoryTypePopularity(timeRange = "7d"): Promise<any> {
     try {
       const events = this.getEventsFromStorage("story_generation", timeRange);
       const storyTypes: { [key: string]: number } = {};
@@ -239,7 +239,7 @@ class AnalyticsService {
     }
   }
 
-  async getAudioMetrics(timeRange: string = "7d"): Promise<any> {
+  async getAudioMetrics(timeRange = "7d"): Promise<any> {
     try {
       const generationEvents = this.getEventsFromStorage(
         "audio_generation",
@@ -311,7 +311,7 @@ class AnalyticsService {
     }
   }
 
-  async getErrorMetrics(timeRange: string = "7d"): Promise<any> {
+  async getErrorMetrics(timeRange = "7d"): Promise<any> {
     try {
       const events = this.getEventsFromStorage("error", timeRange);
       const errorTypes: { [key: string]: number } = {};
@@ -344,7 +344,7 @@ class AnalyticsService {
   // Helper method to get events from localStorage
   getEventsFromStorage(
     eventType: string | null = null,
-    timeRange: string = "30d",
+    timeRange = "30d",
   ): AnalyticsEvent[] {
     try {
       const events = JSON.parse(

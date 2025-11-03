@@ -44,7 +44,7 @@ class Cache {
   hitCount: number;
   missCount: number;
 
-  constructor(maxSize: number = 100) {
+  constructor(maxSize = 100) {
     // Daha fazla öğe saklayalım
     this.cache = new Map();
     this.maxSize = maxSize;
@@ -53,7 +53,7 @@ class Cache {
   }
 
   // Öğe ekle - Performans iyileştirmeleri
-  set(key: string, value: any, ttl: number = 3600000): void {
+  set(key: string, value: any, ttl = 3600000): void {
     // Varsayılan 1 saat TTL
     const item: CacheItem = {
       value,

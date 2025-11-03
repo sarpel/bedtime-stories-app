@@ -18,8 +18,8 @@ interface VirtualizedListMetrics<T> {
 
 export function useVirtualizedList<T>(
   items: T[] = [],
-  itemHeight: number = 60,
-  containerHeight: number = 400,
+  itemHeight = 60,
+  containerHeight = 400,
 ): VirtualizedListMetrics<T> {
   const [scrollTop, setScrollTop] = useState(0);
   const [containerRef, setContainerRef] = useState(null);
@@ -101,7 +101,7 @@ export function useProgressiveLoading(items = [], batchSize = 20, delay = 100) {
  * Debounced Search Hook
  * Arama performansını artırmak için debounce uygular
  */
-export function useDebouncedSearch(searchTerm: string, delay: number = 300) {
+export function useDebouncedSearch(searchTerm: string, delay = 300) {
   const [debouncedTerm, setDebouncedTerm] = useState(searchTerm);
 
   useEffect(() => {
@@ -119,7 +119,7 @@ export function useDebouncedSearch(searchTerm: string, delay: number = 300) {
  * Memory Usage Monitoring Hook
  * Bellek kullanımını izler ve uyarı verir
  */
-export function useMemoryMonitor(threshold: number = 50) {
+export function useMemoryMonitor(threshold = 50) {
   // MB
   const [memoryUsage, setMemoryUsage] = useState(0);
   const [isHighMemory, setIsHighMemory] = useState(false);

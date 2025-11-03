@@ -16,7 +16,7 @@ export const WakeWordStatus: React.FC<WakeWordStatusProps> = ({
 }) => {
   // Check if it's a platform compatibility error
   const isPlatformError =
-    error && error.includes("Platform compatibility error");
+    error?.includes("Platform compatibility error");
 
   if (!isEnabled) {
     return (

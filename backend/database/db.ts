@@ -103,7 +103,7 @@ function initDatabase(): void {
 
   // is_favorite sütununu varolan tabloya ekle (eğer yoksa)
   try {
-    db.exec(`ALTER TABLE stories ADD COLUMN is_favorite INTEGER DEFAULT 0`);
+    db.exec("ALTER TABLE stories ADD COLUMN is_favorite INTEGER DEFAULT 0");
     console.log("is_favorite sütunu eklendi");
   } catch (error) {
     // Sütun zaten varsa hata verir, bu normaldir
@@ -113,7 +113,7 @@ function initDatabase(): void {
   }
 
   try {
-    db.exec(`ALTER TABLE stories ADD COLUMN categories TEXT`);
+    db.exec("ALTER TABLE stories ADD COLUMN categories TEXT");
     console.log("categories sütunu eklendi");
   } catch (error) {
     if (!error.message.includes("duplicate column name")) {
@@ -122,12 +122,12 @@ function initDatabase(): void {
   }
 
   try {
-    db.exec(`ALTER TABLE stories ADD COLUMN share_id TEXT`);
+    db.exec("ALTER TABLE stories ADD COLUMN share_id TEXT");
     console.log("share_id sütunu eklendi");
 
     // Share_id için unique index oluştur
     try {
-      db.exec(`CREATE UNIQUE INDEX idx_share_id ON stories(share_id)`);
+      db.exec("CREATE UNIQUE INDEX idx_share_id ON stories(share_id)");
       console.log("share_id için unique index oluşturuldu");
     } catch (indexError) {
       if (!indexError.message.includes("already exists")) {
@@ -141,7 +141,7 @@ function initDatabase(): void {
   }
 
   try {
-    db.exec(`ALTER TABLE stories ADD COLUMN shared_at DATETIME`);
+    db.exec("ALTER TABLE stories ADD COLUMN shared_at DATETIME");
     console.log("shared_at sütunu eklendi");
   } catch (error) {
     if (!error.message.includes("duplicate column name")) {
@@ -152,7 +152,7 @@ function initDatabase(): void {
   // updated_at sütununu ekle (migration)
   try {
     db.exec(
-      `ALTER TABLE stories ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP`,
+      "ALTER TABLE stories ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP",
     );
     console.log("updated_at sütunu eklendi");
   } catch (error) {
@@ -541,7 +541,7 @@ const storyDb = {
         id,
         beforeCount,
         afterInsertCount,
-        directRowExists: !!directRow,
+        directRowExists: Boolean(directRow),
         directRow,
         allRows,
         dbList,
@@ -667,7 +667,7 @@ const storyDb = {
             `[DB:deleteStory] Audio file exists. Deleting: ${audio.file_path}`,
           );
           fs.unlinkSync(audio.file_path);
-          console.log(`[DB:deleteStory] Successfully deleted audio file.`);
+          console.log("[DB:deleteStory] Successfully deleted audio file.");
         } else {
           console.log(
             `[DB:deleteStory] Audio file path does not exist: ${audio.file_path}`,
@@ -679,7 +679,7 @@ const storyDb = {
         );
       }
 
-      console.log(`[DB:deleteStory] Deleting story record from database.`);
+      console.log("[DB:deleteStory] Deleting story record from database.");
       const result = statements.deleteStory.run(id);
       console.log(
         `[DB:deleteStory] Database deletion result: ${result.changes} changes.`,
@@ -792,7 +792,7 @@ const storyDb = {
   // Queue operations
   getQueue(): number[] {
     try {
-      console.log(`[DB:getQueue] Getting queue`);
+      console.log("[DB:getQueue] Getting queue");
       const rows = statements.getQueueAll.all() as any[];
       console.log(`[DB:getQueue] Queue retrieved with ${rows.length} items`);
       return rows.map((r: any) => r.story_id);
@@ -812,7 +812,7 @@ const storyDb = {
         });
       });
       tx(ids);
-      console.log(`[DB:setQueue] Queue set successfully`);
+      console.log("[DB:setQueue] Queue set successfully");
       return true;
     } catch (error) {
       console.error("Kuyruk güncelleme hatası:", error);
@@ -1108,7 +1108,7 @@ const storyDb = {
     }
   },
 
-  getRecentStories(limit: number = 10): StoryWithAudio[] {
+  getRecentStories(limit = 10): StoryWithAudio[] {
     try {
       const query = `
         SELECT s.*, a.file_name, a.file_path, a.voice_id
