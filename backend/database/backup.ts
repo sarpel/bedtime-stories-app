@@ -1,10 +1,10 @@
 // database/backup.ts
-import * as fs from 'fs';
-import * as path from 'path';
-import Database from 'better-sqlite3';
+import * as fs from "fs";
+import * as path from "path";
+import Database from "better-sqlite3";
 
-const DB_PATH: string = process.env.DATABASE_PATH || './database/stories.db';
-const BACKUP_DIR: string = './database/backups';
+const DB_PATH: string = process.env.DATABASE_PATH || "./database/stories.db";
+const BACKUP_DIR: string = "./database/backups";
 
 // Ensure backup directory exists
 if (!fs.existsSync(BACKUP_DIR)) {
@@ -13,7 +13,7 @@ if (!fs.existsSync(BACKUP_DIR)) {
 
 function createBackup(): string {
   try {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const backupPath = path.join(BACKUP_DIR, `stories-backup-${timestamp}.db`);
 
     // Create backup using SQLite backup API
@@ -33,7 +33,7 @@ function createBackup(): string {
 
     return backupPath;
   } catch (error) {
-    console.error('Backup failed:', error);
+    console.error("Backup failed:", error);
     throw error;
   }
 }
@@ -42,23 +42,25 @@ function cleanupOldBackups(): void {
   try {
     const files = fs.readdirSync(BACKUP_DIR);
     const backupFiles = files
-      .filter(file => file.startsWith('stories-backup-') && file.endsWith('.db'))
-      .map(file => ({
+      .filter(
+        (file) => file.startsWith("stories-backup-") && file.endsWith(".db"),
+      )
+      .map((file) => ({
         name: file,
         path: path.join(BACKUP_DIR, file),
-        mtime: fs.statSync(path.join(BACKUP_DIR, file)).mtime
+        mtime: fs.statSync(path.join(BACKUP_DIR, file)).mtime,
       }))
       .sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
 
     // Keep only the 7 most recent backups
     const filesToDelete = backupFiles.slice(7);
 
-    filesToDelete.forEach(file => {
+    filesToDelete.forEach((file) => {
       fs.unlinkSync(file.path);
       console.log(`Deleted old backup: ${file.name}`);
     });
   } catch (error) {
-    console.error('Error cleaning up old backups:', error);
+    console.error("Error cleaning up old backups:", error);
   }
 }
 
@@ -69,7 +71,10 @@ function restoreBackup(backupPath: string): boolean {
     }
 
     // Create a backup of current database before restoring
-    const currentBackupPath = path.join(BACKUP_DIR, `stories-pre-restore-${Date.now()}.db`);
+    const currentBackupPath = path.join(
+      BACKUP_DIR,
+      `stories-pre-restore-${Date.now()}.db`,
+    );
     fs.copyFileSync(DB_PATH, currentBackupPath);
     console.log(`Current database backed up to: ${currentBackupPath}`);
 
@@ -79,7 +84,7 @@ function restoreBackup(backupPath: string): boolean {
 
     return true;
   } catch (error) {
-    console.error('Restore failed:', error);
+    console.error("Restore failed:", error);
     throw error;
   }
 }
@@ -89,45 +94,47 @@ if (require.main === module) {
   const command = process.argv[2];
 
   switch (command) {
-    case 'create':
+    case "create":
       createBackup();
       break;
-    case 'restore':
+    case "restore":
       {
         const backupPath = process.argv[3];
         if (!backupPath) {
-          console.error('Usage: node backup.js restore <backup-file-path>');
+          console.error("Usage: node backup.js restore <backup-file-path>");
           process.exit(1);
         }
         restoreBackup(backupPath);
       }
       break;
-    case 'list':
+    case "list":
       {
-        const files = fs.readdirSync(BACKUP_DIR)
-          .filter(file => file.startsWith('stories-backup-') && file.endsWith('.db'))
-          .map(file => {
+        const files = fs
+          .readdirSync(BACKUP_DIR)
+          .filter(
+            (file) =>
+              file.startsWith("stories-backup-") && file.endsWith(".db"),
+          )
+          .map((file) => {
             const filePath = path.join(BACKUP_DIR, file);
             const stats = fs.statSync(filePath);
             return {
               name: file,
-              size: (stats.size / 1024 / 1024).toFixed(2) + ' MB',
-              created: stats.mtime.toISOString()
+              size: (stats.size / 1024 / 1024).toFixed(2) + " MB",
+              created: stats.mtime.toISOString(),
             };
           });
         console.table(files);
       }
       break;
     default:
-      console.log('Usage:');
-      console.log('  node backup.js create - Create a new backup');
-      console.log('  node backup.js restore <backup-file-path> - Restore from backup');
-      console.log('  node backup.js list - List available backups');
+      console.log("Usage:");
+      console.log("  node backup.js create - Create a new backup");
+      console.log(
+        "  node backup.js restore <backup-file-path> - Restore from backup",
+      );
+      console.log("  node backup.js list - List available backups");
   }
 }
 
-export {
-  createBackup,
-  restoreBackup,
-  cleanupOldBackups
-};
+export { createBackup, restoreBackup, cleanupOldBackups };

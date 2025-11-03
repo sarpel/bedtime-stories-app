@@ -106,7 +106,6 @@ sudo bash setup.sh
    ```
 
 2. **Fill Story Details**
-
    - **Child's Name**: Enter the child's name for personalization
    - **Age**: Select appropriate age (3-12 years)
    - **Story Type**: Choose from adventure, fairy tale, educational, etc.
@@ -114,13 +113,11 @@ sudo bash setup.sh
    - **Special Requests**: Any specific elements to include
 
 3. **Generate Story**
-
    - Click "Generate Story" button
    - Wait 10-20 seconds for AI generation
    - Story appears with full text
 
 4. **Generate Audio**
-
    - Click "Generate Audio" button
    - Wait 8-12 seconds for voice synthesis
    - Audio controls appear

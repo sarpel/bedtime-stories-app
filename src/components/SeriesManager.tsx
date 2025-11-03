@@ -1,58 +1,73 @@
-import React, { useState, useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { BookOpen, Plus, Edit, Trash2, Play, ChevronRight } from 'lucide-react'
-import { toast } from 'sonner'
-import useSeries from '../hooks/useSeries'
+import React, { useState, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { BookOpen, Plus, Edit, Trash2, Play, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
+import useSeries from "../hooks/useSeries";
 
 interface Series {
-  id: string | number
-  title: string
-  description?: string
-  character_info?: any
-  story_count?: number
+  id: string | number;
+  title: string;
+  description?: string;
+  character_info?: any;
+  story_count?: number;
 }
 
 interface Story {
-  id: string | number
-  series_title?: string
-  series_order?: number
-  created_at: string
+  id: string | number;
+  series_title?: string;
+  series_order?: number;
+  created_at: string;
 }
 
 interface SeriesManagerProps {
-  onSeriesSelect?: (series: Series) => void
-  onContinueSeries?: (story: Story, stories: Story[]) => void
-  selectedSeriesId?: string | number | null
+  onSeriesSelect?: (series: Series) => void;
+  onContinueSeries?: (story: Story, stories: Story[]) => void;
+  selectedSeriesId?: string | number | null;
 }
 
 interface SeriesFormProps {
   formData: {
-    title: string
-    description: string
-    characterInfo: string
-  }
-  onFieldChange: (field: 'title' | 'description' | 'characterInfo', value: string) => void
-  onSubmit: () => void
-  submitLabel: string
-  onCancel: () => void
+    title: string;
+    description: string;
+    characterInfo: string;
+  };
+  onFieldChange: (
+    field: "title" | "description" | "characterInfo",
+    value: string,
+  ) => void;
+  onSubmit: () => void;
+  submitLabel: string;
+  onCancel: () => void;
 }
 
 // Extracted outside component to prevent remounts that cause input focus loss
-const SeriesForm = ({ formData, onFieldChange, onSubmit, submitLabel, onCancel }: SeriesFormProps) => (
+const SeriesForm = ({
+  formData,
+  onFieldChange,
+  onSubmit,
+  submitLabel,
+  onCancel,
+}: SeriesFormProps) => (
   <div className="space-y-4">
     <div className="space-y-2">
       <Label htmlFor="title">Seri Başlığı *</Label>
       <Input
         id="title"
         value={formData.title}
-        onChange={(e) => onFieldChange('title', e.target.value)}
+        onChange={(e) => onFieldChange("title", e.target.value)}
         placeholder="Örneğin: Peri Kızın Maceraları"
         autoComplete="off"
       />
@@ -63,7 +78,7 @@ const SeriesForm = ({ formData, onFieldChange, onSubmit, submitLabel, onCancel }
       <Textarea
         id="description"
         value={formData.description}
-        onChange={(e) => onFieldChange('description', e.target.value)}
+        onChange={(e) => onFieldChange("description", e.target.value)}
         placeholder="Serinin konusu hakkında kısa açıklama..."
         rows={3}
         autoComplete="off"
@@ -75,7 +90,7 @@ const SeriesForm = ({ formData, onFieldChange, onSubmit, submitLabel, onCancel }
       <Textarea
         id="characterInfo"
         value={formData.characterInfo}
-        onChange={(e) => onFieldChange('characterInfo', e.target.value)}
+        onChange={(e) => onFieldChange("characterInfo", e.target.value)}
         placeholder='{"ana_karakter": "Ela", "yaş": 5, "özellikler": ["meraklı", "cesur"]}'
         rows={4}
         autoComplete="off"
@@ -94,9 +109,13 @@ const SeriesForm = ({ formData, onFieldChange, onSubmit, submitLabel, onCancel }
       </Button>
     </div>
   </div>
-)
+);
 
-const SeriesManager = ({ onSeriesSelect, onContinueSeries, selectedSeriesId }: SeriesManagerProps) => {
+const SeriesManager = ({
+  onSeriesSelect,
+  onContinueSeries,
+  selectedSeriesId,
+}: SeriesManagerProps) => {
   const {
     series,
     isLoading,
@@ -104,91 +123,99 @@ const SeriesManager = ({ onSeriesSelect, onContinueSeries, selectedSeriesId }: S
     updateSeries,
     deleteSeries,
     addStoryToSeries,
-    getSeriesStories
-  } = useSeries()
+    getSeriesStories,
+  } = useSeries();
 
-  const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [showEditDialog, setShowEditDialog] = useState(false)
-  const [editingSeries, setEditingSeries] = useState<Series | null>(null)
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingSeries, setEditingSeries] = useState<Series | null>(null);
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    characterInfo: ''
-  })
+    title: "",
+    description: "",
+    characterInfo: "",
+  });
 
   const updateFormData = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-  }
-  const [selectedSeriesStories, setSelectedSeriesStories] = useState<Story[]>([])
-  const [showStoriesDialog, setShowStoriesDialog] = useState(false)
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+  const [selectedSeriesStories, setSelectedSeriesStories] = useState<Story[]>(
+    [],
+  );
+  const [showStoriesDialog, setShowStoriesDialog] = useState(false);
 
   const handleCreateSeries = async () => {
     if (!formData.title) {
-      toast.error('Lütfen seri başlığını girin')
-      return
+      toast.error("Lütfen seri başlığını girin");
+      return;
     }
 
     const success = await createSeries({
       title: formData.title,
       description: formData.description,
-      characterInfo: formData.characterInfo ? JSON.parse(formData.characterInfo) : {}
-    })
+      characterInfo: formData.characterInfo
+        ? JSON.parse(formData.characterInfo)
+        : {},
+    });
 
     if (success) {
-      setShowCreateDialog(false)
-      setFormData({ title: '', description: '', characterInfo: '' })
+      setShowCreateDialog(false);
+      setFormData({ title: "", description: "", characterInfo: "" });
     }
-  }
+  };
 
   const handleEditSeries = async () => {
     if (!formData.title || !editingSeries) {
-      toast.error('Lütfen seri başlığını girin')
-      return
+      toast.error("Lütfen seri başlığını girin");
+      return;
     }
 
     const success = await updateSeries(String(editingSeries.id), {
       title: formData.title,
       description: formData.description,
-      characterInfo: formData.characterInfo ? JSON.parse(formData.characterInfo) : {}
-    })
+      characterInfo: formData.characterInfo
+        ? JSON.parse(formData.characterInfo)
+        : {},
+    });
 
     if (success) {
-      setShowEditDialog(false)
-      setEditingSeries(null)
-      setFormData({ title: '', description: '', characterInfo: '' })
+      setShowEditDialog(false);
+      setEditingSeries(null);
+      setFormData({ title: "", description: "", characterInfo: "" });
     }
-  }
+  };
 
   const handleDeleteSeries = async (seriesId: string | number) => {
-    if (window.confirm('Bu seriyi silmek istediğinizden emin misiniz?')) {
-      await deleteSeries(String(seriesId))
+    if (window.confirm("Bu seriyi silmek istediğinizden emin misiniz?")) {
+      await deleteSeries(String(seriesId));
     }
-  }
+  };
 
   const handleSelectSeries = (series: Series) => {
-    onSeriesSelect?.(series)
-  }
+    onSeriesSelect?.(series);
+  };
 
   const handleContinueSeries = async (series: Series) => {
-    const stories = await getSeriesStories(String(series.id))
-    setSelectedSeriesStories(stories)
-    setShowStoriesDialog(true)
-  }
+    const stories = await getSeriesStories(String(series.id));
+    setSelectedSeriesStories(stories);
+    setShowStoriesDialog(true);
+  };
 
   const handleStorySelect = (story: Story) => {
-    onContinueSeries?.(story, selectedSeriesStories)
-    setShowStoriesDialog(false)
-  }
+    onContinueSeries?.(story, selectedSeriesStories);
+    setShowStoriesDialog(false);
+  };
 
   const openEditDialog = (series: Series) => {
-    setEditingSeries(series)
+    setEditingSeries(series);
     setFormData({
       title: series.title,
-      description: series.description || '',
-      characterInfo: series.character_info ? JSON.stringify(series.character_info, null, 2) : ''
-    })
-    setShowEditDialog(true)
-  }
+      description: series.description || "",
+      characterInfo: series.character_info
+        ? JSON.stringify(series.character_info, null, 2)
+        : "",
+    });
+    setShowEditDialog(true);
+  };
 
   // removed inline memoized SeriesForm (extracted above)
 
@@ -236,8 +263,8 @@ const SeriesManager = ({ onSeriesSelect, onContinueSeries, selectedSeriesId }: S
                 key={seriesItem.id}
                 className={`p-3 rounded-lg border-2 transition-colors ${
                   selectedSeriesId === seriesItem.id
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:border-primary/50'
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50"
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -307,9 +334,9 @@ const SeriesManager = ({ onSeriesSelect, onContinueSeries, selectedSeriesId }: S
             onSubmit={handleEditSeries}
             submitLabel="Güncelle"
             onCancel={() => {
-              setShowEditDialog(false)
-              setEditingSeries(null)
-              setFormData({ title: '', description: '', characterInfo: '' })
+              setShowEditDialog(false);
+              setEditingSeries(null);
+              setFormData({ title: "", description: "", characterInfo: "" });
             }}
           />
         </DialogContent>
@@ -333,10 +360,11 @@ const SeriesManager = ({ onSeriesSelect, onContinueSeries, selectedSeriesId }: S
                     <Badge variant="outline">{index + 1}</Badge>
                     <div className="flex-1">
                       <div className="font-medium">
-                        {story.series_title} - Bölüm {story.series_order || index + 1}
+                        {story.series_title} - Bölüm{" "}
+                        {story.series_order || index + 1}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {new Date(story.created_at).toLocaleDateString('tr-TR')}
+                        {new Date(story.created_at).toLocaleDateString("tr-TR")}
                       </div>
                     </div>
                     <Button size="sm" variant="ghost">
@@ -350,7 +378,7 @@ const SeriesManager = ({ onSeriesSelect, onContinueSeries, selectedSeriesId }: S
         </DialogContent>
       </Dialog>
     </Card>
-  )
-}
+  );
+};
 
-export default SeriesManager
+export default SeriesManager;

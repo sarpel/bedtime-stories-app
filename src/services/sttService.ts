@@ -1,5 +1,5 @@
-import { config } from './configService';
-import { logger } from '@/utils/logger';
+import { config } from "./configService";
+import { logger } from "@/utils/logger";
 
 // STT service interfaces
 interface STTSettings {
@@ -24,9 +24,9 @@ interface STTSettings {
   };
   wakeWordEnabled?: boolean;
   wakeWordModel?: string;
-  wakeWordSensitivity?: 'low' | 'medium' | 'high';
+  wakeWordSensitivity?: "low" | "medium" | "high";
   continuousListening?: boolean;
-  responseFormat?: 'json' | 'verbose_json';
+  responseFormat?: "json" | "verbose_json";
 }
 
 interface OpenAISTTRequest {
@@ -70,7 +70,8 @@ class AudioConverter {
   static async convertToWav(audioBlob: Blob): Promise<Blob> {
     try {
       // Create audio context
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const audioContext = new (window.AudioContext ||
+        (window as any).webkitAudioContext)();
 
       // Convert blob to array buffer
       const arrayBuffer = await audioBlob.arrayBuffer();
@@ -84,12 +85,16 @@ class AudioConverter {
       // Close audio context to free resources
       audioContext.close();
 
-      return new Blob([wavArrayBuffer], { type: 'audio/wav' });
+      return new Blob([wavArrayBuffer], { type: "audio/wav" });
     } catch (error) {
-      logger.warn('Audio conversion failed, using original format', 'AudioConverter', {
-        error: (error as Error)?.message,
-        originalType: audioBlob.type
-      });
+      logger.warn(
+        "Audio conversion failed, using original format",
+        "AudioConverter",
+        {
+          error: (error as Error)?.message,
+          originalType: audioBlob.type,
+        },
+      );
       // If conversion fails, return original blob
       return audioBlob;
     }
@@ -105,7 +110,9 @@ class AudioConverter {
     const sampleRate = buffer.sampleRate;
     const bytesPerSample = 2; // 16-bit
 
-    const arrayBuffer = new ArrayBuffer(44 + length * numberOfChannels * bytesPerSample);
+    const arrayBuffer = new ArrayBuffer(
+      44 + length * numberOfChannels * bytesPerSample,
+    );
     const view = new DataView(arrayBuffer);
 
     // WAV header
@@ -116,12 +123,12 @@ class AudioConverter {
     };
 
     // RIFF chunk descriptor
-    writeString(0, 'RIFF');
+    writeString(0, "RIFF");
     view.setUint32(4, 36 + length * numberOfChannels * bytesPerSample, true);
-    writeString(8, 'WAVE');
+    writeString(8, "WAVE");
 
     // fmt sub-chunk
-    writeString(12, 'fmt ');
+    writeString(12, "fmt ");
     view.setUint32(16, 16, true); // Sub-chunk size
     view.setUint16(20, 1, true); // Audio format (PCM)
     view.setUint16(22, numberOfChannels, true);
@@ -131,7 +138,7 @@ class AudioConverter {
     view.setUint16(34, 16, true); // Bits per sample
 
     // data sub-chunk
-    writeString(36, 'data');
+    writeString(36, "data");
     view.setUint32(40, length * numberOfChannels * bytesPerSample, true);
 
     // Write audio data
@@ -139,7 +146,7 @@ class AudioConverter {
     for (let i = 0; i < length; i++) {
       for (let channel = 0; channel < numberOfChannels; channel++) {
         const sample = buffer.getChannelData(channel)[i];
-        const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+        const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
         view.setInt16(offset, intSample, true);
         offset += 2;
       }
@@ -155,13 +162,13 @@ class AudioRecorder {
   private stream: MediaStream | null = null;
   private audioChunks: Blob[] = [];
   private isRecording = false;
-  private actualMimeType: string = ''; // Track the actual MIME type used
+  private actualMimeType: string = ""; // Track the actual MIME type used
 
   constructor(private audioSettings: any) {}
 
   async startRecording(): Promise<void> {
     if (this.isRecording) {
-      throw new Error('Kayıt zaten başlatılmış');
+      throw new Error("Kayıt zaten başlatılmış");
     }
 
     try {
@@ -172,8 +179,8 @@ class AudioRecorder {
           channelCount: this.audioSettings.channels || 1,
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true
-        }
+          autoGainControl: true,
+        },
       });
 
       // Create MediaRecorder with Pi Zero 2W optimizations
@@ -181,8 +188,10 @@ class AudioRecorder {
       const options = {
         mimeType: preferredMimeType || undefined,
         // Use very low bitrate for Pi Zero 2W to minimize CPU load
-        audioBitsPerSecond: (preferredMimeType && preferredMimeType.includes('webm')) ?
-          (this.audioSettings.webmBitRate || 32000) : undefined // Low bitrate for WebM only
+        audioBitsPerSecond:
+          preferredMimeType && preferredMimeType.includes("webm")
+            ? this.audioSettings.webmBitRate || 32000
+            : undefined, // Low bitrate for WebM only
       };
 
       this.mediaRecorder = new MediaRecorder(this.stream, options);
@@ -201,37 +210,37 @@ class AudioRecorder {
       this.mediaRecorder.start(100); // Collect data every 100ms
       this.isRecording = true;
 
-      logger.debug('Audio recording started', 'STTService', {
+      logger.debug("Audio recording started", "STTService", {
         sampleRate: this.audioSettings.sampleRate,
         channels: this.audioSettings.channels,
         preferredMimeType: preferredMimeType,
-        actualMimeType: this.actualMimeType
+        actualMimeType: this.actualMimeType,
       });
     } catch (error) {
-      logger.error('Failed to start audio recording', 'STTService', {
-        error: (error as Error)?.message
+      logger.error("Failed to start audio recording", "STTService", {
+        error: (error as Error)?.message,
       });
-      throw new Error('Mikrofon erişimi başarısız. Lütfen izin verin.');
+      throw new Error("Mikrofon erişimi başarısız. Lütfen izin verin.");
     }
   }
 
   stopRecording(): Promise<Blob> {
     return new Promise((resolve, reject) => {
       if (!this.mediaRecorder || !this.isRecording) {
-        reject(new Error('Kayıt başlatılmamış'));
+        reject(new Error("Kayıt başlatılmamış"));
         return;
       }
 
       this.mediaRecorder.onstop = () => {
         // Use the actual MIME type that was used during recording
         const audioBlob = new Blob(this.audioChunks, {
-          type: this.actualMimeType || 'audio/webm'
+          type: this.actualMimeType || "audio/webm",
         });
 
-        logger.debug('Audio recording stopped', 'AudioRecorder', {
+        logger.debug("Audio recording stopped", "AudioRecorder", {
           blobSize: audioBlob.size,
           blobType: audioBlob.type,
-          chunksCount: this.audioChunks.length
+          chunksCount: this.audioChunks.length,
         });
 
         this.cleanup();
@@ -247,36 +256,39 @@ class AudioRecorder {
     // Prioritize formats that OpenAI handles best for gpt-4o-mini-transcribe
     // Based on testing, let's try the most compatible formats first
     const types = [
-      'audio/wav',              // Universal compatibility
-      'audio/mp4',              // Good compatibility with OpenAI
-      'audio/mpeg',             // MP3 format, widely supported
-      'audio/webm;codecs=opus', // Modern browsers, but last resort
-      'audio/webm'              // Fallback WebM
+      "audio/wav", // Universal compatibility
+      "audio/mp4", // Good compatibility with OpenAI
+      "audio/mpeg", // MP3 format, widely supported
+      "audio/webm;codecs=opus", // Modern browsers, but last resort
+      "audio/webm", // Fallback WebM
     ];
 
     for (const type of types) {
       if (MediaRecorder.isTypeSupported(type)) {
-        logger.info('Selected audio format for STT', 'AudioRecorder', {
+        logger.info("Selected audio format for STT", "AudioRecorder", {
           mimeType: type,
-          isSupported: true
+          isSupported: true,
         });
         return type;
       }
     }
 
     // If nothing is supported, default to letting the browser choose
-    logger.warn('No preferred mime type supported, using browser default', 'AudioRecorder');
-    return ''; // Let MediaRecorder choose
+    logger.warn(
+      "No preferred mime type supported, using browser default",
+      "AudioRecorder",
+    );
+    return ""; // Let MediaRecorder choose
   }
 
   cleanup(): void {
     if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
+      this.stream.getTracks().forEach((track) => track.stop());
       this.stream = null;
     }
     this.mediaRecorder = null;
     this.audioChunks = [];
-    this.actualMimeType = '';
+    this.actualMimeType = "";
     this.isRecording = false;
   }
 
@@ -288,31 +300,31 @@ class AudioRecorder {
 // Main STT Service class
 export class STTService {
   provider: string;
-  endpoint: string = '/api/stt';
-  modelId: string = 'whisper-1';
-  apiKey: string = '';
+  endpoint: string = "/api/stt";
+  modelId: string = "whisper-1";
+  apiKey: string = "";
   audioSettings: any;
   audioRecorder: AudioRecorder;
 
   constructor(settings: STTSettings) {
-    this.provider = settings.sttProvider || 'openai';
+    this.provider = settings.sttProvider || "openai";
 
-    if (this.provider === 'openai') {
+    if (this.provider === "openai") {
       // OpenAI settings - check for GPT-4o-mini-transcribe
-      const modelId = settings.openaiSTT?.modelId || 'whisper-1';
-      if (modelId === 'gpt-4o-mini-transcribe') {
-        this.endpoint = '/api/stt/transcribe'; // New enhanced endpoint
-        this.modelId = 'gpt-4o-mini-transcribe';
+      const modelId = settings.openaiSTT?.modelId || "whisper-1";
+      if (modelId === "gpt-4o-mini-transcribe") {
+        this.endpoint = "/api/stt/transcribe"; // New enhanced endpoint
+        this.modelId = "gpt-4o-mini-transcribe";
       } else {
-        this.endpoint = settings.openaiSTT?.endpoint || '/api/stt'; // Legacy endpoint
+        this.endpoint = settings.openaiSTT?.endpoint || "/api/stt"; // Legacy endpoint
         this.modelId = modelId;
       }
-      this.apiKey = settings.openaiSTT?.apiKey || ''; // Backend handles API key
-    } else if (this.provider === 'deepgram') {
+      this.apiKey = settings.openaiSTT?.apiKey || ""; // Backend handles API key
+    } else if (this.provider === "deepgram") {
       // Deepgram settings
-      this.endpoint = settings.deepgramSTT?.endpoint || '/api/stt';
-      this.modelId = settings.deepgramSTT?.modelId || 'nova-3';
-      this.apiKey = settings.deepgramSTT?.apiKey || ''; // Backend handles API key
+      this.endpoint = settings.deepgramSTT?.endpoint || "/api/stt";
+      this.modelId = settings.deepgramSTT?.modelId || "nova-3";
+      this.apiKey = settings.deepgramSTT?.apiKey || ""; // Backend handles API key
     } else {
       throw new Error(`Unsupported STT provider: ${this.provider}`);
     }
@@ -322,22 +334,22 @@ export class STTService {
       sampleRate: settings.audioSettings?.sampleRate || 8000, // Reduced from 16kHz to minimize CPU load
       channels: settings.audioSettings?.channels || 1,
       bitDepth: settings.audioSettings?.bitDepth || 16,
-      format: settings.audioSettings?.format || 'wav', // Prefer WAV for minimal CPU usage
+      format: settings.audioSettings?.format || "wav", // Prefer WAV for minimal CPU usage
       // Raspberry Pi Zero 2W specific optimizations
       bufferSize: 2048, // Smaller buffer for limited RAM
       maxDuration: 30, // Maximum 30 seconds recording
       silenceThreshold: 0.01,
       // WebM fallback settings (when WAV not supported)
       webmBitRate: 32000, // Very low bitrate to reduce CPU load
-      ...settings.audioSettings
+      ...settings.audioSettings,
     };
 
     this.audioRecorder = new AudioRecorder(this.audioSettings);
 
-    logger.debug('STT Service initialized', 'STTService', {
+    logger.debug("STT Service initialized", "STTService", {
       provider: this.provider,
       modelId: this.modelId,
-      audioSettings: this.audioSettings
+      audioSettings: this.audioSettings,
     });
   }
 
@@ -346,15 +358,17 @@ export class STTService {
     try {
       await this.audioRecorder.startRecording();
     } catch (error) {
-      logger.error('Failed to start listening', 'STTService', {
-        error: (error as Error)?.message
+      logger.error("Failed to start listening", "STTService", {
+        error: (error as Error)?.message,
       });
       throw error;
     }
   }
 
   // Stop recording and transcribe
-  async stopListening(onProgress?: ProgressCallback): Promise<TranscriptionResult> {
+  async stopListening(
+    onProgress?: ProgressCallback,
+  ): Promise<TranscriptionResult> {
     try {
       onProgress?.(10);
 
@@ -364,12 +378,13 @@ export class STTService {
 
       // Validate audio
       if (audioBlob.size === 0) {
-        throw new Error('Ses kaydı boş. Lütfen tekrar deneyin.');
+        throw new Error("Ses kaydı boş. Lütfen tekrar deneyin.");
       }
 
       // Check duration (basic validation)
-      if (audioBlob.size < 1000) { // Very small file, likely silence
-        throw new Error('Çok kısa ses kaydı. Lütfen daha uzun konuşun.');
+      if (audioBlob.size < 1000) {
+        // Very small file, likely silence
+        throw new Error("Çok kısa ses kaydı. Lütfen daha uzun konuşun.");
       }
 
       onProgress?.(50);
@@ -379,10 +394,9 @@ export class STTService {
       onProgress?.(100);
 
       return result;
-
     } catch (error) {
-      logger.error('Failed to stop listening and transcribe', 'STTService', {
-        error: (error as Error)?.message
+      logger.error("Failed to stop listening and transcribe", "STTService", {
+        error: (error as Error)?.message,
       });
       throw error;
     }
@@ -391,11 +405,13 @@ export class STTService {
   // Transcribe audio file or blob
   async transcribeAudio(
     audioData: Blob | File,
-    onProgress?: ProgressCallback
+    onProgress?: ProgressCallback,
   ): Promise<TranscriptionResult> {
     try {
       if (!this.modelId) {
-        throw new Error('STT ayarları eksik. Lütfen model bilgisini kontrol edin.');
+        throw new Error(
+          "STT ayarları eksik. Lütfen model bilgisini kontrol edin.",
+        );
       }
 
       onProgress?.(20);
@@ -409,13 +425,13 @@ export class STTService {
         audioFile = audioData;
       } else {
         // For recorded audio, ensure we have the correct MIME type and filename
-        const originalMimeType = audioData.type || 'audio/webm';
+        const originalMimeType = audioData.type || "audio/webm";
         const originalSize = audioData.size;
 
-        logger.info('Original audio blob details', 'STTService', {
+        logger.info("Original audio blob details", "STTService", {
           originalMimeType,
           originalSize,
-          blobType: Object.prototype.toString.call(audioData)
+          blobType: Object.prototype.toString.call(audioData),
         });
 
         // Convert audio to WAV for better OpenAI compatibility
@@ -423,25 +439,36 @@ export class STTService {
         let finalMimeType = originalMimeType;
 
         // For WebM or non-standard formats, convert to WAV
-        if (originalMimeType.includes('webm') || originalMimeType.includes('opus')) {
-          logger.info('Converting audio to WAV for OpenAI compatibility', 'STTService', {
-            originalFormat: originalMimeType
-          });
+        if (
+          originalMimeType.includes("webm") ||
+          originalMimeType.includes("opus")
+        ) {
+          logger.info(
+            "Converting audio to WAV for OpenAI compatibility",
+            "STTService",
+            {
+              originalFormat: originalMimeType,
+            },
+          );
 
           try {
             // Convert to WAV format
             finalBlob = await AudioConverter.convertToWav(audioData);
-            finalMimeType = 'audio/wav';
+            finalMimeType = "audio/wav";
 
-            logger.info('Audio conversion successful', 'STTService', {
+            logger.info("Audio conversion successful", "STTService", {
               originalSize: originalSize,
               convertedSize: finalBlob.size,
-              convertedType: finalMimeType
+              convertedType: finalMimeType,
             });
           } catch (conversionError) {
-            logger.warn('Audio conversion failed, using original format', 'STTService', {
-              error: (conversionError as Error)?.message
-            });
+            logger.warn(
+              "Audio conversion failed, using original format",
+              "STTService",
+              {
+                error: (conversionError as Error)?.message,
+              },
+            );
             // Fallback to original format if conversion fails
             finalBlob = audioData;
             finalMimeType = originalMimeType;
@@ -451,63 +478,64 @@ export class STTService {
         const extension = this.getFileExtension(finalMimeType);
         audioFile = new File([finalBlob], `recording${extension}`, {
           type: finalMimeType,
-          lastModified: Date.now()
+          lastModified: Date.now(),
         });
       }
 
-      logger.info('Final audio file for transcription', 'STTService', {
+      logger.info("Final audio file for transcription", "STTService", {
         fileName: audioFile.name,
         fileSize: audioFile.size,
         fileType: audioFile.type,
         provider: this.provider,
         model: this.modelId,
-        endpoint: this.endpoint
+        endpoint: this.endpoint,
       });
 
-      formData.append('audio', audioFile);
-      formData.append('provider', this.provider);
-      formData.append('model', this.modelId);
-      formData.append('language', 'tr'); // Turkish primary
+      formData.append("audio", audioFile);
+      formData.append("provider", this.provider);
+      formData.append("model", this.modelId);
+      formData.append("language", "tr"); // Turkish primary
 
       // Add provider-specific settings
-      if (this.provider === 'openai') {
-        if (this.modelId === 'gpt-4o-mini-transcribe') {
-          formData.append('response_format', 'json'); // Use 'json' format for gpt-4o-mini-transcribe
-          formData.append('temperature', '0.1'); // Even lower for better accuracy
+      if (this.provider === "openai") {
+        if (this.modelId === "gpt-4o-mini-transcribe") {
+          formData.append("response_format", "json"); // Use 'json' format for gpt-4o-mini-transcribe
+          formData.append("temperature", "0.1"); // Even lower for better accuracy
         } else {
-          formData.append('response_format', 'json');
-          formData.append('temperature', '0.2'); // Lower temperature for better accuracy
+          formData.append("response_format", "json");
+          formData.append("temperature", "0.2"); // Lower temperature for better accuracy
         }
-      } else if (this.provider === 'deepgram') {
-        formData.append('smart_format', 'true');
-        formData.append('interim_results', 'false');
+      } else if (this.provider === "deepgram") {
+        formData.append("smart_format", "true");
+        formData.append("interim_results", "false");
       }
 
       onProgress?.(40);
 
-      logger.info('Starting STT transcription', 'STTService', {
+      logger.info("Starting STT transcription", "STTService", {
         provider: this.provider,
         model: this.modelId,
         endpoint: this.endpoint,
         fileSize: audioFile.size,
         fileType: audioFile.type,
-        fileName: audioFile.name
+        fileName: audioFile.name,
       });
 
       // Log FormData contents (for debugging)
       const formDataEntries: any = {};
       for (const [key, value] of formData.entries()) {
         if (value instanceof File) {
-          formDataEntries[key] = `File: ${value.name} (${value.size} bytes, ${value.type})`;
+          formDataEntries[key] =
+            `File: ${value.name} (${value.size} bytes, ${value.type})`;
         } else {
           formDataEntries[key] = value;
         }
       }
-      logger.debug('FormData contents', 'STTService', formDataEntries);
+      logger.debug("FormData contents", "STTService", formDataEntries);
 
       // Send to backend proxy
       const response = await fetch(this.endpoint, {
-        method: 'POST',
+        method: "POST",
         body: formData,
       });
 
@@ -515,11 +543,11 @@ export class STTService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        logger.error('STT API error', 'STTService', {
+        logger.error("STT API error", "STTService", {
           status: response.status,
           statusText: response.statusText,
           url: this.endpoint,
-          error: errorText
+          error: errorText,
         });
         throw new Error(`STT API hatası (${response.status}): ${errorText}`);
       }
@@ -531,17 +559,16 @@ export class STTService {
       const result = this.extractTranscriptionFromResponse(data);
       onProgress?.(100);
 
-      logger.debug('STT transcription completed', 'STTService', {
-        text: result.text.substring(0, 100) + '...',
+      logger.debug("STT transcription completed", "STTService", {
+        text: result.text.substring(0, 100) + "...",
         confidence: result.confidence,
-        duration: result.duration
+        duration: result.duration,
       });
 
       return result;
-
     } catch (error) {
-      logger.error('STT transcription failed', 'STTService', {
-        error: (error as Error)?.message
+      logger.error("STT transcription failed", "STTService", {
+        error: (error as Error)?.message,
       });
       throw error;
     }
@@ -550,14 +577,14 @@ export class STTService {
   // Extract transcription from different provider responses
   private extractTranscriptionFromResponse(data: any): TranscriptionResult {
     // OpenAI GPT-4o-mini-transcribe enhanced format
-    if (data.text && typeof data.text === 'string') {
+    if (data.text && typeof data.text === "string") {
       return {
         text: data.text.trim(),
         confidence: data.confidence || 0.9, // GPT-4o-mini-transcribe typically high confidence
         language: data.language,
         duration: data.duration,
         segments: data.segments || [], // Word-level timing data
-        model: data.model || this.modelId
+        model: data.model || this.modelId,
       };
     }
 
@@ -570,7 +597,7 @@ export class STTService {
           text: alternative.transcript.trim(),
           confidence: alternative.confidence,
           language: data.results.language,
-          duration: data.metadata?.duration
+          duration: data.metadata?.duration,
         };
       }
     }
@@ -581,17 +608,17 @@ export class STTService {
         text: data.transcript.trim(),
         confidence: data.confidence,
         language: data.language,
-        duration: data.duration
+        duration: data.duration,
       };
     }
 
     // Azure format
-    if (data.RecognitionStatus === 'Success' && data.DisplayText) {
+    if (data.RecognitionStatus === "Success" && data.DisplayText) {
       return {
         text: data.DisplayText.trim(),
         confidence: data.Confidence,
         language: data.Language,
-        duration: data.Duration
+        duration: data.Duration,
       };
     }
 
@@ -604,23 +631,25 @@ export class STTService {
           text: alternative.transcript.trim(),
           confidence: alternative.confidence,
           language: data.language_code,
-          duration: data.total_billed_time
+          duration: data.total_billed_time,
         };
       }
     }
 
-    throw new Error('STT yanıtından metin çıkarılamadı. API yanıt formatını kontrol edin.');
+    throw new Error(
+      "STT yanıtından metin çıkarılamadı. API yanıt formatını kontrol edin.",
+    );
   }
 
   // Check if microphone is available
   static async checkMicrophonePermission(): Promise<boolean> {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach((track) => track.stop());
       return true;
     } catch (error) {
-      logger.warn('Microphone permission denied', 'STTService', {
-        error: (error as Error)?.message
+      logger.warn("Microphone permission denied", "STTService", {
+        error: (error as Error)?.message,
       });
       return false;
     }
@@ -634,23 +663,23 @@ export class STTService {
   // Helper method to get file extension from MIME type
   private getFileExtension(mimeType: string): string {
     switch (mimeType.toLowerCase()) {
-      case 'audio/wav':
-      case 'audio/wave':
-        return '.wav';
-      case 'audio/mp3':
-      case 'audio/mpeg':
-        return '.mp3';
-      case 'audio/mp4':
-      case 'audio/m4a':
-        return '.m4a';
-      case 'audio/webm':
-      case 'audio/webm;codecs=opus':
-        return '.webm';
-      case 'audio/ogg':
-      case 'audio/ogg;codecs=opus':
-        return '.ogg';
+      case "audio/wav":
+      case "audio/wave":
+        return ".wav";
+      case "audio/mp3":
+      case "audio/mpeg":
+        return ".mp3";
+      case "audio/mp4":
+      case "audio/m4a":
+        return ".m4a";
+      case "audio/webm":
+      case "audio/webm;codecs=opus":
+        return ".webm";
+      case "audio/ogg":
+      case "audio/ogg;codecs=opus":
+        return ".ogg";
       default:
-        return '.webm'; // Default to webm for unknown formats
+        return ".webm"; // Default to webm for unknown formats
     }
   }
 
@@ -661,14 +690,16 @@ export class STTService {
     confidence: number;
   }> {
     // Use the new Turkish intent recognition system
-    const { processTurkishVoiceCommand } = await import('@/utils/intentRecognition');
+    const { processTurkishVoiceCommand } = await import(
+      "@/utils/intentRecognition"
+    );
 
     const result = processTurkishVoiceCommand(transcription);
 
     return {
       intent: result.intent,
       parameters: result.parameters,
-      confidence: result.confidence
+      confidence: result.confidence,
     };
   }
 
@@ -679,8 +710,8 @@ export class STTService {
         this.audioRecorder.cleanup();
       }
     } catch (error) {
-      logger.warn('STT cleanup failed', 'STTService', {
-        error: (error as Error)?.message
+      logger.warn("STT cleanup failed", "STTService", {
+        error: (error as Error)?.message,
       });
     }
   }
@@ -691,17 +722,20 @@ export class GPT4oMiniSTTService extends STTService {
   constructor(settings: STTSettings) {
     super({
       ...settings,
-      sttProvider: 'openai',
+      sttProvider: "openai",
       openaiSTT: {
         ...settings.openaiSTT,
-        modelId: 'gpt-4o-mini-transcribe',
-        endpoint: '/api/stt/transcribe'
+        modelId: "gpt-4o-mini-transcribe",
+        endpoint: "/api/stt/transcribe",
       },
-      responseFormat: 'verbose_json'
+      responseFormat: "verbose_json",
     });
   }
 
-  async transcribeAudio(audioData: Blob | File, onProgress?: ProgressCallback): Promise<EnhancedTranscriptionResult> {
+  async transcribeAudio(
+    audioData: Blob | File,
+    onProgress?: ProgressCallback,
+  ): Promise<EnhancedTranscriptionResult> {
     const result = await super.transcribeAudio(audioData, onProgress);
 
     // Enhanced result with word-level timing and higher confidence
@@ -710,13 +744,13 @@ export class GPT4oMiniSTTService extends STTService {
       segments: result.segments || [],
       wordTimings: result.segments || [],
       confidence: result.confidence || 0.9,
-      model: 'gpt-4o-mini-transcribe'
+      model: "gpt-4o-mini-transcribe",
     } as EnhancedTranscriptionResult;
   }
 
   // Check if this is using the enhanced model
   isEnhancedModel(): boolean {
-    return this.modelId === 'gpt-4o-mini-transcribe';
+    return this.modelId === "gpt-4o-mini-transcribe";
   }
 
   // Get model capabilities
@@ -731,7 +765,7 @@ export class GPT4oMiniSTTService extends STTService {
         supportsWordTiming: true,
         supportsHighAccuracy: true,
         supportsTurkish: true,
-        maxContextWindow: 16000 // tokens
+        maxContextWindow: 16000, // tokens
       };
     }
 
@@ -739,7 +773,7 @@ export class GPT4oMiniSTTService extends STTService {
       supportsWordTiming: false,
       supportsHighAccuracy: false,
       supportsTurkish: true,
-      maxContextWindow: 8000
+      maxContextWindow: 8000,
     };
   }
 
@@ -752,13 +786,13 @@ export class GPT4oMiniSTTService extends STTService {
       sttProvider: this.provider,
       model: this.modelId,
       modelId: this.modelId,
-      language: 'tr', // Default to Turkish
+      language: "tr", // Default to Turkish
       openaiSTT: {
         endpoint: this.endpoint,
         modelId: this.modelId,
-        apiKey: this.apiKey
+        apiKey: this.apiKey,
       },
-      audioSettings: this.audioSettings
+      audioSettings: this.audioSettings,
     };
   }
 }

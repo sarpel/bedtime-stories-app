@@ -1,10 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Button } from '@/components/ui/button.jsx'
-import { Textarea } from '@/components/ui/textarea.jsx'
-import { Label } from '@/components/ui/label.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
-import { Progress } from '@/components/ui/progress.jsx'
+import React, { useState, useRef, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card.jsx";
+import { Button } from "@/components/ui/button.jsx";
+import { Textarea } from "@/components/ui/textarea.jsx";
+import { Label } from "@/components/ui/label.jsx";
+import { Badge } from "@/components/ui/badge.jsx";
+import { Progress } from "@/components/ui/progress.jsx";
 import {
   BookOpen,
   Sparkles,
@@ -17,13 +23,20 @@ import {
   CheckCircle,
   AlertCircle,
   MoreHorizontal,
-  X
-} from 'lucide-react'
-import { storyTypes, getStoryTypeName, extractStoryTitle } from '@/utils/storyTypes'
-import { shareStory, shareToSocialMedia, downloadStory } from '@/utils/share'
-import type { SupportedPlatform } from '@/utils/share'
-import sharingService from '@/services/sharingService'
-import { VoiceCommandPanel, type VoiceCommand } from '@/components/VoiceCommandPanel'
+  X,
+} from "lucide-react";
+import {
+  storyTypes,
+  getStoryTypeName,
+  extractStoryTitle,
+} from "@/utils/storyTypes";
+import { shareStory, shareToSocialMedia, downloadStory } from "@/utils/share";
+import type { SupportedPlatform } from "@/utils/share";
+import sharingService from "@/services/sharingService";
+import {
+  VoiceCommandPanel,
+  type VoiceCommand,
+} from "@/components/VoiceCommandPanel";
 
 // TypeScript interfaces
 interface StoryCreatorProps {
@@ -102,161 +115,169 @@ export default function StoryCreator({
   onToggleFavorite,
   onClearStory,
   onSaveStory,
-  onVoiceGeneratedStory
+  onVoiceGeneratedStory,
 }: StoryCreatorProps) {
-  const [copied, setCopied] = useState(false)
-  const [showShareMenu, setShowShareMenu] = useState(false)
-  const [shareUrl, setShareUrl] = useState('')
-  const [isSharing, setIsSharing] = useState(false)
-  const shareMenuRef = useRef<HTMLDivElement>(null)
-  const [showVoicePanel, setShowVoicePanel] = useState(false)
+  const [copied, setCopied] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [isSharing, setIsSharing] = useState(false);
+  const shareMenuRef = useRef<HTMLDivElement>(null);
+  const [showVoicePanel, setShowVoicePanel] = useState(false);
 
   // Click outside handler için
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (shareMenuRef.current && !shareMenuRef.current.contains(event.target as Node)) {
-        setShowShareMenu(false)
+      if (
+        shareMenuRef.current &&
+        !shareMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowShareMenu(false);
       }
-    }
+    };
 
     if (showShareMenu) {
-      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener("mousedown", handleClickOutside);
       return () => {
-        document.removeEventListener('mousedown', handleClickOutside)
-      }
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
     }
-  }, [showShareMenu])
+  }, [showShareMenu]);
 
   const handleTypeChange = (typeId: string) => {
-    onTypeChange(typeId)
+    onTypeChange(typeId);
     // Tür seçildiğinde custom topic'i temizle
     if (typeId && customTopic.trim()) {
-      onCustomTopicChange('')
+      onCustomTopicChange("");
     }
-  }
+  };
 
   const handleStoryTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value
+    const value = e.target.value;
 
     // Eğer masal varsa, masalı güncelle
     if (story) {
-      onStoryChange(value)
+      onStoryChange(value);
     } else {
       // Eğer masal yoksa, custom topic olarak güncelle
-      onCustomTopicChange(value)
+      onCustomTopicChange(value);
       // Custom topic yazılırken seçili türü temizle
       if (value.trim() && selectedType) {
-        onTypeChange('')
+        onTypeChange("");
       }
     }
-  }
+  };
 
   const handleCopy = async () => {
     try {
-      const textToCopy = story || customTopic
-      await navigator.clipboard.writeText(textToCopy)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      const textToCopy = story || customTopic;
+      await navigator.clipboard.writeText(textToCopy);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('Kopyalama başarısız:', error)
+      console.error("Kopyalama başarısız:", error);
     }
-  }
+  };
 
   const handleShare = async () => {
-    if (!story) return
+    if (!story) return;
 
     if (!storyId) {
       // Fallback to old sharing method if no storyId
-      const result = await shareStory(story, selectedType, customTopic)
-      if (result.success && result.method === 'clipboard') {
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
+      const result = await shareStory(story, selectedType, customTopic);
+      if (result.success && result.method === "clipboard") {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
       }
-      return
+      return;
     }
 
-    setIsSharing(true)
+    setIsSharing(true);
     try {
-      const result = await sharingService.shareStory(storyId)
+      const result = await sharingService.shareStory(storyId);
       if (result.success) {
-        setShareUrl(result.shareUrl)
-        setShowShareMenu(false)
+        setShareUrl(result.shareUrl);
+        setShowShareMenu(false);
         // Copy share URL to clipboard
-        await navigator.clipboard.writeText(result.shareUrl)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 3000)
+        await navigator.clipboard.writeText(result.shareUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 3000);
       } else {
-        console.error('Paylaşım hatası:', result.error)
+        console.error("Paylaşım hatası:", result.error);
         // Fallback to old method
-        const fallbackResult = await shareStory(story, selectedType, customTopic)
-        if (fallbackResult.success && fallbackResult.method === 'clipboard') {
-          setShowShareMenu(false)
-          setCopied(true)
-          setTimeout(() => setCopied(false), 2000)
+        const fallbackResult = await shareStory(
+          story,
+          selectedType,
+          customTopic,
+        );
+        if (fallbackResult.success && fallbackResult.method === "clipboard") {
+          setShowShareMenu(false);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
         }
       }
     } catch (error) {
-      console.error('Paylaşım hatası:', error)
+      console.error("Paylaşım hatası:", error);
     } finally {
-      setIsSharing(false)
+      setIsSharing(false);
     }
-  }
-
+  };
 
   const handleDownload = () => {
-    if (!story) return
-    downloadStory(story, selectedType)
-  }
+    if (!story) return;
+    downloadStory(story, selectedType);
+  };
 
   const handleSocialShare = (platform: SupportedPlatform) => {
-    if (!story) return
-    shareToSocialMedia(story, selectedType, platform)
-    setShowShareMenu(false)
-  }
+    if (!story) return;
+    shareToSocialMedia(story, selectedType, platform);
+    setShowShareMenu(false);
+  };
 
   const formatDuration = (seconds: number) => {
-    if (!seconds) return '0:00'
-    const mins = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
+    if (!seconds) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
 
   const getReadingTime = (text: string) => {
-    const wordsPerMinute = 150
-    const words = text.trim().split(/\s+/).length
-    const minutes = Math.ceil(words / wordsPerMinute)
-    return minutes
-  }
+    const wordsPerMinute = 150;
+    const words = text.trim().split(/\s+/).length;
+    const minutes = Math.ceil(words / wordsPerMinute);
+    return minutes;
+  };
 
   // Voice command handler - now using LLM-based processing
   const handleVoiceCommand = (command: VoiceCommand) => {
-    const { intent, parameters } = command
+    const { intent, parameters } = command;
 
-    if (intent === 'generate_audio') {
+    if (intent === "generate_audio") {
       if (story && story.length > 0 && !isGeneratingAudio) {
-        onGenerateAudio()
+        onGenerateAudio();
       } else {
-        console.warn('🎵 [Voice Pipeline] generate_audio intent but story empty')
+        console.warn(
+          "🎵 [Voice Pipeline] generate_audio intent but story empty",
+        );
       }
-      return
+      return;
     }
 
-    if (intent === 'story_request' && parameters.customTopic) {
-      const storyContent = parameters.customTopic
+    if (intent === "story_request" && parameters.customTopic) {
+      const storyContent = parameters.customTopic;
       if (onVoiceGeneratedStory) {
-        onVoiceGeneratedStory(storyContent)
+        onVoiceGeneratedStory(storyContent);
       } else {
-        onTypeChange('voice_generated')
-        onCustomTopicChange('Voice Generated Story')
-        onStoryChange(storyContent)
+        onTypeChange("voice_generated");
+        onCustomTopicChange("Voice Generated Story");
+        onStoryChange(storyContent);
       }
     }
-  }
+  };
 
-  const displayText = story || customTopic
+  const displayText = story || customTopic;
   const placeholder = story
     ? "Masalın burada görünüyor..."
-    : "Hangi konuda bir masal duymak istiyorsun? Örn: Uzay yolculuğu yapan kedinin macerası..."
+    : "Hangi konuda bir masal duymak istiyorsun? Örn: Uzay yolculuğu yapan kedinin macerası...";
 
   return (
     <Card className="mb-4 sm:mb-8 overflow-hidden">
@@ -265,7 +286,9 @@ export default function StoryCreator({
           <div className="flex-1 w-full">
             <CardTitle className="flex items-center gap-2 mb-2 text-base sm:text-lg">
               <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-              {story ? extractStoryTitle(story) : 'Hangi Masalı Duymak İstersin?'}
+              {story
+                ? extractStoryTitle(story)
+                : "Hangi Masalı Duymak İstersin?"}
               {isGenerating && (
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
               )}
@@ -273,14 +296,26 @@ export default function StoryCreator({
 
             {story ? (
               <div className="flex flex-wrap gap-1 sm:gap-2">
-                <Badge variant="secondary" className="text-xs">Türkçe</Badge>
-                <Badge variant="outline" className="text-xs">5 Yaş</Badge>
-                <Badge variant="outline" className="text-xs">Uyku Vakti</Badge>
-                <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                <Badge variant="secondary" className="text-xs">
+                  Türkçe
+                </Badge>
+                <Badge variant="outline" className="text-xs">
+                  5 Yaş
+                </Badge>
+                <Badge variant="outline" className="text-xs">
+                  Uyku Vakti
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className="flex items-center gap-1 text-xs"
+                >
                   <Sparkles className="h-3 w-3" />
                   {getStoryTypeName(selectedType)}
                 </Badge>
-                <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                <Badge
+                  variant="outline"
+                  className="flex items-center gap-1 text-xs"
+                >
                   <Clock className="h-3 w-3" />
                   {getReadingTime(story)} dk okuma
                 </Badge>
@@ -311,9 +346,9 @@ export default function StoryCreator({
                 size="sm"
                 onClick={async () => {
                   try {
-                    await onSaveStory(false) // Manual save
+                    await onSaveStory(false); // Manual save
                   } catch (error) {
-                    console.error('Manual save error:', error)
+                    console.error("Manual save error:", error);
                   }
                 }} // Manual save
                 className="flex-1 sm:flex-none"
@@ -376,9 +411,11 @@ export default function StoryCreator({
                   variant="ghost"
                   size="sm"
                   onClick={onToggleFavorite}
-                  className={`flex-1 sm:flex-none ${isFavorite ? 'text-red-500 hover:text-red-600' : ''}`}
+                  className={`flex-1 sm:flex-none ${isFavorite ? "text-red-500 hover:text-red-600" : ""}`}
                 >
-                  <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
+                  <Heart
+                    className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`}
+                  />
                 </Button>
                 <div className="relative flex-1 sm:flex-none">
                   <Button
@@ -415,7 +452,7 @@ export default function StoryCreator({
                         ) : (
                           <>
                             <Share2 className="h-4 w-4 mr-2" />
-                            {storyId ? 'Benzersiz Link Oluştur' : 'Paylaş'}
+                            {storyId ? "Benzersiz Link Oluştur" : "Paylaş"}
                           </>
                         )}
                       </Button>
@@ -434,8 +471,12 @@ export default function StoryCreator({
                         className="w-full justify-start"
                         onClick={handleCopy}
                       >
-                        {copied ? <CheckCircle className="h-4 w-4 text-green-500 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-                        {copied ? 'Kopyalandı' : 'Kopyala'}
+                        {copied ? (
+                          <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                        ) : (
+                          <Copy className="h-4 w-4 mr-2" />
+                        )}
+                        {copied ? "Kopyalandı" : "Kopyala"}
                       </Button>
                       <div className="border-t my-1" />
                       <div className="text-xs text-muted-foreground px-2 py-1">
@@ -445,7 +486,7 @@ export default function StoryCreator({
                         variant="ghost"
                         size="sm"
                         className="w-full justify-start text-xs"
-                        onClick={() => handleSocialShare('twitter')}
+                        onClick={() => handleSocialShare("twitter")}
                       >
                         Twitter
                       </Button>
@@ -453,7 +494,7 @@ export default function StoryCreator({
                         variant="ghost"
                         size="sm"
                         className="w-full justify-start text-xs"
-                        onClick={() => handleSocialShare('whatsapp')}
+                        onClick={() => handleSocialShare("whatsapp")}
                       >
                         WhatsApp
                       </Button>
@@ -488,7 +529,7 @@ export default function StoryCreator({
               size="sm"
             >
               <Volume2 className="h-4 w-4" />
-              {showVoicePanel ? 'Sesli Komutu Kapat' : 'Sesli Komut Ver'}
+              {showVoicePanel ? "Sesli Komutu Kapat" : "Sesli Komut Ver"}
             </Button>
           </div>
         )}
@@ -496,7 +537,9 @@ export default function StoryCreator({
         {/* Masal Türü Butonları - Sadece masal oluşturulmamışsa göster */}
         {!story && (
           <div className="space-y-3">
-            <Label className="text-sm font-medium">En Sevilen Masal Türleri</Label>
+            <Label className="text-sm font-medium">
+              En Sevilen Masal Türleri
+            </Label>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
               {storyTypes.slice(0, 5).map((type) => (
                 <Button
@@ -507,7 +550,9 @@ export default function StoryCreator({
                   size="sm"
                 >
                   <span className="text-base sm:text-lg">{type.icon}</span>
-                  <span className="leading-none text-center text-xs">{type.name}</span>
+                  <span className="leading-none text-center text-xs">
+                    {type.name}
+                  </span>
                 </Button>
               ))}
             </div>
@@ -521,7 +566,9 @@ export default function StoryCreator({
                   size="sm"
                 >
                   <span className="text-base sm:text-lg">{type.icon}</span>
-                  <span className="leading-none text-center text-xs">{type.name}</span>
+                  <span className="leading-none text-center text-xs">
+                    {type.name}
+                  </span>
                 </Button>
               ))}
             </div>
@@ -534,7 +581,7 @@ export default function StoryCreator({
             <div className="flex-1 w-full">
               {!story && (
                 <Label htmlFor="story-input" className="text-sm">
-                  {selectedType ? 'Seçili Masal Türü' : 'Özel Masal Konun'}
+                  {selectedType ? "Seçili Masal Türü" : "Özel Masal Konun"}
                 </Label>
               )}
               <div className="relative">
@@ -543,10 +590,11 @@ export default function StoryCreator({
                   placeholder={placeholder}
                   value={displayText}
                   onChange={handleStoryTextChange}
-                  className={`resize-none ${story
-                      ? 'min-h-[250px] sm:min-h-[300px] text-sm sm:text-base leading-relaxed border-0 bg-transparent p-0 focus-visible:ring-0'
-                      : 'min-h-[100px] sm:min-h-[120px] text-sm'
-                    }`}
+                  className={`resize-none ${
+                    story
+                      ? "min-h-[250px] sm:min-h-[300px] text-sm sm:text-base leading-relaxed border-0 bg-transparent p-0 focus-visible:ring-0"
+                      : "min-h-[100px] sm:min-h-[120px] text-sm"
+                  }`}
                   readOnly={isGenerating}
                 />
                 {story && (
@@ -567,14 +615,18 @@ export default function StoryCreator({
               <div className="flex flex-col gap-2 w-full sm:min-w-[120px] sm:w-auto">
                 <Button
                   onClick={() => onGenerateStory()}
-                  disabled={isGenerating || (!selectedType && !customTopic.trim())}
+                  disabled={
+                    isGenerating || (!selectedType && !customTopic.trim())
+                  }
                   className="flex items-center gap-2 w-full"
                   size="default"
                 >
                   {isGenerating ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-foreground border-t-transparent" />
-                      <span className="text-xs sm:text-sm">Oluşturuluyor...</span>
+                      <span className="text-xs sm:text-sm">
+                        Oluşturuluyor...
+                      </span>
                     </>
                   ) : (
                     <>
@@ -592,7 +644,9 @@ export default function StoryCreator({
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>
-                  {isGenerating ? 'Masal oluşturuluyor...' : 'Ses oluşturuluyor...'}
+                  {isGenerating
+                    ? "Masal oluşturuluyor..."
+                    : "Ses oluşturuluyor..."}
                 </span>
                 <span>{progress}%</span>
               </div>
@@ -620,7 +674,8 @@ export default function StoryCreator({
             <div className="flex items-center gap-1 sm:gap-2 mb-1">
               {selectedType && (
                 <Badge variant="secondary" className="text-xs">
-                  {storyTypes.find(t => t.id === selectedType)?.icon} {storyTypes.find(t => t.id === selectedType)?.name}
+                  {storyTypes.find((t) => t.id === selectedType)?.icon}{" "}
+                  {storyTypes.find((t) => t.id === selectedType)?.name}
                 </Badge>
               )}
               {customTopic.trim() && !selectedType && (
@@ -631,11 +686,10 @@ export default function StoryCreator({
             </div>
             <p className="text-xs text-muted-foreground">
               {customTopic.trim() && !selectedType
-                ? `"${customTopic.substring(0, 80)}${customTopic.length > 80 ? '...' : ''}" konulu özel masal oluşturulacak`
+                ? `"${customTopic.substring(0, 80)}${customTopic.length > 80 ? "..." : ""}" konulu özel masal oluşturulacak`
                 : selectedType
-                  ? storyTypes.find(t => t.id === selectedType)?.description
-                  : ''
-              }
+                  ? storyTypes.find((t) => t.id === selectedType)?.description
+                  : ""}
             </p>
           </div>
         )}
@@ -670,17 +724,18 @@ export default function StoryCreator({
                   size="sm"
                   variant="outline"
                 >
-                  {isPlaying ? 'Duraklat' : 'Oynat'}
+                  {isPlaying ? "Duraklat" : "Oynat"}
                 </Button>
                 <Button onClick={onStopAudio} size="sm" variant="outline">
                   Durdur
                 </Button>
                 <Button onClick={onToggleMute} size="sm" variant="outline">
-                  {isMuted ? 'Sesi Aç' : 'Sustur'}
+                  {isMuted ? "Sesi Aç" : "Sustur"}
                 </Button>
                 {audioDuration > 0 && (
                   <span className="text-sm text-muted-foreground">
-                    {formatDuration(audioDuration * audioProgress / 100)} / {formatDuration(audioDuration)}
+                    {formatDuration((audioDuration * audioProgress) / 100)} /{" "}
+                    {formatDuration(audioDuration)}
                   </span>
                 )}
               </div>
@@ -704,5 +759,5 @@ export default function StoryCreator({
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

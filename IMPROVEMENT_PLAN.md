@@ -10,15 +10,18 @@ This improvement plan addresses critical code quality and performance issues ide
 ## Phase 1: Critical Type Safety Resolution (Priority: URGENT)
 
 ### 🔴 1.1 Type Safety Enhancement
+
 **Timeline**: 1-2 weeks
 **Impact**: High - Reduces runtime errors and improves maintainability
 
 **Issues**:
+
 - Extensive use of `any` types throughout codebase
 - Missing interface definitions for API responses
 - Unsafe type assertions and casting
 
 **Actions**:
+
 ```typescript
 // Replace any types with proper interfaces
 interface Story {
@@ -39,6 +42,7 @@ interface AudioFile {
 ```
 
 **Files to Update**:
+
 - `src/utils/storyTypes.ts` - Define comprehensive interfaces
 - `src/components/*.tsx` - Replace `any` with proper types
 - `src/services/*.ts` - Add API response types
@@ -47,15 +51,18 @@ interface AudioFile {
 ## Phase 2: Quality & Performance Improvements (Priority: HIGH)
 
 ### 🟡 2.1 Component Architecture Refactoring
+
 **Timeline**: 2-3 weeks
 **Impact**: High - Improves maintainability and performance
 
 **Issues**:
+
 - Large monolithic components (App.tsx ~1100+ lines)
 - Prop drilling and complex state management
 - Missing component composition patterns
 
 **Actions**:
+
 ```typescript
 // Split App.tsx into smaller components
 export const MainLayout = ({ children }: { children: React.ReactNode }) => (
@@ -77,22 +84,26 @@ export const useAppState = () => {
 ```
 
 **Files to Create**:
+
 - `src/contexts/AppStateContext.tsx`
 - `src/layouts/MainLayout.tsx`
 - `src/components/Header/Header.tsx`
 - `src/hooks/useStoryOperations.ts`
 
 ### 🟡 2.2 Performance Optimization
+
 **Timeline**: 1-2 weeks
 **Impact**: Medium-High - Improves user experience
 
 **Issues**:
+
 - Bundle size optimization needed
 - No lazy loading for routes
 - Memory leaks in audio system
 - Large image files
 
 **Actions**:
+
 ```typescript
 // Code splitting with React.lazy
 const StoryQueuePanel = lazy(() => import('./components/StoryQueuePanel'));
@@ -122,15 +133,18 @@ export default defineConfig({
 ```
 
 **Files to Update**:
+
 - `vite.config.ts` - Add optimization plugins
 - `src/App.tsx` - Implement code splitting
 - `src/hooks/useAudioPlayer.ts` - Fix memory leaks
 
 ### 🟡 2.3 Error Handling Standardization
+
 **Timeline**: 1 week
 **Impact**: Medium - Improves debugging and user experience
 
 **Actions**:
+
 ```typescript
 // Centralized error handling
 export class AppError extends Error {
@@ -138,23 +152,24 @@ export class AppError extends Error {
     public message: string,
     public code: string,
     public statusCode: number = 500,
-    public isOperational: boolean = true
+    public isOperational: boolean = true,
   ) {
     super(message);
-    this.name = 'AppError';
+    this.name = "AppError";
   }
 }
 
 // Error boundary
 export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    logger.error('React Error Boundary', { error, errorInfo });
+    logger.error("React Error Boundary", { error, errorInfo });
     // Send to monitoring service
   }
 }
 ```
 
 **Files to Create**:
+
 - `src/utils/AppError.ts`
 - `src/components/ErrorBoundary.tsx`
 - `src/hooks/useErrorHandler.ts`
@@ -162,32 +177,34 @@ export class ErrorBoundary extends Component<Props, State> {
 ## Phase 3: Architecture & Enhancement (Priority: MEDIUM)
 
 ### 🟢 3.1 Testing Implementation
+
 **Timeline**: 2-3 weeks
 **Impact**: Medium-High - Ensures reliability
 
 **Actions**:
+
 ```typescript
 // Unit tests for services
-describe('StoryService', () => {
-  it('should generate story with valid input', async () => {
-    const mockLLM = jest.fn().mockResolvedValue('Generated story');
+describe("StoryService", () => {
+  it("should generate story with valid input", async () => {
+    const mockLLM = jest.fn().mockResolvedValue("Generated story");
     const service = new StoryService(mockLLM);
 
     const result = await service.generateStory({
-      type: 'adventure',
-      topic: 'dragon quest'
+      type: "adventure",
+      topic: "dragon quest",
     });
 
-    expect(result).toContain('Generated story');
+    expect(result).toContain("Generated story");
   });
 });
 
 // Integration tests
-describe('API Integration', () => {
-  it('should create and retrieve story', async () => {
+describe("API Integration", () => {
+  it("should create and retrieve story", async () => {
     const response = await request(app)
-      .post('/api/stories')
-      .send({ storyText: 'Test story', storyType: 'adventure' })
+      .post("/api/stories")
+      .send({ storyText: "Test story", storyType: "adventure" })
       .expect(201);
 
     expect(response.body.id).toBeDefined();
@@ -196,16 +213,19 @@ describe('API Integration', () => {
 ```
 
 **Files to Create**:
+
 - `src/__tests__/` - Unit tests
 - `backend/__tests__/` - Backend tests
 - `e2e/` - End-to-end tests
 - `jest.config.js` - Testing configuration
 
 ### 🟢 3.3 Configuration Management
+
 **Timeline**: 3-5 days
 **Impact**: Medium - Improves deployment flexibility
 
 **Actions**:
+
 ```typescript
 // Configuration schema
 export interface AppConfig {
@@ -230,7 +250,7 @@ export const validateConfig = (config: any): AppConfig => {
     app: Joi.object({
       name: Joi.string().required(),
       version: Joi.string().required(),
-      port: Joi.number().port().default(3001)
+      port: Joi.number().port().default(3001),
     }),
     // ... more validation
   });
@@ -242,6 +262,7 @@ export const validateConfig = (config: any): AppConfig => {
 ```
 
 **Files to Create**:
+
 - `src/config/index.ts`
 - `backend/config/index.ts`
 - `config/` - Environment-specific configs
@@ -249,22 +270,26 @@ export const validateConfig = (config: any): AppConfig => {
 ## Implementation Strategy
 
 ### Week 1-2: Critical Type Safety
+
 1. Implement proper TypeScript interfaces
 2. Remove any types from critical paths
 
 ### Week 3-4: Architecture Refactoring
+
 1. Split large components into smaller, focused ones
 2. Implement context providers for state management
 3. Add error boundaries and centralized error handling
 4. Optimize bundle size and implement code splitting
 
 ### Week 5-6: Testing & Quality Assurance
+
 1. Write unit tests for core services
 2. Add integration tests for API endpoints
 3. Implement E2E tests for critical user flows
 4. Set up CI/CD pipeline with automated testing
 
 ### Week 7-8: Performance & Monitoring
+
 1. Implement performance monitoring
 2. Add analytics and usage tracking
 3. Optimize database queries
@@ -273,12 +298,14 @@ export const validateConfig = (config: any): AppConfig => {
 ## Success Metrics
 
 ### Technical Metrics
+
 - **Type Safety**: 0 `any` types in production code
 - **Test Coverage**: >80% for services, >60% for components
 - **Bundle Size**: <2MB initial load
 - **Performance**: <3s load time, <1s story generation
 
 ### Quality Metrics
+
 - **Code Quality**: SonarQube score >B
 - **Maintainability**: <20 minutes to understand and modify components
 - **Error Rate**: <1% user-facing errors
@@ -287,11 +314,13 @@ export const validateConfig = (config: any): AppConfig => {
 ## Risk Mitigation
 
 ### Development Risks
+
 - **Breaking Changes**: Implement feature flags and gradual rollouts
 - **Testing Overhead**: Start with high-impact areas, expand gradually
 - **Performance Regression**: Continuous monitoring and benchmarking
 
 ### Deployment Risks
+
 - **Database Migration**: Test migrations on staging environment
 - **API Compatibility**: Maintain backward compatibility during transitions
 - **User Experience**: A/B test major changes
@@ -299,12 +328,14 @@ export const validateConfig = (config: any): AppConfig => {
 ## Tools & Technologies
 
 ### Development Tools
+
 - **TypeScript**: Enhanced type checking
 - **ESLint/Prettier**: Code quality and formatting
 - **Jest/React Testing Library**: Unit and integration testing
 - **Playwright**: E2E testing
 
 ### Build & Deployment
+
 - **Vite**: Optimized build process
 - **Docker**: Containerization
 - **GitHub Actions**: CI/CD pipeline

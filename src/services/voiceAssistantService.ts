@@ -1,4 +1,4 @@
-import { logger } from '@/utils/logger';
+import { logger } from "@/utils/logger";
 
 export interface VoiceAssistantResponse {
   response: string;
@@ -7,51 +7,68 @@ export interface VoiceAssistantResponse {
 }
 
 export class VoiceAssistantService {
-  private endpoint: string = '/api/voice-assistant';
+  private endpoint: string = "/api/voice-assistant";
 
   /**
    * Process voice transcript through LLM for story generation or TTS commands
    * Logic: Send transcript to backend LLM with specialized system prompt
    */
-  async processVoiceTranscript(transcript: string): Promise<VoiceAssistantResponse> {
+  async processVoiceTranscript(
+    transcript: string,
+  ): Promise<VoiceAssistantResponse> {
     try {
-      logger.info('Processing voice transcript with LLM', 'VoiceAssistantService', {
-        transcriptLength: transcript.length,
-        transcript: transcript.substring(0, 100) + (transcript.length > 100 ? '...' : '')
-      });
+      logger.info(
+        "Processing voice transcript with LLM",
+        "VoiceAssistantService",
+        {
+          transcriptLength: transcript.length,
+          transcript:
+            transcript.substring(0, 100) +
+            (transcript.length > 100 ? "..." : ""),
+        },
+      );
 
       const response = await fetch(this.endpoint, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          transcript: transcript
-        })
+          transcript: transcript,
+        }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        logger.error('Voice assistant API error', 'VoiceAssistantService', {
+        logger.error("Voice assistant API error", "VoiceAssistantService", {
           status: response.status,
-          error: errorText
+          error: errorText,
         });
-        throw new Error(`Voice assistant error (${response.status}): ${errorText}`);
+        throw new Error(
+          `Voice assistant error (${response.status}): ${errorText}`,
+        );
       }
 
       const data: VoiceAssistantResponse = await response.json();
 
-      logger.info('Voice assistant response received', 'VoiceAssistantService', {
-        responseLength: data.response.length,
-        isTtsRequest: data.isTtsRequest
-      });
+      logger.info(
+        "Voice assistant response received",
+        "VoiceAssistantService",
+        {
+          responseLength: data.response.length,
+          isTtsRequest: data.isTtsRequest,
+        },
+      );
 
       return data;
-
     } catch (error) {
-      logger.error('Voice assistant processing failed', 'VoiceAssistantService', {
-        error: (error as Error)?.message
-      });
+      logger.error(
+        "Voice assistant processing failed",
+        "VoiceAssistantService",
+        {
+          error: (error as Error)?.message,
+        },
+      );
       throw error;
     }
   }

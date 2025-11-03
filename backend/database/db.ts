@@ -1,9 +1,9 @@
 // TypeScript migration completed
 // database/db.ts
-import Database from 'better-sqlite3';
-import * as path from 'path';
-import * as fs from 'fs';
-import { randomBytes } from 'crypto';
+import Database from "better-sqlite3";
+import * as path from "path";
+import * as fs from "fs";
+import { randomBytes } from "crypto";
 
 // Type definitions
 interface Story {
@@ -26,7 +26,6 @@ interface Story {
 interface UserPreferences {
   [key: string]: unknown;
 }
-
 
 interface AudioFile {
   id?: number;
@@ -56,9 +55,10 @@ interface DatabaseConfig {
 
 // Veritabanı ve audio dizinlerinin konumu (ortam değişkeni ile override edilebilir)
 const DB_PATH_ENV = process.env.STORIES_DB_PATH;
-const DB_PATH: string = DB_PATH_ENV || path.join(__dirname, 'stories.db');
-console.log('[DB INIT PATH]', { providedEnv: DB_PATH_ENV, finalPath: DB_PATH });
-const AUDIO_DIR: string = process.env.AUDIO_DIR_PATH || path.join(__dirname, '../audio');
+const DB_PATH: string = DB_PATH_ENV || path.join(__dirname, "stories.db");
+console.log("[DB INIT PATH]", { providedEnv: DB_PATH_ENV, finalPath: DB_PATH });
+const AUDIO_DIR: string =
+  process.env.AUDIO_DIR_PATH || path.join(__dirname, "../audio");
 
 // Audio klasörünü oluştur
 if (!fs.existsSync(AUDIO_DIR)) {
@@ -71,20 +71,19 @@ const db = new Database(DB_PATH, {
   readonly: false,
   fileMustExist: false,
   timeout: 5000,
-  verbose: null // Disable verbose logging in production
+  verbose: null, // Disable verbose logging in production
 });
 
 // WAL modu performans için + Pi Zero specific optimizations
-db.pragma('journal_mode = WAL');
-db.pragma('synchronous = NORMAL'); // Faster than FULL, safe for Pi Zero
-db.pragma('cache_size = -1000'); // 1MB cache (reduced for Pi Zero)
-db.pragma('temp_store = MEMORY'); // Use memory for temp tables (small amounts)
-db.pragma('mmap_size = 33554432'); // 32MB memory map (reduced for Pi Zero)
-db.pragma('page_size = 4096'); // Optimal for Pi Zero's ARM architecture
+db.pragma("journal_mode = WAL");
+db.pragma("synchronous = NORMAL"); // Faster than FULL, safe for Pi Zero
+db.pragma("cache_size = -1000"); // 1MB cache (reduced for Pi Zero)
+db.pragma("temp_store = MEMORY"); // Use memory for temp tables (small amounts)
+db.pragma("mmap_size = 33554432"); // 32MB memory map (reduced for Pi Zero)
+db.pragma("page_size = 4096"); // Optimal for Pi Zero's ARM architecture
 
 // Veritabanı tablolarını oluştur
 function initDatabase(): void {
-
   // Stories tablosu
   db.exec(`
     CREATE TABLE IF NOT EXISTS stories (
@@ -105,62 +104,62 @@ function initDatabase(): void {
   // is_favorite sütununu varolan tabloya ekle (eğer yoksa)
   try {
     db.exec(`ALTER TABLE stories ADD COLUMN is_favorite INTEGER DEFAULT 0`);
-    console.log('is_favorite sütunu eklendi');
+    console.log("is_favorite sütunu eklendi");
   } catch (error) {
     // Sütun zaten varsa hata verir, bu normaldir
-    if (!error.message.includes('duplicate column name')) {
-      console.log('is_favorite sütunu zaten mevcut');
+    if (!error.message.includes("duplicate column name")) {
+      console.log("is_favorite sütunu zaten mevcut");
     }
   }
-
 
   try {
     db.exec(`ALTER TABLE stories ADD COLUMN categories TEXT`);
-    console.log('categories sütunu eklendi');
+    console.log("categories sütunu eklendi");
   } catch (error) {
-    if (!error.message.includes('duplicate column name')) {
-      console.log('categories sütunu zaten mevcut');
+    if (!error.message.includes("duplicate column name")) {
+      console.log("categories sütunu zaten mevcut");
     }
   }
 
-
   try {
     db.exec(`ALTER TABLE stories ADD COLUMN share_id TEXT`);
-    console.log('share_id sütunu eklendi');
+    console.log("share_id sütunu eklendi");
 
     // Share_id için unique index oluştur
     try {
       db.exec(`CREATE UNIQUE INDEX idx_share_id ON stories(share_id)`);
-      console.log('share_id için unique index oluşturuldu');
+      console.log("share_id için unique index oluşturuldu");
     } catch (indexError) {
-      if (!indexError.message.includes('already exists')) {
-        console.log('share_id unique index zaten mevcut');
+      if (!indexError.message.includes("already exists")) {
+        console.log("share_id unique index zaten mevcut");
       }
     }
   } catch (error) {
-    if (!error.message.includes('duplicate column name')) {
-      console.log('share_id sütunu zaten mevcut');
+    if (!error.message.includes("duplicate column name")) {
+      console.log("share_id sütunu zaten mevcut");
     }
   }
 
   try {
     db.exec(`ALTER TABLE stories ADD COLUMN shared_at DATETIME`);
-    console.log('shared_at sütunu eklendi');
+    console.log("shared_at sütunu eklendi");
   } catch (error) {
-    if (!error.message.includes('duplicate column name')) {
-      console.log('shared_at sütunu zaten mevcut');
+    if (!error.message.includes("duplicate column name")) {
+      console.log("shared_at sütunu zaten mevcut");
     }
   }
 
   // updated_at sütununu ekle (migration)
   try {
-    db.exec(`ALTER TABLE stories ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP`);
-    console.log('updated_at sütunu eklendi');
+    db.exec(
+      `ALTER TABLE stories ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP`,
+    );
+    console.log("updated_at sütunu eklendi");
   } catch (error) {
-    if (error.message.includes('duplicate column name')) {
+    if (error.message.includes("duplicate column name")) {
       // Sütun zaten mevcut - normal durum, sessizce geç
     } else {
-      console.error('updated_at sütunu eklenemedi:', error.message);
+      console.error("updated_at sütunu eklenemedi:", error.message);
       throw error;
     }
   }
@@ -206,25 +205,27 @@ function initDatabase(): void {
         content_rowid='id'
       );
     `);
-    console.log('FTS tablosu oluşturuldu');
+    console.log("FTS tablosu oluşturuldu");
   } catch (error) {
-    console.log('FTS tablosu zaten mevcut veya hata:', error.message);
+    console.log("FTS tablosu zaten mevcut veya hata:", error.message);
   }
 
   // FTS tablosunu mevcut verilerle doldur (sadece tablo boşsa)
   try {
-    const ftsCount = db.prepare('SELECT COUNT(*) as c FROM stories_fts').get() as { c: number };
+    const ftsCount = db
+      .prepare("SELECT COUNT(*) as c FROM stories_fts")
+      .get() as { c: number };
     if (ftsCount.c === 0) {
       db.exec(`
         INSERT OR REPLACE INTO stories_fts(rowid, story_text, story_type, custom_topic)
         SELECT id, story_text, story_type, COALESCE(custom_topic, '') FROM stories;
       `);
-      console.log('FTS tablosu ilk kez dolduruldu');
+      console.log("FTS tablosu ilk kez dolduruldu");
     } else {
-      console.log('FTS tablosu zaten dolu, toplu doldurma atlandı');
+      console.log("FTS tablosu zaten dolu, toplu doldurma atlandı");
     }
   } catch (error) {
-    console.log('FTS tablosu güncelleme hatası:', error.message);
+    console.log("FTS tablosu güncelleme hatası:", error.message);
   }
 
   // Queue indeksleri
@@ -256,9 +257,9 @@ function initDatabase(): void {
         DELETE FROM stories_fts WHERE rowid = old.id;
       END;
     `);
-    console.log('FTS trigger\'ları oluşturuldu');
+    console.log("FTS trigger'ları oluşturuldu");
   } catch (error) {
-    console.log('FTS trigger\'ları zaten mevcut veya hata:', error.message);
+    console.log("FTS trigger'ları zaten mevcut veya hata:", error.message);
   }
 
   // Paylaşım sütunları ekledikten sonra indeksleri oluştur
@@ -267,33 +268,58 @@ function initDatabase(): void {
       CREATE INDEX IF NOT EXISTS idx_stories_share_id ON stories (share_id);
       CREATE INDEX IF NOT EXISTS idx_stories_shared ON stories (is_shared);
     `);
-    console.log('Paylaşım indeksleri oluşturuldu');
+    console.log("Paylaşım indeksleri oluşturuldu");
   } catch (error) {
-    console.log('Paylaşım indeksleri zaten mevcut veya hata:', error.message);
+    console.log("Paylaşım indeksleri zaten mevcut veya hata:", error.message);
   }
 
-  console.log('Veritabanı başarıyla başlatıldı:', DB_PATH);
+  console.log("Veritabanı başarıyla başlatıldı:", DB_PATH);
 
   // Boş veritabanına örnek 3 hikaye ekle (opt-in)
   try {
-    const shouldSeed = process.env.SEED_SAMPLE_STORIES === 'true';
-    const row = db.prepare('SELECT COUNT(*) as c FROM stories').get() as { c: number };
+    const shouldSeed = process.env.SEED_SAMPLE_STORIES === "true";
+    const row = db.prepare("SELECT COUNT(*) as c FROM stories").get() as {
+      c: number;
+    };
     if (shouldSeed && row.c === 0) {
       const now = new Date().toISOString();
-      const insert = db.prepare('INSERT INTO stories (story_text, story_type, custom_topic, is_favorite, created_at) VALUES (?,?,?,?,?)');
+      const insert = db.prepare(
+        "INSERT INTO stories (story_text, story_type, custom_topic, is_favorite, created_at) VALUES (?,?,?,?,?)",
+      );
       const samples = [
-        ['Küçük yıldız uykuya dalarken gökyüzü onu sarıp sakladı.', 'goodnight', 'yıldız', 0, now],
-        ['Minik tavşan ormanda nazik olmanın gerçek dostluk getirdiğini öğrendi.', 'kindness', 'tavşan', 0, now],
-        ['Sevgi dolu rüzgar sabırlı çiçeğe büyümenin zaman aldığını fısıldadı.', 'patience', 'çiçek', 0, now]
+        [
+          "Küçük yıldız uykuya dalarken gökyüzü onu sarıp sakladı.",
+          "goodnight",
+          "yıldız",
+          0,
+          now,
+        ],
+        [
+          "Minik tavşan ormanda nazik olmanın gerçek dostluk getirdiğini öğrendi.",
+          "kindness",
+          "tavşan",
+          0,
+          now,
+        ],
+        [
+          "Sevgi dolu rüzgar sabırlı çiçeğe büyümenin zaman aldığını fısıldadı.",
+          "patience",
+          "çiçek",
+          0,
+          now,
+        ],
       ];
-      const tx = db.transaction(() => { samples.forEach(s => insert.run(...s)); });
+      const tx = db.transaction(() => {
+        samples.forEach((s) => insert.run(...s));
+      });
       tx();
-      console.log('Örnek hikayeler eklendi (SEED_SAMPLE_STORIES=true).');
+      console.log("Örnek hikayeler eklendi (SEED_SAMPLE_STORIES=true).");
     }
   } catch (e) {
-    console.error('Örnek hikayeler eklenemedi:', e.message);
+    console.error("Örnek hikayeler eklenemedi:", e.message);
   }
-} initDatabase();
+}
+initDatabase();
 
 // Prepared statements - tablolar ve sütunlar oluşturulduktan sonra
 const statements = {
@@ -415,8 +441,7 @@ const statements = {
     FROM stories s
     LEFT JOIN audio_files a ON s.id = a.story_id
     WHERE s.id = ?
-  `)
-  ,
+  `),
   // Queue operations
   getQueueAll: db.prepare(`
     SELECT story_id FROM queue ORDER BY position ASC
@@ -440,43 +465,89 @@ const MAX_SEARCH_LIMIT = 50;
 
 // Utility function to generate unique share ID
 function generateShareId() {
-  return randomBytes(16).toString('hex');
+  return randomBytes(16).toString("hex");
 }
 
 // Database functions
 const storyDb = {
   // Story operations
-  createStory(storyText: string, storyType: string, customTopic: string | null = null): number {
+  createStory(
+    storyText: string,
+    storyType: string,
+    customTopic: string | null = null,
+  ): number {
     try {
-      console.log(`[DB:createStory] Creating story with type: ${storyType}, customTopic: ${customTopic}`);
-  const result = statements.insertStory.run(storyText, storyType, customTopic, null);
-  console.log(`[DB:createStory] Story created with id: ${result.lastInsertRowid}`);
-  return result.lastInsertRowid as number;
+      console.log(
+        `[DB:createStory] Creating story with type: ${storyType}, customTopic: ${customTopic}`,
+      );
+      const result = statements.insertStory.run(
+        storyText,
+        storyType,
+        customTopic,
+        null,
+      );
+      console.log(
+        `[DB:createStory] Story created with id: ${result.lastInsertRowid}`,
+      );
+      return result.lastInsertRowid as number;
     } catch (error) {
-      console.error('Masal oluşturma hatası:', error);
+      console.error("Masal oluşturma hatası:", error);
       throw error;
     }
   },
 
-  createAndFetchStory(storyText: string, storyType: string, customTopic: string | null = null): Story | null {
+  createAndFetchStory(
+    storyText: string,
+    storyType: string,
+    customTopic: string | null = null,
+  ): Story | null {
     try {
-      const beforeCount = (db.prepare('SELECT COUNT(*) as c FROM stories').get() as any)?.c;
+      const beforeCount = (
+        db.prepare("SELECT COUNT(*) as c FROM stories").get() as any
+      )?.c;
       const id = this.createStory(storyText, storyType, customTopic);
-      const afterInsertCount = (db.prepare('SELECT COUNT(*) as c FROM stories').get() as any)?.c;
+      const afterInsertCount = (
+        db.prepare("SELECT COUNT(*) as c FROM stories").get() as any
+      )?.c;
       let directRow: any = undefined;
       try {
         directRow = statements.getStoryById.get(id);
       } catch (innerErr) {
-        console.error('[DEBUG] direct select error', innerErr);
+        console.error("[DEBUG] direct select error", innerErr);
       }
-      const allRows = db.prepare('SELECT id, story_type, LENGTH(story_text) as len FROM stories ORDER BY id ASC').all();
-  let dbList: any[] = [];
-  let tableInfo: any[] = [];
-  try { dbList = db.prepare('PRAGMA database_list').all(); } catch {}
-  try { tableInfo = db.prepare('PRAGMA table_info(stories)').all(); } catch {}
-  let fileStat: any = null;
-  try { if (fs.existsSync(DB_PATH)) { const s = fs.statSync(DB_PATH); fileStat = { size: s.size }; } else { fileStat = { exists: false }; } } catch {}
-  console.log('[DEBUG createAndFetchStory]', { id, beforeCount, afterInsertCount, directRowExists: !!directRow, directRow, allRows, dbList, tableInfo, fileStat });
+      const allRows = db
+        .prepare(
+          "SELECT id, story_type, LENGTH(story_text) as len FROM stories ORDER BY id ASC",
+        )
+        .all();
+      let dbList: any[] = [];
+      let tableInfo: any[] = [];
+      try {
+        dbList = db.prepare("PRAGMA database_list").all();
+      } catch {}
+      try {
+        tableInfo = db.prepare("PRAGMA table_info(stories)").all();
+      } catch {}
+      let fileStat: any = null;
+      try {
+        if (fs.existsSync(DB_PATH)) {
+          const s = fs.statSync(DB_PATH);
+          fileStat = { size: s.size };
+        } else {
+          fileStat = { exists: false };
+        }
+      } catch {}
+      console.log("[DEBUG createAndFetchStory]", {
+        id,
+        beforeCount,
+        afterInsertCount,
+        directRowExists: !!directRow,
+        directRow,
+        allRows,
+        dbList,
+        tableInfo,
+        fileStat,
+      });
       if (directRow) return directRow as Story;
       // Retry mekanizması - teoride gerek yok ama test ortamındaki anomali için
       for (let i = 0; i < 3 && !directRow; i++) {
@@ -490,14 +561,14 @@ const storyDb = {
         id,
         story_text: storyText,
         story_type: storyType,
-        custom_topic: customTopic || '',
+        custom_topic: customTopic || "",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         // Debug işareti
-        _inconsistent: true as any
+        _inconsistent: true as any,
       } as Story;
     } catch (e) {
-      console.error('createAndFetchStory error:', e);
+      console.error("createAndFetchStory error:", e);
       throw e;
     }
   },
@@ -506,7 +577,7 @@ const storyDb = {
     try {
       return statements.getStoryById.get(id) as Story | null;
     } catch (error) {
-      console.error('Masal getirme hatası:', error);
+      console.error("Masal getirme hatası:", error);
       throw error;
     }
   },
@@ -527,7 +598,7 @@ const storyDb = {
             is_favorite: row.is_favorite,
             created_at: row.created_at,
             updated_at: row.updated_at,
-            audio: null
+            audio: null,
           });
         }
 
@@ -535,14 +606,14 @@ const storyDb = {
           storiesMap.get(row.id).audio = {
             file_name: row.file_name,
             file_path: row.file_path,
-            voice_id: row.voice_id
+            voice_id: row.voice_id,
           };
         }
       });
 
       return Array.from(storiesMap.values());
     } catch (error) {
-      console.error('Masalları getirme hatası:', error);
+      console.error("Masalları getirme hatası:", error);
       throw error;
     }
   },
@@ -551,19 +622,31 @@ const storyDb = {
     try {
       return statements.getStoriesByType.all(storyType) as StoryWithAudio[];
     } catch (error) {
-      console.error('Tip bazlı masal getirme hatası:', error);
+      console.error("Tip bazlı masal getirme hatası:", error);
       throw error;
     }
   },
 
-  updateStory(id: number, storyText: string, storyType: string, customTopic: string | null = null): boolean {
+  updateStory(
+    id: number,
+    storyText: string,
+    storyType: string,
+    customTopic: string | null = null,
+  ): boolean {
     try {
       console.log(`[DB:updateStory] Updating story with id: ${id}`);
-      const result = statements.updateStory.run(storyText, storyType, customTopic, id);
-      console.log(`[DB:updateStory] Story update result: ${result.changes} changes.`);
+      const result = statements.updateStory.run(
+        storyText,
+        storyType,
+        customTopic,
+        id,
+      );
+      console.log(
+        `[DB:updateStory] Story update result: ${result.changes} changes.`,
+      );
       return result.changes > 0;
     } catch (error) {
-      console.error('Masal güncelleme hatası:', error);
+      console.error("Masal güncelleme hatası:", error);
       throw error;
     }
   },
@@ -572,27 +655,39 @@ const storyDb = {
     try {
       console.log(`[DB:deleteStory] Attempting to delete story with id: ${id}`);
 
-      const audio = statements.getAudioByStoryId.get(id) as AudioFile | undefined;
+      const audio = statements.getAudioByStoryId.get(id) as
+        | AudioFile
+        | undefined;
       if (audio) {
-        console.log(`[DB:deleteStory] Found associated audio file: ${audio.file_path}`);
+        console.log(
+          `[DB:deleteStory] Found associated audio file: ${audio.file_path}`,
+        );
         if (fs.existsSync(audio.file_path)) {
-          console.log(`[DB:deleteStory] Audio file exists. Deleting: ${audio.file_path}`);
+          console.log(
+            `[DB:deleteStory] Audio file exists. Deleting: ${audio.file_path}`,
+          );
           fs.unlinkSync(audio.file_path);
           console.log(`[DB:deleteStory] Successfully deleted audio file.`);
         } else {
-          console.log(`[DB:deleteStory] Audio file path does not exist: ${audio.file_path}`);
+          console.log(
+            `[DB:deleteStory] Audio file path does not exist: ${audio.file_path}`,
+          );
         }
       } else {
-        console.log(`[DB:deleteStory] No associated audio file found for story id: ${id}`);
+        console.log(
+          `[DB:deleteStory] No associated audio file found for story id: ${id}`,
+        );
       }
 
       console.log(`[DB:deleteStory] Deleting story record from database.`);
       const result = statements.deleteStory.run(id);
-      console.log(`[DB:deleteStory] Database deletion result: ${result.changes} changes.`);
+      console.log(
+        `[DB:deleteStory] Database deletion result: ${result.changes} changes.`,
+      );
 
       return result.changes > 0;
     } catch (error) {
-      console.error('Masal silme hatası:', error);
+      console.error("Masal silme hatası:", error);
       throw error;
     }
   },
@@ -605,13 +700,19 @@ const storyDb = {
       }
       return null;
     } catch (error) {
-      console.error('Favori durumu güncelleme hatası:', error);
+      console.error("Favori durumu güncelleme hatası:", error);
       throw error;
     }
   },
 
   // Audio operations
-  saveAudio(storyId: number, fileName: string, filePath: string, voiceId: string, voiceSettings: any = null): number {
+  saveAudio(
+    storyId: number,
+    fileName: string,
+    filePath: string,
+    voiceId: string,
+    voiceSettings: any = null,
+  ): number {
     try {
       console.log(`[DB:saveAudio] Saving audio for story id: ${storyId}`);
       const result = statements.insertAudio.run(
@@ -619,12 +720,14 @@ const storyDb = {
         fileName,
         filePath,
         voiceId,
-        voiceSettings ? JSON.stringify(voiceSettings) : null
+        voiceSettings ? JSON.stringify(voiceSettings) : null,
       );
-      console.log(`[DB:saveAudio] Audio saved with id: ${result.lastInsertRowid}`);
+      console.log(
+        `[DB:saveAudio] Audio saved with id: ${result.lastInsertRowid}`,
+      );
       return result.lastInsertRowid as number;
     } catch (error) {
-      console.error('Ses dosyası kaydetme hatası:', error);
+      console.error("Ses dosyası kaydetme hatası:", error);
       throw error;
     }
   },
@@ -633,7 +736,7 @@ const storyDb = {
     try {
       return statements.getAudioByStoryId.get(storyId) as AudioFile | undefined;
     } catch (error) {
-      console.error('Ses dosyası getirme hatası:', error);
+      console.error("Ses dosyası getirme hatası:", error);
       throw error;
     }
   },
@@ -653,16 +756,20 @@ const storyDb = {
         custom_topic: row.custom_topic,
         created_at: row.created_at,
         updated_at: row.updated_at,
-        audio: row.audio_id ? {
-          id: row.audio_id,
-          file_name: row.file_name,
-          file_path: row.file_path,
-          voice_id: row.voice_id,
-          voice_settings: row.voice_settings ? JSON.parse(row.voice_settings) : null
-        } : null
+        audio: row.audio_id
+          ? {
+              id: row.audio_id,
+              file_name: row.file_name,
+              file_path: row.file_path,
+              voice_id: row.voice_id,
+              voice_settings: row.voice_settings
+                ? JSON.parse(row.voice_settings)
+                : null,
+            }
+          : null,
       };
     } catch (error) {
-      console.error('Masal ve ses dosyası getirme hatası:', error);
+      console.error("Masal ve ses dosyası getirme hatası:", error);
       throw error;
     }
   },
@@ -677,7 +784,7 @@ const storyDb = {
       }
       return { success: false };
     } catch (error) {
-      console.error('Masal paylaşma hatası:', error);
+      console.error("Masal paylaşma hatası:", error);
       throw error;
     }
   },
@@ -690,7 +797,7 @@ const storyDb = {
       console.log(`[DB:getQueue] Queue retrieved with ${rows.length} items`);
       return rows.map((r: any) => r.story_id);
     } catch (error) {
-      console.error('Kuyruk getirme hatası:', error);
+      console.error("Kuyruk getirme hatası:", error);
       throw error;
     }
   },
@@ -708,7 +815,7 @@ const storyDb = {
       console.log(`[DB:setQueue] Queue set successfully`);
       return true;
     } catch (error) {
-      console.error('Kuyruk güncelleme hatası:', error);
+      console.error("Kuyruk güncelleme hatası:", error);
       throw error;
     }
   },
@@ -721,13 +828,15 @@ const storyDb = {
         console.log(`[DB:addToQueue] Story id ${id} already in queue`);
         return false;
       }
-      const result = statements.getMaxQueuePos.get() as { maxpos: number } | undefined;
+      const result = statements.getMaxQueuePos.get() as
+        | { maxpos: number }
+        | undefined;
       const maxpos = result?.maxpos || 0;
       statements.insertQueueItem.run(maxpos + 1, id);
       console.log(`[DB:addToQueue] Story id ${id} added to queue`);
       return true;
     } catch (error) {
-      console.error('Kuyruğa ekleme hatası:', error);
+      console.error("Kuyruğa ekleme hatası:", error);
       throw error;
     }
   },
@@ -740,13 +849,15 @@ const storyDb = {
       const rows = statements.getQueueAll.all() as any[];
       const tx = db.transaction(() => {
         statements.clearQueue.run();
-        rows.forEach((r: any, idx) => statements.insertQueueItem.run(idx + 1, r.story_id));
+        rows.forEach((r: any, idx) =>
+          statements.insertQueueItem.run(idx + 1, r.story_id),
+        );
       });
       tx();
       console.log(`[DB:removeFromQueue] Story id ${id} removed from queue`);
       return true;
     } catch (error) {
-      console.error('Kuyruktan çıkarma hatası:', error);
+      console.error("Kuyruktan çıkarma hatası:", error);
       throw error;
     }
   },
@@ -756,7 +867,7 @@ const storyDb = {
       const result = statements.updateStorySharing.run(0, null, id);
       return result.changes > 0;
     } catch (error) {
-      console.error('Masal paylaşımı kaldırma hatası:', error);
+      console.error("Masal paylaşımı kaldırma hatası:", error);
       throw error;
     }
   },
@@ -779,14 +890,16 @@ const storyDb = {
         shared_at: row.shared_at,
         created_at: row.created_at,
         updated_at: row.updated_at,
-        audio: row.file_name ? {
-          file_name: row.file_name,
-          file_path: row.file_path,
-          voice_id: row.voice_id
-        } : null
+        audio: row.file_name
+          ? {
+              file_name: row.file_name,
+              file_path: row.file_path,
+              voice_id: row.voice_id,
+            }
+          : null,
       };
     } catch (error) {
-      console.error('Paylaşım ID ile masal getirme hatası:', error);
+      console.error("Paylaşım ID ile masal getirme hatası:", error);
       throw error;
     }
   },
@@ -810,7 +923,7 @@ const storyDb = {
             shared_at: row.shared_at,
             created_at: row.created_at,
             updated_at: row.updated_at,
-            audio: null
+            audio: null,
           });
         }
 
@@ -818,55 +931,65 @@ const storyDb = {
           storiesMap.get(row.id).audio = {
             file_name: row.file_name,
             file_path: row.file_path,
-            voice_id: row.voice_id
+            voice_id: row.voice_id,
           };
         }
       });
 
       return Array.from(storiesMap.values());
     } catch (error) {
-      console.error('Paylaşılan masalları getirme hatası:', error);
+      console.error("Paylaşılan masalları getirme hatası:", error);
       throw error;
     }
   },
 
   searchStoriesByTitle(query, limit = MAX_SEARCH_LIMIT) {
     try {
-      if (!query || typeof query !== 'string' || query.trim().length === 0) {
+      if (!query || typeof query !== "string" || query.trim().length === 0) {
         return [];
       }
 
       // Title search is based on custom_topic and story_type
       const likePattern = `%${query.trim()}%`;
-      const rows = statements.searchStoriesByTitle.all(likePattern, likePattern, Math.min(limit, MAX_SEARCH_LIMIT));
+      const rows = statements.searchStoriesByTitle.all(
+        likePattern,
+        likePattern,
+        Math.min(limit, MAX_SEARCH_LIMIT),
+      );
 
       return this.processStoryRows(rows);
     } catch (error) {
-      console.error('Başlık arama hatası:', error);
+      console.error("Başlık arama hatası:", error);
       throw error;
     }
   },
 
   searchStoriesByContent(query, limit = MAX_SEARCH_LIMIT) {
     try {
-      if (!query || typeof query !== 'string' || query.trim().length === 0) {
+      if (!query || typeof query !== "string" || query.trim().length === 0) {
         return [];
       }
 
       const likePattern = `%${query.trim()}%`;
-      const rows = statements.searchStoriesByContent.all(likePattern, Math.min(limit, MAX_SEARCH_LIMIT));
+      const rows = statements.searchStoriesByContent.all(
+        likePattern,
+        Math.min(limit, MAX_SEARCH_LIMIT),
+      );
 
       return this.processStoryRows(rows);
     } catch (error) {
-      console.error('İçerik arama hatası:', error);
+      console.error("İçerik arama hatası:", error);
       throw error;
     }
   },
 
   // Ana arama metodu - FTS ve fallback LIKE araması
-  searchStories(query: string, options: { limit?: number; useFTS?: boolean } = {}): SearchResult[] {
+  searchStories(
+    query: string,
+    options: { limit?: number; useFTS?: boolean } = {},
+  ): SearchResult[] {
     try {
-      if (!query || typeof query !== 'string' || query.trim().length === 0) {
+      if (!query || typeof query !== "string" || query.trim().length === 0) {
         return [];
       }
 
@@ -879,39 +1002,47 @@ const storyDb = {
         try {
           // FTS5 query - escape special characters and use Unicode-safe handling
           const ftsQuery = searchTerm
-            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-            .replace(/\s+/g, ' ')
+            .replace(/[^\p{L}\p{N}\s]/gu, " ")
+            .replace(/\s+/g, " ")
             .trim();
 
           if (ftsQuery.length > 0) {
-            const rows = statements.searchStoriesFTS.all(ftsQuery, effectiveLimit);
+            const rows = statements.searchStoriesFTS.all(
+              ftsQuery,
+              effectiveLimit,
+            );
             const results = this.processStoryRows(rows);
             if (results.length > 0) {
               return results;
             }
           }
         } catch (ftsError) {
-          console.log('FTS search failed, falling back to basic search:', ftsError.message);
+          console.log(
+            "FTS search failed, falling back to basic search:",
+            ftsError.message,
+          );
         }
       }
 
       // Fallback: LIKE search on both title and content
       const likePattern = `%${searchTerm}%`;
-      const rows = statements.searchStoriesByContent.all(likePattern, effectiveLimit);
+      const rows = statements.searchStoriesByContent.all(
+        likePattern,
+        effectiveLimit,
+      );
 
       return this.processStoryRows(rows);
     } catch (error) {
-      console.error('Arama hatası:', error);
+      console.error("Arama hatası:", error);
       throw error;
     }
   },
-
 
   // Helper function to process story rows consistently
   processStoryRows(rows) {
     const storiesMap = new Map();
 
-    rows.forEach(row => {
+    rows.forEach((row) => {
       if (!storiesMap.has(row.id)) {
         storiesMap.set(row.id, {
           id: row.id,
@@ -925,7 +1056,7 @@ const storyDb = {
           created_at: row.created_at,
           updated_at: row.updated_at,
           audio: null,
-          rank: row.rank || null
+          rank: row.rank || null,
         });
       }
 
@@ -933,7 +1064,7 @@ const storyDb = {
         storiesMap.get(row.id).audio = {
           file_name: row.file_name,
           file_path: row.file_path,
-          voice_id: row.voice_id
+          voice_id: row.voice_id,
         };
       }
     });
@@ -969,10 +1100,10 @@ const storyDb = {
         shared_at: row.shared_at,
         created_at: row.created_at,
         updated_at: row.updated_at,
-        audio: null
+        audio: null,
       }));
     } catch (error) {
-      console.error('Get stories without audio error:', error);
+      console.error("Get stories without audio error:", error);
       throw error;
     }
   },
@@ -999,14 +1130,16 @@ const storyDb = {
         shared_at: row.shared_at,
         created_at: row.created_at,
         updated_at: row.updated_at,
-        audio: row.file_name ? {
-          file_name: row.file_name,
-          file_path: row.file_path,
-          voice_id: row.voice_id
-        } : null
+        audio: row.file_name
+          ? {
+              file_name: row.file_name,
+              file_path: row.file_path,
+              voice_id: row.voice_id,
+            }
+          : null,
       }));
     } catch (error) {
-      console.error('Get recent stories error:', error);
+      console.error("Get recent stories error:", error);
       throw error;
     }
   },
@@ -1033,24 +1166,24 @@ const storyDb = {
         shared_at: row.shared_at,
         created_at: row.created_at,
         updated_at: row.updated_at,
-        audio: row.file_name ? {
-          file_name: row.file_name,
-          file_path: row.file_path,
-          voice_id: row.voice_id
-        } : null
+        audio: row.file_name
+          ? {
+              file_name: row.file_name,
+              file_path: row.file_path,
+              voice_id: row.voice_id,
+            }
+          : null,
       }));
     } catch (error) {
-      console.error('Get favorite stories error:', error);
+      console.error("Get favorite stories error:", error);
       throw error;
     }
   },
 
   close() {
     db.close();
-  }
-}
-
-
+  },
+};
 
 export default storyDb;
 export { Story, AudioFile, StoryWithAudio, SearchResult, DatabaseConfig };

@@ -1,12 +1,19 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Mic, MicOff, Volume2, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
-import { STTService, GPT4oMiniSTTService } from '@/services/sttService';
-import { VoiceAssistantService } from '@/services/voiceAssistantService';
-import { logger } from '@/utils/logger';
+import React, { useState, useRef, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import {
+  Mic,
+  MicOff,
+  Volume2,
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+} from "lucide-react";
+import { STTService, GPT4oMiniSTTService } from "@/services/sttService";
+import { VoiceAssistantService } from "@/services/voiceAssistantService";
+import { logger } from "@/utils/logger";
 
 export interface VoiceCommand {
   intent: string;
@@ -49,7 +56,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ isActive }) => {
     if (!canvasRef.current) return;
 
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     let animationTime = 0;
@@ -63,12 +70,16 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ isActive }) => {
         const amplitude = 20;
         const frequency = 0.02;
 
-        ctx.strokeStyle = '#3b82f6';
+        ctx.strokeStyle = "#3b82f6";
         ctx.lineWidth = 2;
         ctx.beginPath();
 
         for (let x = 0; x < canvas.width; x += 2) {
-          const y = centerY + Math.sin(x * frequency + animationTime) * amplitude * (0.5 + Math.random() * 0.5);
+          const y =
+            centerY +
+            Math.sin(x * frequency + animationTime) *
+              amplitude *
+              (0.5 + Math.random() * 0.5);
           if (x === 0) {
             ctx.moveTo(x, y);
           } else {
@@ -105,51 +116,56 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ isActive }) => {
 export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
   onVoiceCommand,
   disabled = false,
-  className = '',
-  settings
+  className = "",
+  settings,
 }) => {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [transcription, setTranscription] = useState<string>('');
+  const [transcription, setTranscription] = useState<string>("");
   const [lastCommand, setLastCommand] = useState<VoiceCommand | null>(null);
   const [progress, setProgress] = useState(0);
-  const [error, setError] = useState<string>('');
-  const [microphonePermission, setMicrophonePermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
+  const [error, setError] = useState<string>("");
+  const [microphonePermission, setMicrophonePermission] = useState<
+    "granted" | "denied" | "prompt"
+  >("prompt");
 
   const sttServiceRef = useRef<STTService | GPT4oMiniSTTService | null>(null);
 
   // Initialize STT service (manual mode only)
   useEffect(() => {
     const sttSettings = settings?.sttSettings || {};
-  const modelId = sttSettings.model || 'whisper-1';
+    const modelId = sttSettings.model || "whisper-1";
 
     // Choose service based on model
-  if (modelId === 'gpt-4o-mini-transcribe') { // legacy enhanced model branch retained for backward compatibility
+    if (modelId === "gpt-4o-mini-transcribe") {
+      // legacy enhanced model branch retained for backward compatibility
       sttServiceRef.current = new GPT4oMiniSTTService({
-        sttProvider: sttSettings.provider || 'openai',
+        sttProvider: sttSettings.provider || "openai",
         openaiSTT: {
-          modelId: modelId
+          modelId: modelId,
         },
         audioSettings: {
           sampleRate: 16000,
           channels: 1,
           bitDepth: 16,
-          format: 'webm'
+          format: "webm",
         },
-        responseFormat: (sttSettings.responseFormat as 'json' | 'verbose_json') || 'verbose_json'
+        responseFormat:
+          (sttSettings.responseFormat as "json" | "verbose_json") ||
+          "verbose_json",
       });
     } else {
       sttServiceRef.current = new STTService({
-        sttProvider: sttSettings.provider || 'openai',
+        sttProvider: sttSettings.provider || "openai",
         openaiSTT: {
-          modelId: modelId
+          modelId: modelId,
         },
         audioSettings: {
           sampleRate: 16000,
           channels: 1,
           bitDepth: 16,
-          format: 'webm'
-        }
+          format: "webm",
+        },
       });
     }
 
@@ -167,42 +183,44 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
     try {
       // First try to get user media to trigger permission request
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(track => track.stop()); // Close stream immediately
+      stream.getTracks().forEach((track) => track.stop()); // Close stream immediately
 
       const hasPermission = await STTService.checkMicrophonePermission();
-      setMicrophonePermission(hasPermission ? 'granted' : 'denied');
+      setMicrophonePermission(hasPermission ? "granted" : "denied");
 
       if (hasPermission) {
-        setError(''); // Clear any permission errors
+        setError(""); // Clear any permission errors
       }
     } catch (error) {
-      console.error('Microphone permission error:', error);
-      setMicrophonePermission('denied');
-      setError('Mikrofon izni gerekli. Lütfen tarayıcı ayarlarından mikrofon erişimine izin verin.');
+      console.error("Microphone permission error:", error);
+      setMicrophonePermission("denied");
+      setError(
+        "Mikrofon izni gerekli. Lütfen tarayıcı ayarlarından mikrofon erişimine izin verin.",
+      );
     }
   };
 
   const handleStartListening = async () => {
-    if (!sttServiceRef.current || disabled || isListening || isProcessing) return;
+    if (!sttServiceRef.current || disabled || isListening || isProcessing)
+      return;
 
     try {
-      setError('');
-      setTranscription('');
+      setError("");
+      setTranscription("");
       setProgress(0);
       setIsListening(true);
 
-      logger.debug('Starting voice recording', 'VoiceCommandPanel');
+      logger.debug("Starting voice recording", "VoiceCommandPanel");
       await sttServiceRef.current.startListening();
-      setMicrophonePermission('granted');
-
+      setMicrophonePermission("granted");
     } catch (error) {
-      logger.error('Failed to start listening', 'VoiceCommandPanel', {
-        error: (error as Error)?.message
+      logger.error("Failed to start listening", "VoiceCommandPanel", {
+        error: (error as Error)?.message,
       });
-      setError('Mikrofon erişimi başarısız. Lütfen izin verin.');
+      setError("Mikrofon erişimi başarısız. Lütfen izin verin.");
       setIsListening(false);
-      if ((error as Error)?.message?.includes('permission')) {
-        setMicrophonePermission('denied');
+      if ((error as Error)?.message?.includes("permission")) {
+        setMicrophonePermission("denied");
       }
     }
   };
@@ -215,63 +233,73 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
       setIsProcessing(true);
       setProgress(10);
 
-      logger.debug('Stopping voice recording and transcribing', 'VoiceCommandPanel');
+      logger.debug(
+        "Stopping voice recording and transcribing",
+        "VoiceCommandPanel",
+      );
 
-      const result = await sttServiceRef.current.stopListening((progress: number) => {
-        setProgress(progress * 0.6); // STT takes 60% of progress
-      });
+      const result = await sttServiceRef.current.stopListening(
+        (progress: number) => {
+          setProgress(progress * 0.6); // STT takes 60% of progress
+        },
+      );
 
       setTranscription(result.text);
       setProgress(70);
 
       // Process voice command using LLM-based Voice Assistant
       if (result.text && result.text.length > 0) {
-        logger.debug('Processing voice input with LLM', 'VoiceCommandPanel', {
-          text: result.text.substring(0, 100)
+        logger.debug("Processing voice input with LLM", "VoiceCommandPanel", {
+          text: result.text.substring(0, 100),
         });
 
         const voiceAssistant = new VoiceAssistantService();
-        const assistantResponse = await voiceAssistant.processVoiceTranscript(result.text);
+        const assistantResponse = await voiceAssistant.processVoiceTranscript(
+          result.text,
+        );
 
         setProgress(90);
 
         // Create VoiceCommand from LLM response
         const voiceCommand: VoiceCommand = {
-          intent: assistantResponse.isTtsRequest ? 'generate_audio' : 'story_request',
+          intent: assistantResponse.isTtsRequest
+            ? "generate_audio"
+            : "story_request",
           parameters: {
-            storyType: 'custom',
-            customTopic: assistantResponse.response || result.text
+            storyType: "custom",
+            customTopic: assistantResponse.response || result.text,
           },
           confidence: 0.95, // LLM responses are considered high confidence
-          originalText: result.text
+          originalText: result.text,
         };
 
         setLastCommand(voiceCommand);
         setProgress(100);
 
-        logger.debug('LLM voice processing completed', 'VoiceCommandPanel', {
+        logger.debug("LLM voice processing completed", "VoiceCommandPanel", {
           intent: voiceCommand.intent,
           isTtsRequest: assistantResponse.isTtsRequest,
-          response: assistantResponse.response?.substring(0, 50)
+          response: assistantResponse.response?.substring(0, 50),
         });
 
         // Always call the callback - LLM handles all voice inputs appropriately
         try {
           onVoiceCommand(voiceCommand);
         } catch (callbackError) {
-          console.error('🎵 [Voice Pipeline] Callback error:', callbackError);
-          setError('Voice command processing failed: ' + (callbackError as Error)?.message);
+          console.error("🎵 [Voice Pipeline] Callback error:", callbackError);
+          setError(
+            "Voice command processing failed: " +
+              (callbackError as Error)?.message,
+          );
         }
-
       } else {
-        setError('Ses kaydı boş. Lütfen tekrar deneyin.');
+        setError("Ses kaydı boş. Lütfen tekrar deneyin.");
       }
-
     } catch (error) {
-      logger.error('Voice assistant processing failed', 'VoiceCommandPanel', {
-        error: (error as Error)?.message
+      logger.error("Voice assistant processing failed", "VoiceCommandPanel", {
+        error: (error as Error)?.message,
       });
-      setError('Ses asistanı başarısız: ' + (error as Error)?.message);
+      setError("Ses asistanı başarısız: " + (error as Error)?.message);
     } finally {
       setIsProcessing(false);
       setProgress(0);
@@ -280,26 +308,26 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
 
   const getIntentDisplayName = (intent: string): string => {
     const intentMap: { [key: string]: string } = {
-      story_request: 'Masal İsteği',
-      fairy_tale: 'Peri Masalı',
-      adventure: 'Macera',
-      educational: 'Eğitici',
-      animal: 'Hayvan',
-      play_story: 'Oynat',
-      pause_story: 'Duraklat',
-      stop_story: 'Durdur',
-      generate_audio: 'Sese Dönüştür',
-      settings: 'Ayarlar',
-      help: 'Yardım',
-      unknown: 'Bilinmeyen'
+      story_request: "Masal İsteği",
+      fairy_tale: "Peri Masalı",
+      adventure: "Macera",
+      educational: "Eğitici",
+      animal: "Hayvan",
+      play_story: "Oynat",
+      pause_story: "Duraklat",
+      stop_story: "Durdur",
+      generate_audio: "Sese Dönüştür",
+      settings: "Ayarlar",
+      help: "Yardım",
+      unknown: "Bilinmeyen",
     };
     return intentMap[intent] || intent;
   };
 
   const getConfidenceColor = (confidence: number): string => {
-    if (confidence >= 0.8) return 'bg-green-500';
-    if (confidence >= 0.6) return 'bg-yellow-500';
-    return 'bg-red-500';
+    if (confidence >= 0.8) return "bg-green-500";
+    if (confidence >= 0.6) return "bg-yellow-500";
+    return "bg-red-500";
   };
 
   return (
@@ -311,7 +339,7 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
             <Volume2 className="w-5 h-5 text-blue-600" />
             <h3 className="text-lg font-semibold">Sesli Komut</h3>
           </div>
-          {microphonePermission === 'denied' && (
+          {microphonePermission === "denied" && (
             <Badge variant="destructive" className="text-xs">
               Mikrofon İzni Gerekli
             </Badge>
@@ -328,7 +356,9 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
           <Button
             size="default"
             variant={isListening ? "destructive" : "default"}
-            disabled={disabled || isProcessing || microphonePermission === 'denied'}
+            disabled={
+              disabled || isProcessing || microphonePermission === "denied"
+            }
             onClick={isListening ? handleStopListening : handleStartListening}
             className="w-16 h-16 rounded-full p-0"
           >
@@ -364,8 +394,11 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
           <div className="space-y-2">
             <Progress value={progress} className="w-full" />
             <p className="text-xs text-center text-gray-500">
-              {progress < 50 ? 'Ses tanınıyor...' :
-               progress < 90 ? 'Komut işleniyor...' : 'Tamamlanıyor...'}
+              {progress < 50
+                ? "Ses tanınıyor..."
+                : progress < 90
+                  ? "Komut işleniyor..."
+                  : "Tamamlanıyor..."}
             </p>
           </div>
         )}
@@ -401,7 +434,9 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
                 Komut: {getIntentDisplayName(lastCommand.intent)}
               </span>
               <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${getConfidenceColor(lastCommand.confidence)}`} />
+                <div
+                  className={`w-2 h-2 rounded-full ${getConfidenceColor(lastCommand.confidence)}`}
+                />
                 <span className="text-xs text-gray-500">
                   %{Math.round(lastCommand.confidence * 100)}
                 </span>
@@ -449,7 +484,7 @@ export const VoiceCommandPanel: React.FC<VoiceCommandPanelProps> = ({
         )}
 
         {/* Model Information */}
-  {(settings?.sttSettings?.model === 'gpt-4o-mini-transcribe') && (
+        {settings?.sttSettings?.model === "gpt-4o-mini-transcribe" && (
           <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-md">
             <h4 className="text-sm font-medium text-green-700 dark:text-green-300 mb-2">
               ✓ Enhanced STT Active

@@ -1,42 +1,48 @@
-import React from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import { BookOpen, Sparkles, Volume2 } from 'lucide-react'
-import { storyTypes } from '@/utils/storyTypes'
+import React from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { BookOpen, Sparkles, Volume2 } from "lucide-react";
+import { storyTypes } from "@/utils/storyTypes";
 
 interface Story {
-  id: string | number
-  story?: string
-  story_text?: string
-  storyType?: string
-  story_type?: string
-  customTopic?: string
-  custom_topic?: string
-  createdAt?: string
-  created_at?: string
-  audioUrl?: string | null
+  id: string | number;
+  story?: string;
+  story_text?: string;
+  storyType?: string;
+  story_type?: string;
+  customTopic?: string;
+  custom_topic?: string;
+  createdAt?: string;
+  created_at?: string;
+  audioUrl?: string | null;
   audio?: {
-    file_name?: string
-    file_path?: string
-    voice_id?: string
-  }
+    file_name?: string;
+    file_path?: string;
+    voice_id?: string;
+  };
 }
 
 interface StoryTypeSelectorProps {
-  selectedType: string
-  customTopic: string
-  onTypeChange: (typeId: string) => void
-  onCustomTopicChange: (topic: string) => void
-  onGenerateStory: () => void
-  onGenerateAudio: () => void
-  isGenerating: boolean
-  isGeneratingAudio: boolean
-  story: Story | null
-  progress: number
+  selectedType: string;
+  customTopic: string;
+  onTypeChange: (typeId: string) => void;
+  onCustomTopicChange: (topic: string) => void;
+  onGenerateStory: () => void;
+  onGenerateAudio: () => void;
+  isGenerating: boolean;
+  isGeneratingAudio: boolean;
+  story: Story | null;
+  progress: number;
 }
 
 /**
@@ -68,27 +74,29 @@ export default function StoryTypeSelector({
   isGenerating,
   isGeneratingAudio,
   story,
-  progress
+  progress,
 }: StoryTypeSelectorProps) {
   const handleTypeChange = (typeId: string) => {
-    onTypeChange(typeId)
-  }
+    onTypeChange(typeId);
+  };
 
-  const handleCustomTopicChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value
-    onCustomTopicChange(value)
+  const handleCustomTopicChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>,
+  ) => {
+    const value = e.target.value;
+    onCustomTopicChange(value);
     // Özel konu yazılmaya başlandığında seçili türü temizle
     if (value.trim() && selectedType) {
-      onTypeChange('')
+      onTypeChange("");
     }
-  }
+  };
 
   const handleCustomTopicFocus = () => {
     // Text area'ya odaklanıldığında seçili türü temizle
     if (selectedType) {
-      onTypeChange('')
+      onTypeChange("");
     }
-  }
+  };
 
   return (
     <Card className="mb-8">
@@ -102,20 +110,21 @@ export default function StoryTypeSelector({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-
         {/* Masal Türü Butonları - Mobilde 2x5, desktopta 2x5 (toplam 10) */}
         <div className="space-y-3">
-          <Label className="text-sm font-medium">En Sevilen Masal Türleri</Label>
+          <Label className="text-sm font-medium">
+            En Sevilen Masal Türleri
+          </Label>
           {(() => {
             // 10 türü al, mobilde 5+5 (iki satır), >=sm'de tek grid (5x2)
-            const topTen = storyTypes.slice(0, 10)
-            const firstRow = topTen.slice(0, 5)
-            const secondRow = topTen.slice(5, 10)
+            const topTen = storyTypes.slice(0, 10);
+            const firstRow = topTen.slice(0, 5);
+            const secondRow = topTen.slice(5, 10);
 
             const renderButton = (type: (typeof storyTypes)[number]) => (
               <Button
                 key={type.id}
-                variant={selectedType === type.id ? 'default' : 'outline'}
+                variant={selectedType === type.id ? "default" : "outline"}
                 onClick={() => handleTypeChange(type.id)}
                 className="w-full min-w-0 justify-center flex flex-col items-center gap-1 h-14 p-1.5 text-[10px] sm:text-xs"
                 size="sm"
@@ -125,7 +134,7 @@ export default function StoryTypeSelector({
                   {type.name}
                 </span>
               </Button>
-            )
+            );
 
             return (
               <>
@@ -143,7 +152,7 @@ export default function StoryTypeSelector({
                   {topTen.map(renderButton)}
                 </div>
               </>
-            )
+            );
           })()}
         </div>
 
@@ -164,7 +173,9 @@ export default function StoryTypeSelector({
             <div className="flex flex-col gap-2 min-w-[120px]">
               <Button
                 onClick={onGenerateStory}
-                disabled={isGenerating || (!selectedType && !customTopic.trim())}
+                disabled={
+                  isGenerating || (!selectedType && !customTopic.trim())
+                }
                 className="flex items-center gap-2 w-full"
                 size="default"
               >
@@ -209,7 +220,9 @@ export default function StoryTypeSelector({
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>
-                  {isGenerating ? 'Masal oluşturuluyor...' : 'Ses oluşturuluyor...'}
+                  {isGenerating
+                    ? "Masal oluşturuluyor..."
+                    : "Ses oluşturuluyor..."}
                 </span>
                 <span>{progress}%</span>
               </div>
@@ -224,7 +237,8 @@ export default function StoryTypeSelector({
             <div className="flex items-center gap-2 mb-1">
               {selectedType && (
                 <Badge variant="secondary" className="text-xs">
-                  {storyTypes.find(t => t.id === selectedType)?.icon} {storyTypes.find(t => t.id === selectedType)?.name}
+                  {storyTypes.find((t) => t.id === selectedType)?.icon}{" "}
+                  {storyTypes.find((t) => t.id === selectedType)?.name}
                 </Badge>
               )}
               {customTopic.trim() && !selectedType && (
@@ -235,15 +249,14 @@ export default function StoryTypeSelector({
             </div>
             <p className="text-xs text-muted-foreground">
               {customTopic.trim() && !selectedType
-                ? `"${customTopic.substring(0, 80)}${customTopic.length > 80 ? '...' : ''}" konulu özel masal oluşturulacak`
+                ? `"${customTopic.substring(0, 80)}${customTopic.length > 80 ? "..." : ""}" konulu özel masal oluşturulacak`
                 : selectedType
-                  ? storyTypes.find(t => t.id === selectedType)?.description
-                  : ''
-              }
+                  ? storyTypes.find((t) => t.id === selectedType)?.description
+                  : ""}
             </p>
           </div>
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

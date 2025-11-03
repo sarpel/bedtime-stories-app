@@ -1,33 +1,45 @@
-import { useRef, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Button } from '@/components/ui/button.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
-import { Separator } from '@/components/ui/separator.jsx'
-import { AlertCircle, ExternalLink, Key, HelpCircle, X } from 'lucide-react'
+import { useRef, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card.jsx";
+import { Button } from "@/components/ui/button.jsx";
+import { Badge } from "@/components/ui/badge.jsx";
+import { Separator } from "@/components/ui/separator.jsx";
+import { AlertCircle, ExternalLink, Key, HelpCircle, X } from "lucide-react";
 
 interface ApiKeyHelpProps {
-  onClose: () => void
+  onClose: () => void;
 }
 
 export default function ApiKeyHelp({ onClose }: ApiKeyHelpProps) {
-  const panelRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // Click outside handler
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
-        onClose()
+      if (
+        panelRef.current &&
+        !panelRef.current.contains(event.target as Node)
+      ) {
+        onClose();
       }
-    }
+    };
 
-    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [onClose])
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [onClose]);
 
   return (
-    <div ref={panelRef} className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div
+      ref={panelRef}
+      className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    >
       <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <CardHeader className="sticky top-0 bg-card/95 backdrop-blur-sm border-b">
           <div className="flex items-center justify-between">
@@ -53,7 +65,9 @@ export default function ApiKeyHelp({ onClose }: ApiKeyHelpProps) {
             <div className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-orange-500" />
               <h3 className="text-lg font-semibold">ElevenLabs API Anahtarı</h3>
-              <Badge variant="outline" className="text-xs">Gerekli</Badge>
+              <Badge variant="outline" className="text-xs">
+                Gerekli
+              </Badge>
             </div>
 
             <div className="space-y-3">
@@ -62,10 +76,23 @@ export default function ApiKeyHelp({ onClose }: ApiKeyHelpProps) {
                   Hızlı Kurulum:
                 </h4>
                 <ol className="text-sm text-orange-700 dark:text-orange-300 space-y-1">
-                  <li>1. <a href="https://elevenlabs.io" target="_blank" rel="noopener noreferrer" className="underline hover:text-orange-900 dark:hover:text-orange-100">ElevenLabs.io</a>'ya gidin</li>
+                  <li>
+                    1.{" "}
+                    <a
+                      href="https://elevenlabs.io"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-orange-900 dark:hover:text-orange-100"
+                    >
+                      ElevenLabs.io
+                    </a>
+                    'ya gidin
+                  </li>
                   <li>2. Ücretsiz hesap oluşturun</li>
                   <li>3. Profile Settings → API Key → Generate New Key</li>
-                  <li>4. API anahtarını kopyalayın (xi-api-key-... formatında)</li>
+                  <li>
+                    4. API anahtarını kopyalayın (xi-api-key-... formatında)
+                  </li>
                   <li>5. .env dosyalarına ekleyin</li>
                 </ol>
               </div>
@@ -93,7 +120,9 @@ export default function ApiKeyHelp({ onClose }: ApiKeyHelpProps) {
               <div className="flex items-center gap-2">
                 <HelpCircle className="h-5 w-5 text-blue-500" />
                 <h3 className="text-lg font-semibold">OpenAI API Anahtarı</h3>
-                <Badge variant="outline" className="text-xs">Gerekli</Badge>
+                <Badge variant="outline" className="text-xs">
+                  Gerekli
+                </Badge>
               </div>
 
               <div className="space-y-3">
@@ -102,7 +131,18 @@ export default function ApiKeyHelp({ onClose }: ApiKeyHelpProps) {
                     Hızlı Kurulum:
                   </h4>
                   <ol className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
-                    <li>1. <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-900 dark:hover:text-blue-100">OpenAI Platform</a>'a gidin</li>
+                    <li>
+                      1.{" "}
+                      <a
+                        href="https://platform.openai.com/api-keys"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline hover:text-blue-900 dark:hover:text-blue-100"
+                      >
+                        OpenAI Platform
+                      </a>
+                      'a gidin
+                    </li>
                     <li>2. Hesap oluşturun veya giriş yapın</li>
                     <li>3. API Keys → Create new secret key</li>
                     <li>4. API anahtarını kopyalayın (sk-... formatında)</li>
@@ -138,7 +178,10 @@ export default function ApiKeyHelp({ onClose }: ApiKeyHelpProps) {
               </div>
               <div className="flex items-start gap-2">
                 <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
-                <span>ElevenLabs ücretsiz hesabı ile aylık 10,000 karakter kullanabilirsiniz</span>
+                <span>
+                  ElevenLabs ücretsiz hesabı ile aylık 10,000 karakter
+                  kullanabilirsiniz
+                </span>
               </div>
               <div className="flex items-start gap-2">
                 <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
@@ -146,7 +189,9 @@ export default function ApiKeyHelp({ onClose }: ApiKeyHelpProps) {
               </div>
               <div className="flex items-start gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-                <span>API anahtarlarını ekledikten sonra uygulamayı yeniden başlatın</span>
+                <span>
+                  API anahtarlarını ekledikten sonra uygulamayı yeniden başlatın
+                </span>
               </div>
             </div>
           </div>
@@ -155,14 +200,16 @@ export default function ApiKeyHelp({ onClose }: ApiKeyHelpProps) {
           <div className="border-t pt-6">
             <div className="flex flex-col sm:flex-row gap-3">
               <Button
-                onClick={() => window.open('https://elevenlabs.io', '_blank')}
+                onClick={() => window.open("https://elevenlabs.io", "_blank")}
                 className="flex-1"
               >
                 <ExternalLink className="h-4 w-4 mr-2" />
                 ElevenLabs'a Git
               </Button>
               <Button
-                onClick={() => window.open('https://platform.openai.com/api-keys', '_blank')}
+                onClick={() =>
+                  window.open("https://platform.openai.com/api-keys", "_blank")
+                }
                 variant="outline"
                 className="flex-1"
               >
@@ -174,5 +221,5 @@ export default function ApiKeyHelp({ onClose }: ApiKeyHelpProps) {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
