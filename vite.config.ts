@@ -105,9 +105,6 @@ export default defineConfig(({ mode }) => {
               './src/utils/logger',
               './src/utils/safeLocalStorage',
               './src/utils/share'
-            ],
-            'app-monitoring': [
-              './src/utils/stabilityMonitor'
             ]
           },
           // Optimize chunk naming for production
@@ -133,35 +130,14 @@ export default defineConfig(({ mode }) => {
       // Source maps only in development
       sourcemap: isDev,
 
-      // Production minification
-      minify: isProd ? 'terser' : false,
+      // Production minification using esbuild (faster and built-in)
+      minify: isProd ? 'esbuild' : false,
 
-      // Terser options optimized for production
-      terserOptions: isProd ? {
-        compress: {
-          drop_console: true,
-          drop_debugger: true,
-          pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'],
-          passes: 3,
-          unsafe_arrows: true,
-          unsafe_comps: true,
-          unsafe_methods: true,
-          unsafe_proto: true,
-          unsafe_regexp: true,
-          hoist_funs: true,
-          hoist_props: true,
-          hoist_vars: true
-        },
-        mangle: {
-          safari10: true,
-          keep_fnames: false,
-          properties: false
-        },
-        format: {
-          comments: false,
-          ascii_only: true,
-          ecma: 2020
-        }
+      // esbuild minify options for production
+      esbuildOptions: isProd ? {
+        drop: ['console', 'debugger'],
+        legalComments: 'none',
+        target: 'es2020'
       } : undefined,
 
       // CSS optimization
