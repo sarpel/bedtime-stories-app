@@ -1459,7 +1459,7 @@ app.post('/api/voice-assistant', async (req, res) => {
 
     const systemPrompt = `Sen bir çocuklar için masal asistanısın. Görevin:
 1. MASAL ÜRETİMİ: Her isteği masal talebi olarak değerlendir ve uygun, eğitici, sevgi dolu, yaşa uygun bir masal üret.
-2. TTS İSTEĞİ: Eğer kullanıcı sadece mevcut masalı seslendirmek istiyorsa (örn: \'seslendir\', \'sesli oku\', \'dinlemek istiyorum\'), yanıtı '__TTS_REQUEST__ Mevcut masalı seslendiriyorum.' şeklinde ver.
+2. TTS İSTEĞİ: Eğer kullanıcı sadece mevcut masalı seslendirmek istiyorsa (örn: 'seslendir', 'sesli oku', 'dinlemek istiyorum'), yanıtı '__TTS_REQUEST__ Mevcut masalı seslendiriyorum.' şeklinde ver.
 3. EĞER KULLANICI AÇIKÇA YENİ MASAL İSTİYORSA: Tam masalı üret (en az 6-8 cümle, sakin ve uyku öncesi ton). Başına '__TTS_REQUEST__' KOYMA.
 4. SADECE MASAL VEYA TTS İSTEĞİNE CEVAP VER. Başka açıklama, meta yorum, rol tekrarı yapma.
 5. FORMAT: Paragraflar halinde, sade, Türkçe ve 5 yaşındaki bir çocuk için anlaşılır.

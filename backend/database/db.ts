@@ -472,17 +472,17 @@ const storyDb = {
       const allRows = db.prepare('SELECT id, story_type, LENGTH(story_text) as len FROM stories ORDER BY id ASC').all();
   let dbList: any[] = [];
   let tableInfo: any[] = [];
-  try { dbList = db.prepare('PRAGMA database_list').all(); } catch {}
-  try { tableInfo = db.prepare('PRAGMA table_info(stories)').all(); } catch {}
+  try { dbList = db.prepare('PRAGMA database_list').all(); } catch (e) { /* Ignore database_list errors */ }
+  try { tableInfo = db.prepare('PRAGMA table_info(stories)').all(); } catch (e) { /* Ignore table_info errors */ }
   let fileStat: any = null;
-  try { if (fs.existsSync(DB_PATH)) { const s = fs.statSync(DB_PATH); fileStat = { size: s.size }; } else { fileStat = { exists: false }; } } catch {}
+  try { if (fs.existsSync(DB_PATH)) { const s = fs.statSync(DB_PATH); fileStat = { size: s.size }; } else { fileStat = { exists: false }; } } catch (e) { /* Ignore file stat errors */ }
   console.log('[DEBUG createAndFetchStory]', { id, beforeCount, afterInsertCount, directRowExists: !!directRow, directRow, allRows, dbList, tableInfo, fileStat });
       if (directRow) return directRow as Story;
       // Retry mekanizması - teoride gerek yok ama test ortamındaki anomali için
       for (let i = 0; i < 3 && !directRow; i++) {
         try {
           directRow = statements.getStoryById.get(id);
-        } catch {}
+        } catch (e) { /* Retry on error */ }
       }
       if (directRow) return directRow as Story;
       // Fallback: en azından bellekten oluşturulmuş objeyi döndür (debug flag ile)
