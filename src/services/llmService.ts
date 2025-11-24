@@ -98,10 +98,14 @@ export class LLMService {
   }
 
   // Generate story using custom LLM endpoint
+  // ROBUSTNESS & SECURITY FIXES applied
   async generateStory(onProgress: (progress: number) => void, storyType: string | null = null, customTopic = '') {
     try {
+      // EDGE CASE FIX: Validate onProgress callback
+      const safeProgress = typeof onProgress === 'function' ? onProgress : () => {};
+      
       // Model kontrolü
-      if (!this.modelId) {
+      if (!this.modelId || typeof this.modelId !== 'string') {
         throw new Error('LLM ayarları eksik. Lütfen model bilgisini kontrol edin.')
       }
 
@@ -110,22 +114,33 @@ export class LLMService {
         llmSettings: { temperature: this.temperature, maxTokens: this.maxTokens },
         customPrompt: this.customPrompt
       }
-      const cachedStory = storyCache.getStory(storyType || '', customTopic, cacheKeyMeta)
+      
+      // SECURITY FIX: Sanitize cache key components
+      const sanitizedStoryType = (storyType || '').substring(0, 100);
+      const sanitizedCustomTopic = customTopic.substring(0, 200);
+      
+      const cachedStory = storyCache.getStory(sanitizedStoryType, sanitizedCustomTopic, cacheKeyMeta)
 
       if (cachedStory) {
         console.log('[LLMService:cacheHit]', {
-          storyType,
-          customTopic,
+          storyType: sanitizedStoryType,
+          customTopic: sanitizedCustomTopic,
           length: cachedStory.length
         })
-        onProgress?.(100)
+        safeProgress(100)
         return cachedStory
       }
 
-      onProgress?.(10)
+      safeProgress(10)
 
       const prompt = this.buildPrompt(storyType || null, customTopic)
-      onProgress?.(30)
+      
+      // SECURITY FIX: Validate prompt length to prevent abuse
+      if (prompt.length > 10000) {
+        throw new Error('Generated prompt exceeds maximum length (10000 characters)')
+      }
+      
+      safeProgress(30)
 
       // İstek backend proxy'imize yönlendirilir (aynı origin, dev'de Vite proxy)
       const url = `/api/llm`
@@ -145,16 +160,26 @@ export class LLMService {
         temperature: payload.temperature
       })
       const t0 = Date.now()
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        // Backend'e gerekli tüm bilgileri gönderiyoruz
-        body: JSON.stringify(payload)
-      })
+      
+      // ROBUSTNESS FIX: Add timeout and proper error handling
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 120000) // 2 min timeout
+      
+      let response
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        })
+      } finally {
+        clearTimeout(timeoutId)
+      }
 
-      onProgress?.(70)
+      safeProgress(70)
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'non-json-response' }))
@@ -163,7 +188,13 @@ export class LLMService {
           statusText: response.statusText,
           error: errorData?.error
         })
-        throw new Error(`LLM API hatası (${response.status}): ${errorData.error}`)
+        // SECURITY FIX: Don't expose internal error details to user
+        const userMessage = response.status === 401 || response.status === 403
+          ? 'API anahtarı geçersiz veya yetkisiz'
+          : response.status === 429
+          ? 'API rate limit aşıldı, lütfen bekleyip tekrar deneyin'
+          : 'LLM API hatası oluştu'
+        throw new Error(`${userMessage} (${response.status})`)
       }
 
       const data = await response.json()
@@ -174,23 +205,33 @@ export class LLMService {
         keys: Object.keys(data || {}),
         textLen: typeof data?.text === 'string' ? data.text.length : undefined
       })
-      onProgress?.(90)
+      safeProgress(90)
 
       // Backend normalize edilmiş text döndürüyorsa onu kullan
       const story = (typeof data?.text === 'string' && data.text.trim())
         ? data.text.trim()
         : this.extractStoryFromResponse(data)
+      
+      // EDGE CASE FIX: Validate story content
+      if (!story || typeof story !== 'string') {
+        throw new Error('LLM yanıtından geçerli metin alınamadı')
+      }
+      
+      if (story.length < 50) {
+        throw new Error('LLM çok kısa bir yanıt döndürdü, lütfen tekrar deneyin')
+      }
+      
       console.log('[LLMService:extract]', {
-        extractedLen: story?.length || 0,
+        extractedLen: story.length,
         isString: typeof story === 'string'
       })
-      onProgress?.(100)
+      safeProgress(100)
 
       // Önbellekle
-      storyCache.setStory(storyType || '', customTopic, cacheKeyMeta, story)
+      storyCache.setStory(sanitizedStoryType, sanitizedCustomTopic, cacheKeyMeta, story)
       console.log('[LLMService:cacheSet]', {
-        storyType,
-        customTopic,
+        storyType: sanitizedStoryType,
+        customTopic: sanitizedCustomTopic,
         length: story.length
       })
 
@@ -198,7 +239,14 @@ export class LLMService {
 
     } catch (error) {
       console.error('[LLMService:error]', { message: (error as Error).message })
-      throw error
+      // ROBUSTNESS FIX: Provide user-friendly error messages
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new Error('LLM isteği zaman aşımına uğradı (2 dakika), lütfen tekrar deneyin')
+        }
+        throw error
+      }
+      throw new Error('Beklenmeyen bir hata oluştu')
     }
   }
 
