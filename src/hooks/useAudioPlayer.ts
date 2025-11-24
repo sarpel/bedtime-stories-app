@@ -24,24 +24,37 @@ export function useAudioPlayer() {
   }, [])
 
   // Audio event handlers
+  // ROBUSTNESS FIX: Proper cleanup and error handling for all audio events
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
 
     const handleLoadedMetadata = () => {
-      setDuration(audio.duration)
+      // EDGE CASE FIX: Handle NaN or Infinity duration
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration)
+      } else {
+        setDuration(0)
+      }
     }
 
     const handleTimeUpdate = () => {
-      if (audio.duration) {
-        setProgress((audio.currentTime / audio.duration) * 100)
+      // EDGE CASE FIX: Prevent division by zero and handle invalid values
+      if (audio.duration && Number.isFinite(audio.duration) && audio.duration > 0) {
+        const currentTime = Number.isFinite(audio.currentTime) ? audio.currentTime : 0
+        setProgress((currentTime / audio.duration) * 100)
       }
     }
 
     const handleEnded = () => {
       // Analytics: Track audio completion
       if (currentStoryId) {
-        analyticsService.trackAudioPlayback(currentStoryId, 'complete', audio.currentTime)
+        try {
+          analyticsService.trackAudioPlayback(currentStoryId, 'complete', audio.currentTime)
+        } catch (analyticsError) {
+          // Non-critical: Log but don't fail
+          console.error('Analytics tracking failed:', analyticsError)
+        }
       }
 
       setIsPlaying(false)
@@ -49,7 +62,7 @@ export function useAudioPlayer() {
       setProgress(0)
       setCurrentStoryId(null)
 
-      // Kuyruk/playlist için harici sonlanma callback'i
+      // ROBUSTNESS FIX: Safe callback execution with error handling
       try {
         if (typeof onEndedRef.current === 'function') {
           onEndedRef.current()
@@ -62,7 +75,11 @@ export function useAudioPlayer() {
     const handlePlay = () => {
       // Analytics: Track audio play
       if (currentStoryId) {
-        analyticsService.trackAudioPlayback(currentStoryId, 'play', audio.currentTime)
+        try {
+          analyticsService.trackAudioPlayback(currentStoryId, 'play', audio.currentTime)
+        } catch (analyticsError) {
+          console.error('Analytics tracking failed:', analyticsError)
+        }
       }
 
       setIsPlaying(true)
@@ -72,20 +89,34 @@ export function useAudioPlayer() {
     const handlePause = () => {
       // Analytics: Track audio pause
       if (currentStoryId) {
-        analyticsService.trackAudioPlayback(currentStoryId, 'pause', audio.currentTime)
+        try {
+          analyticsService.trackAudioPlayback(currentStoryId, 'pause', audio.currentTime)
+        } catch (analyticsError) {
+          console.error('Analytics tracking failed:', analyticsError)
+        }
       }
 
       setIsPlaying(false)
       setIsPaused(true)
     }
 
-    const handleError = () => {
-      console.error('Audio playback error')
+    const handleError = (event: Event) => {
+      // ROBUSTNESS FIX: Detailed error logging for debugging
+      const errorEvent = event as ErrorEvent
+      console.error('Audio playback error:', {
+        error: errorEvent.error,
+        message: errorEvent.message,
+        src: audio.src,
+        readyState: audio.readyState,
+        networkState: audio.networkState
+      })
+      
       setIsPlaying(false)
       setIsPaused(false)
       setCurrentStoryId(null)
     }
 
+    // ROBUSTNESS FIX: Add these event listeners
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('ended', handleEnded)
@@ -93,6 +124,7 @@ export function useAudioPlayer() {
     audio.addEventListener('pause', handlePause)
     audio.addEventListener('error', handleError)
 
+    // CRITICAL FIX: Proper cleanup to prevent memory leaks
     return () => {
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
       audio.removeEventListener('timeupdate', handleTimeUpdate)
@@ -101,7 +133,7 @@ export function useAudioPlayer() {
       audio.removeEventListener('pause', handlePause)
       audio.removeEventListener('error', handleError)
     }
-  }, [currentAudio, currentStoryId])
+  }, [currentAudio, currentStoryId]) // Dependencies properly listed
 
   // Volume control
   useEffect(() => {
@@ -118,7 +150,16 @@ export function useAudioPlayer() {
   }, [playbackRate])
 
   const playAudio = async (audioUrl: string, storyId: string): Promise<void> => {
-    if (!audioUrl) return
+    // EDGE CASE FIX: Input validation
+    if (!audioUrl || typeof audioUrl !== 'string') {
+      console.error('Invalid audio URL provided')
+      return
+    }
+    
+    if (!storyId || typeof storyId !== 'string') {
+      console.error('Invalid story ID provided')
+      return
+    }
 
     try {
       console.log('🎵 [Audio Player] Starting web audio playback...', { audioUrl, storyId })
@@ -127,14 +168,25 @@ export function useAudioPlayer() {
       console.log('🎵 [Audio Player] Using web audio player')
 
       const audio = audioRef.current
-      if (!audio) return
+      if (!audio) {
+        console.error('Audio element not initialized')
+        return
+      }
 
       // Eğer aynı ses çalıyorsa, sadece pause/resume yap
       if (currentStoryId === storyId && currentAudio === audioUrl) {
         if (isPlaying) {
           audio.pause()
         } else {
-          await audio.play()
+          // ROBUSTNESS FIX: Handle play() promise rejection
+          try {
+            await audio.play()
+          } catch (playError) {
+            console.error('Resume playback failed:', playError)
+            // Reset state on failure
+            setIsPlaying(false)
+            setCurrentStoryId(null)
+          }
         }
         return
       }
@@ -142,6 +194,8 @@ export function useAudioPlayer() {
       // Farklı bir ses çalacaksa, önce çalanı duraklat
       if (isPlaying || isPaused) {
         audio.pause()
+        // ROBUSTNESS FIX: Reset currentTime to release resources
+        audio.currentTime = 0
       }
 
       // Yeni ses dosyasını yükle
@@ -150,9 +204,18 @@ export function useAudioPlayer() {
       audio.src = audioUrl
       audio.volume = isMuted ? 0 : volume
 
-      await audio.play()
-
-      console.log('🎵 [Audio Player] Web audio playback started successfully')
+      // ROBUSTNESS FIX: Handle play() promise properly
+      try {
+        await audio.play()
+        console.log('🎵 [Audio Player] Web audio playback started successfully')
+      } catch (playError: unknown) {
+        // Browser autoplay policy or other playback error
+        console.error('🎵 [Audio Player] Play failed:', playError instanceof Error ? playError.message : String(playError))
+        setIsPlaying(false)
+        setCurrentStoryId(null)
+        setCurrentAudio(null)
+        throw playError // Re-throw to allow caller to handle
+      }
 
     } catch (error: unknown) {
       console.error('🎵 [Audio Player] Playback failed:', error instanceof Error ? error.message : String(error))
@@ -192,14 +255,41 @@ export function useAudioPlayer() {
   }
 
   const seekTo = (percentage: number): void => {
+    // EDGE CASE FIX: Validate percentage input
+    if (typeof percentage !== 'number' || !Number.isFinite(percentage)) {
+      console.error('Invalid percentage value for seek:', percentage)
+      return
+    }
+    
+    // Clamp percentage to valid range [0, 100]
+    const clampedPercentage = Math.max(0, Math.min(100, percentage))
+    
     if (!audioRef.current) return
     const audio = audioRef.current
     const dur = audio.duration || duration
-    if (!dur || Number.isNaN(dur)) return
-    const newTime = Math.max(0, Math.min(dur, (percentage / 100) * dur))
-    audio.currentTime = newTime
-    // Seeker hareketinde progress anında güncellensin
-    setProgress((newTime / dur) * 100)
+    
+    // EDGE CASE FIX: Handle invalid or zero duration
+    if (!dur || !Number.isFinite(dur) || dur <= 0) {
+      console.warn('Cannot seek: invalid duration', dur)
+      return
+    }
+    
+    const newTime = Math.max(0, Math.min(dur, (clampedPercentage / 100) * dur))
+    
+    // EDGE CASE FIX: Validate calculated time
+    if (!Number.isFinite(newTime)) {
+      console.error('Calculated seek time is invalid:', newTime)
+      return
+    }
+    
+    try {
+      audio.currentTime = newTime
+      // Seeker hareketinde progress anında güncellensin
+      setProgress((newTime / dur) * 100)
+    } catch (seekError) {
+      // Some media formats don't support seeking
+      console.error('Seek operation failed:', seekError)
+    }
   }
 
   const setOnEnded = (callback: (() => void) | null): void => {

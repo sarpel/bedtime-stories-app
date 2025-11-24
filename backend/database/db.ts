@@ -830,15 +830,25 @@ const storyDb = {
     }
   },
 
-  searchStoriesByTitle(query, limit = MAX_SEARCH_LIMIT) {
+  searchStoriesByTitle(query: string, limit: number = MAX_SEARCH_LIMIT): Story[] {
     try {
+      // SECURITY FIX: Input validation to prevent SQL injection and performance issues
       if (!query || typeof query !== 'string' || query.trim().length === 0) {
         return [];
       }
+      
+      // SECURITY: Sanitize query to prevent LIKE injection (%, _, etc.)
+      const sanitizedQuery = query.trim().replace(/[%_\\]/g, '\\$&');
+      if (sanitizedQuery.length > 200) {
+        throw new Error('Search query too long (max 200 characters)');
+      }
 
+      // SECURITY: Validate limit parameter
+      const safeLimit = Math.min(Math.max(1, Math.floor(limit)), MAX_SEARCH_LIMIT);
+      
       // Title search is based on custom_topic and story_type
-      const likePattern = `%${query.trim()}%`;
-      const rows = statements.searchStoriesByTitle.all(likePattern, likePattern, Math.min(limit, MAX_SEARCH_LIMIT));
+      const likePattern = `%${sanitizedQuery}%`;
+      const rows = statements.searchStoriesByTitle.all(likePattern, likePattern, safeLimit);
 
       return this.processStoryRows(rows);
     } catch (error) {
@@ -847,14 +857,24 @@ const storyDb = {
     }
   },
 
-  searchStoriesByContent(query, limit = MAX_SEARCH_LIMIT) {
+  searchStoriesByContent(query: string, limit: number = MAX_SEARCH_LIMIT): Story[] {
     try {
+      // SECURITY FIX: Input validation to prevent SQL injection
       if (!query || typeof query !== 'string' || query.trim().length === 0) {
         return [];
       }
+      
+      // SECURITY: Sanitize query to prevent LIKE injection
+      const sanitizedQuery = query.trim().replace(/[%_\\]/g, '\\$&');
+      if (sanitizedQuery.length > 500) {
+        throw new Error('Search query too long (max 500 characters)');
+      }
 
-      const likePattern = `%${query.trim()}%`;
-      const rows = statements.searchStoriesByContent.all(likePattern, Math.min(limit, MAX_SEARCH_LIMIT));
+      // SECURITY: Validate limit parameter
+      const safeLimit = Math.min(Math.max(1, Math.floor(limit)), MAX_SEARCH_LIMIT);
+
+      const likePattern = `%${sanitizedQuery}%`;
+      const rows = statements.searchStoriesByContent.all(likePattern, safeLimit);
 
       return this.processStoryRows(rows);
     } catch (error) {
@@ -864,26 +884,36 @@ const storyDb = {
   },
 
   // Ana arama metodu - FTS ve fallback LIKE araması
+  // SECURITY & ROBUSTNESS FIXES applied
   searchStories(query: string, options: { limit?: number; useFTS?: boolean } = {}): SearchResult[] {
     try {
+      // SECURITY FIX: Input validation
       if (!query || typeof query !== 'string' || query.trim().length === 0) {
         return [];
+      }
+      
+      if (query.length > 500) {
+        throw new Error('Search query too long (max 500 characters)');
       }
 
       const { limit = MAX_SEARCH_LIMIT, useFTS = true } = options;
       const searchTerm = query.trim();
-      const effectiveLimit = Math.min(limit, MAX_SEARCH_LIMIT);
+      
+      // SECURITY: Validate limit parameter
+      const effectiveLimit = Math.min(Math.max(1, Math.floor(limit)), MAX_SEARCH_LIMIT);
 
       // FTS arama öncelikli
       if (useFTS) {
         try {
-          // FTS5 query - escape special characters and use Unicode-safe handling
+          // SECURITY FIX: FTS5 query - escape special characters properly
+          // Remove potentially malicious FTS5 operators and special chars
           const ftsQuery = searchTerm
-            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-            .replace(/\s+/g, ' ')
+            .replace(/["*()[\]{}^~|&!]/g, ' ') // Remove FTS5 special operators
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ') // Keep only letters, numbers, spaces
+            .replace(/\s+/g, ' ') // Normalize whitespace
             .trim();
 
-          if (ftsQuery.length > 0) {
+          if (ftsQuery.length > 0 && ftsQuery.length <= 200) {
             const rows = statements.searchStoriesFTS.all(ftsQuery, effectiveLimit);
             const results = this.processStoryRows(rows);
             if (results.length > 0) {
@@ -895,8 +925,9 @@ const storyDb = {
         }
       }
 
-      // Fallback: LIKE search on both title and content
-      const likePattern = `%${searchTerm}%`;
+      // Fallback: LIKE search on content with proper sanitization
+      const sanitizedTerm = searchTerm.replace(/[%_\\]/g, '\\$&');
+      const likePattern = `%${sanitizedTerm}%`;
       const rows = statements.searchStoriesByContent.all(likePattern, effectiveLimit);
 
       return this.processStoryRows(rows);

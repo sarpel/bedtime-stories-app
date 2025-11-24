@@ -104,7 +104,20 @@ try {
 
 // Utility: Convert raw PCM to WAV format
 // Gemini TTS returns PCM: 16-bit, 24kHz, mono
+// ROBUSTNESS FIX: Added buffer size validation to prevent memory issues
 function pcmToWav(pcmBuffer: Buffer): Buffer {
+  // Input validation: Prevent extremely large buffers that could cause memory issues
+  const MAX_AUDIO_SIZE = 100 * 1024 * 1024; // 100MB max
+  if (!Buffer.isBuffer(pcmBuffer)) {
+    throw new Error('Invalid PCM buffer: not a Buffer instance');
+  }
+  if (pcmBuffer.length === 0) {
+    throw new Error('Invalid PCM buffer: empty buffer');
+  }
+  if (pcmBuffer.length > MAX_AUDIO_SIZE) {
+    throw new Error(`Invalid PCM buffer: exceeds maximum size (${MAX_AUDIO_SIZE} bytes)`);
+  }
+
   const numChannels = 1;
   const sampleRate = 24000;
   const bitsPerSample = 16;
@@ -357,16 +370,40 @@ try {
 // /healthz kaldırıldı (tekil /health endpoint'i kullanılacak)
 
 // Paylaşılan masalların ses dosyalarına erişim (public endpoint)
+// SECURITY FIX: Added path traversal protection and proper error handling
 app.get('/api/shared/:shareId/audio', (req, res) => {
   try {
     const shareId = req.params.shareId;
+    
+    // Input validation: shareId should be alphanumeric (hex from randomBytes)
+    if (!/^[a-f0-9]+$/i.test(shareId)) {
+      logger.warn({ msg: 'Invalid shareId format in audio request', shareId });
+      return res.status(400).json({ error: 'Geçersiz paylaşım ID formatı.' });
+    }
+
     const story = storyDb.getStoryByShareId(shareId);
 
     if (!story?.audio) {
       return res.status(404).json({ error: 'Paylaşılan masalın ses dosyası bulunamadı.' });
     }
 
-    const audioPath = path.join(__dirname, 'audio', story.audio.file_name);
+    // SECURITY: Validate filename to prevent path traversal
+    const fileName = story.audio.file_name;
+    if (!fileName || fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
+      logger.warn({ msg: 'Potential path traversal attempt in shareId audio', fileName, shareId });
+      return res.status(403).json({ error: 'Geçersiz ses dosyası adı.' });
+    }
+
+    const audioPath = path.join(__dirname, 'audio', fileName);
+    
+    // SECURITY: Verify the resolved path is within audio directory
+    const audioDir = path.join(__dirname, 'audio');
+    const resolvedPath = path.resolve(audioPath);
+    const resolvedAudioDir = path.resolve(audioDir);
+    if (!resolvedPath.startsWith(resolvedAudioDir + path.sep) && resolvedPath !== resolvedAudioDir) {
+      logger.warn({ msg: 'Path traversal attempt blocked', resolvedPath, audioDir: resolvedAudioDir });
+      return res.status(403).json({ error: 'Erişim reddedildi.' });
+    }
 
     // Dosyanın var olup olmadığını kontrol et
     if (!fs.existsSync(audioPath)) {
@@ -375,11 +412,18 @@ app.get('/api/shared/:shareId/audio', (req, res) => {
 
     // Ses dosyasını stream olarak gönder
     res.setHeader('Content-Type', 'audio/mpeg');
+    // ROBUSTNESS FIX: Handle stream errors properly
     const stream = fs.createReadStream(audioPath);
+    stream.on('error', (streamError) => {
+      logger.error({ msg: 'Audio stream error', error: streamError.message });
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Ses dosyası okunamadı.' });
+      }
+    });
     stream.pipe(res);
 
   } catch (error) {
-    console.error('Paylaşılan ses dosyası servisi hatası:', error);
+    logger.error({ msg: 'Paylaşılan ses dosyası servisi hatası', error: error?.message });
     res.status(500).json({ error: 'Ses dosyası servis edilirken hata oluştu.' });
   }
 });
@@ -414,15 +458,39 @@ app.post('/api/play/stop', (req, res) => {
 
 app.post('/api/play/:id', (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    if (!Number.isFinite(id) || id <= 0) {
-      return res.status(400).json({ error: 'Geçersiz masal ID' });
+    // SECURITY FIX: Strict input validation to prevent injection
+    const idParam = req.params.id;
+    if (!/^\d+$/.test(idParam)) {
+      return res.status(400).json({ error: 'Geçersiz masal ID formatı' });
     }
+    const id = parseInt(idParam, 10);
+    if (!Number.isFinite(id) || id <= 0 || id > Number.MAX_SAFE_INTEGER) {
+      return res.status(400).json({ error: 'Geçersiz masal ID aralığı' });
+    }
+    
     const story = storyDb.getStoryWithAudio(id);
     if (!story || !story.audio || !story.audio.file_name) {
       return res.status(404).json({ error: 'Masalın kayıtlı bir ses dosyası yok.' });
     }
-    const audioPath = path.join(storyDb.getAudioDir(), story.audio.file_name);
+    
+    // SECURITY: Validate filename to prevent path traversal
+    const fileName = story.audio.file_name;
+    if (!fileName || fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
+      logger.warn({ msg: 'Potential path traversal in play endpoint', fileName, id });
+      return res.status(403).json({ error: 'Geçersiz ses dosyası adı.' });
+    }
+    
+    const audioPath = path.join(storyDb.getAudioDir(), fileName);
+    
+    // SECURITY: Verify resolved path is within audio directory
+    const audioDir = storyDb.getAudioDir();
+    const resolvedPath = path.resolve(audioPath);
+    const resolvedAudioDir = path.resolve(audioDir);
+    if (!resolvedPath.startsWith(resolvedAudioDir + path.sep) && resolvedPath !== resolvedAudioDir) {
+      logger.warn({ msg: 'Path traversal attempt in play endpoint', resolvedPath, audioDir: resolvedAudioDir });
+      return res.status(403).json({ error: 'Erişim reddedildi.' });
+    }
+    
     if (!fs.existsSync(audioPath)) {
       return res.status(404).json({ error: 'Ses dosyası bulunamadı (diskte yok).' });
     }
@@ -437,13 +505,23 @@ app.post('/api/play/:id', (req, res) => {
       return res.json({ success: true, dryRun: true, message: 'DRY_RUN modunda oynatma simüle edildi', storyId: id });
     }
 
-    // Komutu argümanlara parçala (örn: "ffplay -nodisp -autoexit")
+    // SECURITY: Sanitize command arguments to prevent command injection
     const parts = AUDIO_PLAYER_CMD.split(/\s+/).filter(Boolean);
+    if (parts.length === 0) {
+      return res.status(500).json({ error: 'Ses oynatıcı komutu yapılandırılmamış.' });
+    }
     const bin = parts.shift();
+    // Only allow safe, validated path as argument
     const args = [...parts, audioPath];
 
     const child = spawn(bin, args, { stdio: 'ignore' });
     currentPlayback = { process: child, storyId: id, startedAt: new Date().toISOString(), file: audioPath };
+
+    // ROBUSTNESS FIX: Handle spawn errors
+    child.on('error', (spawnError) => {
+      logger.error({ msg: 'Spawn error in play endpoint', error: spawnError.message });
+      stopCurrentPlayback('error');
+    });
 
     child.on('exit', (code, signal) => {
       // Normal bitiş veya öldürülme: state temizle
@@ -1320,9 +1398,9 @@ app.post('/api/tts', async (req, res) => {
 
     // Eğer storyId varsa, ses dosyasını kaydet
     if (storyId) {
-      // Security: Validate storyId to prevent path traversal attacks
-      const sanitizedStoryId = parseInt(storyId);
-      if (isNaN(sanitizedStoryId) || sanitizedStoryId <= 0) {
+      // SECURITY FIX: Validate storyId to prevent path traversal attacks
+      const sanitizedStoryId = parseInt(storyId, 10);
+      if (isNaN(sanitizedStoryId) || sanitizedStoryId <= 0 || sanitizedStoryId > Number.MAX_SAFE_INTEGER) {
         logger.warn({ msg: 'Invalid storyId format', storyId });
         // Continue without saving file but still stream to client
         const contentType = provider === 'gemini' ? 'audio/wav' : 'audio/mpeg';
@@ -1333,11 +1411,31 @@ app.post('/api/tts', async (req, res) => {
       }
 
       try {
-        // Security: Use sanitized storyId for filename
+        // SECURITY FIX: Use sanitized storyId for filename with strict validation
         // Use .wav for Gemini (PCM converted to WAV), .mp3 for others
         const fileExtension = provider === 'gemini' ? 'wav' : 'mp3';
-        const fileName = `story-${sanitizedStoryId}-${Date.now()}.${fileExtension}`;
-        const filePath = path.join(storyDb.getAudioDir(), fileName);
+        // SECURITY: Only allow alphanumeric filename components
+        const timestamp = Date.now();
+        if (!/^\d+$/.test(String(timestamp))) {
+          throw new Error('Invalid timestamp for filename');
+        }
+        const fileName = `story-${sanitizedStoryId}-${timestamp}.${fileExtension}`;
+        
+        // SECURITY: Validate audioDir path before joining
+        const audioDir = storyDb.getAudioDir();
+        if (!audioDir || typeof audioDir !== 'string') {
+          throw new Error('Invalid audio directory configuration');
+        }
+        
+        const filePath = path.join(audioDir, fileName);
+        
+        // SECURITY: Verify resolved path is within audio directory
+        const resolvedPath = path.resolve(filePath);
+        const resolvedAudioDir = path.resolve(audioDir);
+        if (!resolvedPath.startsWith(resolvedAudioDir + path.sep) && resolvedPath !== resolvedAudioDir) {
+          logger.error({ msg: 'Path traversal attempt in TTS save', resolvedPath, audioDir: resolvedAudioDir });
+          throw new Error('Invalid file path');
+        }
 
         // Use PassThrough streams to tee the incoming stream
         const tee1 = new PassThrough();
