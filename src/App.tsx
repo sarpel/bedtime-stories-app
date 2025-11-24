@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button.jsx";
 import { Card, CardContent } from "@/components/ui/card.jsx";
 import {
@@ -937,12 +937,13 @@ function App() {
     }
   };
 
-  const clearStory = () => {
+  // PERFORMANCE: Memoize clearStory to prevent unnecessary re-renders
+  const clearStory = useCallback(() => {
     setStory("");
     setAudioUrl("");
     setCurrentStoryId(null);
     setError("");
-  };
+  }, []);
 
   // Save story manually when user clicks save button or auto-save from voice commands
   const saveStory = async (

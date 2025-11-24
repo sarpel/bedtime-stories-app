@@ -187,10 +187,11 @@ function initDatabase(): void {
     )
   `);
 
-  // İndeksler performans için
+  // İndeksler performans için - PERFORMANCE: Added favorite index
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_stories_type ON stories (story_type);
     CREATE INDEX IF NOT EXISTS idx_stories_created ON stories (created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_stories_favorite ON stories (is_favorite);
     CREATE INDEX IF NOT EXISTS idx_audio_story_id ON audio_files (story_id);
   `);
 
