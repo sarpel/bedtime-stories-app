@@ -139,6 +139,11 @@ export class TTSService {
     );
 
     try {
+      // SECURITY: Validate input text to prevent injection attacks
+      if (typeof text !== 'string') {
+        throw new Error("Geçersiz metin türü - string bekleniyor.");
+      }
+      
       // Model kontrolü
       if (!this.modelId || !this.voiceId) {
         console.error(
@@ -149,9 +154,16 @@ export class TTSService {
         );
       }
 
+      // EDGE CASE: Check for null, undefined, or empty text
       if (!text || text.trim().length === 0) {
         console.error("🎵 [TTSService Debug] No text provided for TTS");
         throw new Error("Seslendirilecek metin bulunamadı.");
+      }
+
+      // SECURITY: Limit text length to prevent DOS attacks (max 10000 chars)
+      if (text.length > 10000) {
+        console.error("🎵 [TTSService Debug] Text too long:", text.length);
+        throw new Error("Metin çok uzun. Maksimum 10000 karakter desteklenir.");
       }
 
       // API anahtarını istemciden istemiyoruz; anahtarlar sunucu tarafında tutulur
@@ -209,38 +221,54 @@ export class TTSService {
 
       console.log("🔊 [TTSService] Request payload:", requestPayload);
 
-      // İstek relative backend yoluna yapılıyor (Vite proxy/prod aynı origin)
-      const response = await fetch("/api/tts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestPayload),
-      });
+      // ROBUSTNESS: Create AbortController for request cancellation
+      const abortController = new AbortController();
 
-      onProgress?.(60);
+      try {
+        // İstek relative backend yoluna yapılıyor (Vite proxy/prod aynı origin)
+        const response = await fetch("/api/tts", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestPayload),
+          signal: abortController.signal, // Allow request cancellation
+        });
 
-      console.log("🔊 [TTSService] Response status:", response.status);
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`TTS API hatası (${response.status}): ${errorText}`);
+        onProgress?.(60);
+
+        console.log("🔊 [TTSService] Response status:", response.status);
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`TTS API hatası (${response.status}): ${errorText}`);
+        }
+
+        const audioBlob = await response.blob();
+        onProgress?.(90);
+
+        const audioUrl = URL.createObjectURL(audioBlob);
+        onProgress?.(100);
+
+        // Önbellekle
+        audioCache.setAudio(
+          text,
+          cacheKey,
+          { voiceSettings: this.voiceSettings },
+          audioUrl,
+        );
+
+        return audioUrl;
+      } catch (fetchError) {
+        // ROBUSTNESS: Handle abort errors gracefully
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+          console.log("[TTSService:aborted]", { storyId });
+          throw new Error('İstek iptal edildi');
+        }
+        throw fetchError;
+      } finally {
+        // ROBUSTNESS: Cleanup abort controller
+        abortController.abort();
       }
-
-      const audioBlob = await response.blob();
-      onProgress?.(90);
-
-      const audioUrl = URL.createObjectURL(audioBlob);
-      onProgress?.(100);
-
-      // Önbellekle
-      audioCache.setAudio(
-        text,
-        cacheKey,
-        { voiceSettings: this.voiceSettings },
-        audioUrl,
-      );
-
-      return audioUrl;
     } catch (error) {
       logger.error("TTS audio generation failed", "TTSService", {
         error: (error as Error)?.message,

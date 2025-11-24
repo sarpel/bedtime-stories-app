@@ -21,6 +21,15 @@ export function useAudioPlayer() {
       audioRef.current = new Audio();
       audioRef.current.preload = "metadata";
     }
+
+    // ROBUSTNESS: Cleanup audio element on unmount to prevent memory leaks
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = ""; // Release audio buffer
+        audioRef.current = null;
+      }
+    };
   }, []);
 
   // Audio event handlers

@@ -114,6 +114,9 @@ export class LLMService {
     storyType: string | null = null,
     customTopic = "",
   ) {
+    // ROBUSTNESS: Create AbortController for request cancellation
+    const abortController = new AbortController();
+    
     try {
       // Model kontrolü
       if (!this.modelId) {
@@ -169,13 +172,15 @@ export class LLMService {
         temperature: payload.temperature,
       });
       const t0 = Date.now();
+      
+      // ROBUSTNESS: Add timeout and abort signal to fetch
       const response = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        // Backend'e gerekli tüm bilgileri gönderiyoruz
         body: JSON.stringify(payload),
+        signal: abortController.signal, // Allow request cancellation
       });
 
       onProgress?.(70);
@@ -225,10 +230,19 @@ export class LLMService {
 
       return story;
     } catch (error) {
+      // ROBUSTNESS: Handle abort errors gracefully
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log("[LLMService:aborted]", { storyType, customTopic });
+        throw new Error('İstek iptal edildi');
+      }
+      
       console.error("[LLMService:error]", {
         message: (error as Error).message,
       });
       throw error;
+    } finally {
+      // ROBUSTNESS: Cleanup abort controller
+      abortController.abort();
     }
   }
 

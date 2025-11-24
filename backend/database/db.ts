@@ -524,10 +524,16 @@ const storyDb = {
       let tableInfo: any[] = [];
       try {
         dbList = db.prepare("PRAGMA database_list").all();
-      } catch {}
+      } catch (err) {
+        // Log error for debugging but continue - this is debug info only
+        console.error("[DEBUG] Failed to get database_list:", (err as Error)?.message);
+      }
       try {
         tableInfo = db.prepare("PRAGMA table_info(stories)").all();
-      } catch {}
+      } catch (err) {
+        // Log error for debugging but continue - this is debug info only
+        console.error("[DEBUG] Failed to get table_info:", (err as Error)?.message);
+      }
       let fileStat: any = null;
       try {
         if (fs.existsSync(DB_PATH)) {
@@ -536,7 +542,10 @@ const storyDb = {
         } else {
           fileStat = { exists: false };
         }
-      } catch {}
+      } catch (err) {
+        // Log error for debugging but continue - this is debug info only
+        console.error("[DEBUG] Failed to get file stat:", (err as Error)?.message);
+      }
       console.log("[DEBUG createAndFetchStory]", {
         id,
         beforeCount,
@@ -553,7 +562,10 @@ const storyDb = {
       for (let i = 0; i < 3 && !directRow; i++) {
         try {
           directRow = statements.getStoryById.get(id);
-        } catch {}
+        } catch (retryErr) {
+          // Log retry failure for debugging - silently continue to next retry
+          console.error(`[DEBUG] Retry ${i + 1}/3 failed:`, (retryErr as Error)?.message);
+        }
       }
       if (directRow) return directRow as Story;
       // Fallback: en azından bellekten oluşturulmuş objeyi döndür (debug flag ile)
