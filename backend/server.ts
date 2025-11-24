@@ -56,7 +56,9 @@ function preview(str: any, len = 80) {
     if (typeof str !== "string") return undefined;
     const t = str.trim();
     return t.length <= len ? t : t.slice(0, len) + "…";
-  } catch {
+  } catch (err) {
+    // SECURITY: Prevent crashes from malformed input - log for debugging
+    console.error("[preview] Failed to preview string:", (err as Error)?.message);
     return undefined;
   }
 }
@@ -108,8 +110,9 @@ try {
     hasGeminiLLM: Boolean(process.env.GEMINI_LLM_API_KEY),
     hasGeminiTTS: Boolean(process.env.GEMINI_TTS_API_KEY),
   });
-} catch {
-  /* initial presence log skipped */
+} catch (err) {
+  // ROBUSTNESS: Log initial API key presence check failure
+  console.error("[INIT] API key presence check failed:", (err as Error)?.message);
 }
 
 // Utility: Convert raw PCM to WAV format
@@ -148,7 +151,8 @@ function pcmToWav(pcmBuffer: Buffer): Buffer {
 
 // Express uygulamasını oluştur
 const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
+// ROBUSTNESS: Validate PORT environment variable with fallback
+const PORT = process.env.PORT ? Math.max(1, Math.min(65535, parseInt(process.env.PORT) || 3001)) : 3001;
 
 // Güvenlik başlıkları ve karmaşık kalkanlar kaldırıldı (kişisel/lokal kullanım)
 
@@ -172,8 +176,9 @@ function stopCurrentPlayback(reason = "stopped") {
   if (currentPlayback.process && !currentPlayback.process.killed) {
     try {
       currentPlayback.process.kill("SIGTERM");
-    } catch {
-      /* kill fail ignore */
+    } catch (err) {
+      // ROBUSTNESS: Process already dead or permission denied - log for debugging
+      console.error("[PLAYBACK] Failed to kill process:", (err as Error)?.message);
     }
   }
   const info = {
@@ -568,8 +573,9 @@ app.post("/api/llm", async (req, res) => {
       headers: { "content-type": req.headers["content-type"] },
       bodyKeys: Object.keys(req.body || {}),
     });
-  } catch {
-    /* llm request start log skipped */
+  } catch (err) {
+    // ROBUSTNESS: Log request start logging failure - non-critical
+    console.error("[LLM] Request start log failed:", (err as Error)?.message);
   }
   // Frontend'den gelen ayarları ve prompt'u al
   const {
@@ -582,9 +588,30 @@ app.post("/api/llm", async (req, res) => {
     endpoint: clientEndpoint,
   } = req.body;
 
-  // Input validation
+  // SECURITY: Comprehensive input validation to prevent injection attacks
   if (typeof prompt !== "string" || prompt.trim().length === 0) {
     return res.status(400).json({ error: "Geçerli bir prompt girin." });
+  }
+
+  // SECURITY: Limit prompt length to prevent DOS attacks
+  if (prompt.length > 5000) {
+    return res.status(400).json({ 
+      error: "Prompt çok uzun. Maksimum 5000 karakter desteklenir." 
+    });
+  }
+
+  // SECURITY: Validate provider input
+  if (!['openai', 'gemini'].includes(provider)) {
+    return res.status(400).json({ 
+      error: "Geçersiz provider. Sadece 'openai' veya 'gemini' desteklenir." 
+    });
+  }
+
+  // SECURITY: Validate temperature range
+  if (temperature !== undefined && (typeof temperature !== "number" || temperature < 0 || temperature > 2)) {
+    return res.status(400).json({ 
+      error: "Temperature 0 ile 2 arasında olmalıdır." 
+    });
   }
 
   const maxTokens = max_output_tokens || max_completion_tokens;
@@ -932,8 +959,9 @@ ${prompt}`;
       msg: "[API /api/llm] request:end",
       totalMs: Date.now() - tStart,
     });
-  } catch {
-    /* llm request end log skipped */
+  } catch (err) {
+    // ROBUSTNESS: Log request end logging failure - non-critical
+    console.error("[LLM] Request end log failed:", (err as Error)?.message);
   }
 });
 
@@ -1418,6 +1446,38 @@ app.post("/api/tts", async (req, res) => {
     endpoint: clientEndpoint,
   } = req.body;
 
+  // SECURITY: Validate provider input
+  if (provider && !['elevenlabs', 'gemini', 'openai'].includes(provider)) {
+    return res.status(400).json({ 
+      error: "Geçersiz provider. Sadece 'elevenlabs', 'gemini' veya 'openai' desteklenir." 
+    });
+  }
+
+  // EDGE CASE: Validate storyId if provided
+  if (storyId !== undefined && storyId !== null) {
+    const sid = parseInt(storyId);
+    if (isNaN(sid) || sid <= 0) {
+      return res.status(400).json({ 
+        error: "Geçersiz storyId. Pozitif bir sayı olmalıdır." 
+      });
+    }
+  }
+
+  // SECURITY: Validate requestBody text length if present
+  if (requestBody && requestBody.text) {
+    if (typeof requestBody.text !== 'string') {
+      return res.status(400).json({ 
+        error: "Geçersiz metin türü - string bekleniyor." 
+      });
+    }
+    
+    if (requestBody.text.length > 10000) {
+      return res.status(400).json({ 
+        error: "Metin çok uzun. Maksimum 10000 karakter desteklenir." 
+      });
+    }
+  }
+
   // Varsayılan provider seç (env önceliği: AUTO_TTS_PROVIDER > ELEVENLABS > GEMINI)
   if (!provider) {
     if (process.env.AUTO_TTS_PROVIDER) provider = process.env.AUTO_TTS_PROVIDER;
@@ -1849,7 +1909,7 @@ app.post("/api/voice-assistant", async (req, res) => {
 
     const systemPrompt = `Sen bir çocuklar için masal asistanısın. Görevin:
 1. MASAL ÜRETİMİ: Her isteği masal talebi olarak değerlendir ve uygun, eğitici, sevgi dolu, yaşa uygun bir masal üret.
-2. TTS İSTEĞİ: Eğer kullanıcı sadece mevcut masalı seslendirmek istiyorsa (örn: \'seslendir\', \'sesli oku\', \'dinlemek istiyorum\'), yanıtı '__TTS_REQUEST__ Mevcut masalı seslendiriyorum.' şeklinde ver.
+2. TTS İSTEĞİ: Eğer kullanıcı sadece mevcut masalı seslendirmek istiyorsa (örn: 'seslendir', 'sesli oku', 'dinlemek istiyorum'), yanıtı '__TTS_REQUEST__ Mevcut masalı seslendiriyorum.' şeklinde ver.
 3. EĞER KULLANICI AÇIKÇA YENİ MASAL İSTİYORSA: Tam masalı üret (en az 6-8 cümle, sakin ve uyku öncesi ton). Başına '__TTS_REQUEST__' KOYMA.
 4. SADECE MASAL VEYA TTS İSTEĞİNE CEVAP VER. Başka açıklama, meta yorum, rol tekrarı yapma.
 5. FORMAT: Paragraflar halinde, sade, Türkçe ve 5 yaşındaki bir çocuk için anlaşılır.

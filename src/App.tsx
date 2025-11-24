@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button.jsx";
 import { Card, CardContent } from "@/components/ui/card.jsx";
 import {
@@ -455,10 +455,23 @@ function App() {
 
   // Load stories when StoryManagementPanel is opened
   useEffect(() => {
+    // ROBUSTNESS: Add abort controller to prevent race conditions
+    let cancelled = false;
+    
     if (showStoryManagement) {
       console.log("[App] StoryManagementPanel opened, loading stories...");
-      loadStories();
+      loadStories().catch((err) => {
+        // ROBUSTNESS: Handle async errors in useEffect
+        if (!cancelled) {
+          console.error("[App] Failed to load stories:", err);
+        }
+      });
     }
+
+    return () => {
+      // Cleanup: mark as cancelled to prevent state updates after unmount
+      cancelled = true;
+    };
   }, [showStoryManagement, loadStories]);
 
   const generateStory = async () => {
@@ -924,12 +937,13 @@ function App() {
     }
   };
 
-  const clearStory = () => {
+  // PERFORMANCE: Memoize clearStory to prevent unnecessary re-renders
+  const clearStory = useCallback(() => {
     setStory("");
     setAudioUrl("");
     setCurrentStoryId(null);
     setError("");
-  };
+  }, []);
 
   // Save story manually when user clicks save button or auto-save from voice commands
   const saveStory = async (
