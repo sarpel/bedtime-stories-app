@@ -12,6 +12,9 @@ const pinoHttp = require('pino-http');
 const multer = require('multer');
 const FormData = require('form-data');
 
+// SECURITY: Import rate limiting middleware
+const { ipRateLimit } = require('./middleware/security');
+
 // Üretimde fallback istemiyoruz: sadece backend/.env (veya .env.production) okunur; yoksa hata.
 (() => {
   try {
@@ -370,8 +373,8 @@ try {
 // /healthz kaldırıldı (tekil /health endpoint'i kullanılacak)
 
 // Paylaşılan masalların ses dosyalarına erişim (public endpoint)
-// SECURITY FIX: Added path traversal protection and proper error handling
-app.get('/api/shared/:shareId/audio', (req, res) => {
+// SECURITY FIX: Added path traversal protection, rate limiting, and proper error handling
+app.get('/api/shared/:shareId/audio', ipRateLimit(50, 60000), (req, res) => {
   try {
     const shareId = req.params.shareId;
     
@@ -456,7 +459,7 @@ app.post('/api/play/stop', (req, res) => {
   res.json({ success: true, stopped: true, info });
 });
 
-app.post('/api/play/:id', (req, res) => {
+app.post('/api/play/:id', ipRateLimit(30, 60000), (req, res) => {
   try {
     // SECURITY FIX: Strict input validation to prevent injection
     const idParam = req.params.id;
