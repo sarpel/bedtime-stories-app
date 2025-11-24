@@ -477,6 +477,23 @@ const storyDb = {
     customTopic: string | null = null,
   ): number {
     try {
+      // SECURITY: Validate input parameters
+      if (typeof storyText !== 'string' || storyText.trim().length === 0) {
+        throw new Error('Geçersiz masal metni - boş olamaz');
+      }
+      
+      if (storyText.length > 50000) {
+        throw new Error('Masal metni çok uzun - maksimum 50000 karakter');
+      }
+      
+      if (typeof storyType !== 'string' || storyType.trim().length === 0) {
+        throw new Error('Geçersiz masal türü');
+      }
+      
+      if (customTopic !== null && typeof customTopic !== 'string') {
+        throw new Error('Geçersiz özel konu türü');
+      }
+      
       console.log(
         `[DB:createStory] Creating story with type: ${storyType}, customTopic: ${customTopic}`,
       );
@@ -646,6 +663,27 @@ const storyDb = {
     customTopic: string | null = null,
   ): boolean {
     try {
+      // SECURITY: Validate input parameters
+      if (!Number.isInteger(id) || id <= 0) {
+        throw new Error('Geçersiz masal ID');
+      }
+      
+      if (typeof storyText !== 'string' || storyText.trim().length === 0) {
+        throw new Error('Geçersiz masal metni - boş olamaz');
+      }
+      
+      if (storyText.length > 50000) {
+        throw new Error('Masal metni çok uzun - maksimum 50000 karakter');
+      }
+      
+      if (typeof storyType !== 'string' || storyType.trim().length === 0) {
+        throw new Error('Geçersiz masal türü');
+      }
+      
+      if (customTopic !== null && typeof customTopic !== 'string') {
+        throw new Error('Geçersiz özel konu türü');
+      }
+      
       console.log(`[DB:updateStory] Updating story with id: ${id}`);
       const result = statements.updateStory.run(
         storyText,
@@ -665,6 +703,11 @@ const storyDb = {
 
   deleteStory(id: number): boolean {
     try {
+      // SECURITY: Validate input parameters
+      if (!Number.isInteger(id) || id <= 0) {
+        throw new Error('Geçersiz masal ID');
+      }
+      
       console.log(`[DB:deleteStory] Attempting to delete story with id: ${id}`);
 
       const audio = statements.getAudioByStoryId.get(id) as
@@ -674,16 +717,22 @@ const storyDb = {
         console.log(
           `[DB:deleteStory] Found associated audio file: ${audio.file_path}`,
         );
-        if (fs.existsSync(audio.file_path)) {
-          console.log(
-            `[DB:deleteStory] Audio file exists. Deleting: ${audio.file_path}`,
-          );
-          fs.unlinkSync(audio.file_path);
-          console.log("[DB:deleteStory] Successfully deleted audio file.");
-        } else {
-          console.log(
-            `[DB:deleteStory] Audio file path does not exist: ${audio.file_path}`,
-          );
+        // ROBUSTNESS: Safely delete file with error handling
+        try {
+          if (fs.existsSync(audio.file_path)) {
+            console.log(
+              `[DB:deleteStory] Audio file exists. Deleting: ${audio.file_path}`,
+            );
+            fs.unlinkSync(audio.file_path);
+            console.log("[DB:deleteStory] Successfully deleted audio file.");
+          } else {
+            console.log(
+              `[DB:deleteStory] Audio file path does not exist: ${audio.file_path}`,
+            );
+          }
+        } catch (fileErr) {
+          // ROBUSTNESS: Continue even if file deletion fails
+          console.error("[DB:deleteStory] Failed to delete audio file:", (fileErr as Error)?.message);
         }
       } else {
         console.log(

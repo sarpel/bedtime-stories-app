@@ -151,7 +151,8 @@ function pcmToWav(pcmBuffer: Buffer): Buffer {
 
 // Express uygulamasını oluştur
 const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
+// ROBUSTNESS: Validate PORT environment variable with fallback
+const PORT = process.env.PORT ? Math.max(1, Math.min(65535, parseInt(process.env.PORT) || 3001)) : 3001;
 
 // Güvenlik başlıkları ve karmaşık kalkanlar kaldırıldı (kişisel/lokal kullanım)
 

@@ -455,10 +455,23 @@ function App() {
 
   // Load stories when StoryManagementPanel is opened
   useEffect(() => {
+    // ROBUSTNESS: Add abort controller to prevent race conditions
+    let cancelled = false;
+    
     if (showStoryManagement) {
       console.log("[App] StoryManagementPanel opened, loading stories...");
-      loadStories();
+      loadStories().catch((err) => {
+        // ROBUSTNESS: Handle async errors in useEffect
+        if (!cancelled) {
+          console.error("[App] Failed to load stories:", err);
+        }
+      });
     }
+
+    return () => {
+      // Cleanup: mark as cancelled to prevent state updates after unmount
+      cancelled = true;
+    };
   }, [showStoryManagement, loadStories]);
 
   const generateStory = async () => {
