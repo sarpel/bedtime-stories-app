@@ -70,7 +70,7 @@ export function sanitizeOutput(data: any): any {
   if (data !== null && typeof data === 'object') {
     const sanitized: any = {};
     for (const key in data) {
-      if (data.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
         sanitized[key] = sanitizeOutput(data[key]);
       }
     }
@@ -112,9 +112,9 @@ export function sanitizeInput(req: Request, res: Response, next: NextFunction): 
   if (req.query && typeof req.query === 'object') {
     for (const key in req.query) {
       if (typeof req.query[key] === 'string') {
-        // Remove null bytes and control characters
+        // Remove null bytes and control characters - required for security
         req.query[key] = (req.query[key] as string)
-          .replace(/\x00/g, '')
+          // eslint-disable-next-line no-control-regex
           .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
       }
     }
@@ -124,10 +124,9 @@ export function sanitizeInput(req: Request, res: Response, next: NextFunction): 
   if (req.body && typeof req.body === 'object') {
     const sanitizeBodyValue = (value: any): any => {
       if (typeof value === 'string') {
-        // Remove null bytes and control characters
-        return value
-          .replace(/\x00/g, '')
-          .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+        // Remove null bytes and control characters - required for security
+        // eslint-disable-next-line no-control-regex
+        return value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
       }
       if (Array.isArray(value)) {
         return value.map(item => sanitizeBodyValue(item));
@@ -135,7 +134,7 @@ export function sanitizeInput(req: Request, res: Response, next: NextFunction): 
       if (value !== null && typeof value === 'object') {
         const sanitized: any = {};
         for (const key in value) {
-          if (value.hasOwnProperty(key)) {
+          if (Object.prototype.hasOwnProperty.call(value, key)) {
             sanitized[key] = sanitizeBodyValue(value[key]);
           }
         }

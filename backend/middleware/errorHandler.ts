@@ -75,7 +75,7 @@ export function errorHandler(
  * Async error wrapper
  * Catches errors in async route handlers
  */
-export function asyncHandler(fn: Function) {
+export function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };

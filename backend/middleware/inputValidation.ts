@@ -235,8 +235,9 @@ export function sanitizeFilename(filename: string): string {
   // SECURITY: Remove all path separators and parent directory references
   return filename
     .replace(/\.\./g, '') // Remove ..
-    .replace(/[\/\\]/g, '') // Remove / and \
+    .replace(/[/\\]/g, '') // Remove / and \
     .replace(/^\.+/, '') // Remove leading dots
+    // eslint-disable-next-line no-control-regex
     .replace(/[<>:"|?*\x00-\x1f]/g, '') // Remove invalid filename chars
     .trim();
 }
